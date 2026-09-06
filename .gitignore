@@ -1,0 +1,17 @@
+node_modules/
+dist/
+web-dist/
+/data/
+umbrel-community-store/**/data/*
+!umbrel-community-store/**/data/.gitkeep
+.env
+.env.*
+!.env.example
+coverage/
+test-results/
+playwright-report/
+*.log
+.DS_Store
+artifacts/
+
+.release/

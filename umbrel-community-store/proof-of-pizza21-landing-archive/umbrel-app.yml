@@ -1,0 +1,44 @@
+manifestVersion: 1
+id: proof-of-pizza21-landing-archive
+category: Productivity
+name: Landing Archive
+version: "0.1.0"
+tagline: La storia dei tuoi siti e delle landing dei competitor
+icon: https://raw.githubusercontent.com/Proof-of-Pizza21/umbrel-community-store/main/proof-of-pizza21-landing-archive/assets/icon.svg
+description: >-
+  Anteprima per mini PC Intel/AMD a 64 bit, destinata al collaudo su umbrelOS
+  1.7.4. Questa prima versione non include il supporto ARM.
+
+
+  Conserva sul tuo Umbrel le versioni dei siti che segui. Al primo avvio crea
+  una password per proteggere il tuo archivio, poi aggiungi i domini o le pagine
+  da monitorare e scegli ogni quanto controllarli.
+
+
+  Salva screenshot, copie HTML e testo delle pagine; consulta lo storico e
+  confronta i cambiamenti. Cerca nuove pagine tramite sitemap e collegamenti,
+  e conserva le copie precedenti quando una pagina non è più raggiungibile.
+  Puoi aggiungere manualmente le landing trovate in annunci o newsletter.
+
+
+  I dati rimangono sul tuo dispositivo. Non è richiesto un servizio cloud.
+  Le pagine protette da login, CAPTCHA o sistemi anti-bot possono non essere
+  acquisibili. Le landing senza collegamenti pubblici vanno aggiunte a mano.
+releaseNotes: ""
+
+developer: Proof-of-Pizza21
+website: https://github.com/Proof-of-Pizza21/landing-archive
+dependencies: []
+repo: https://github.com/Proof-of-Pizza21/landing-archive
+support: https://github.com/Proof-of-Pizza21/landing-archive/issues
+
+# Provisional host port: verify conflicts on the target Umbrel before release.
+port: 4310
+gallery: []
+path: ""
+
+defaultUsername: ""
+defaultPassword: ""
+
+submitter: Proof-of-Pizza21
+submission: ""

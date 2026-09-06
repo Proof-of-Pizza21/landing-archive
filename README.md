@@ -1,0 +1,89 @@
+# Landing Archive
+
+Archivio locale per seguire l'evoluzione dei propri siti e delle landing dei
+competitor: nuove pagine, cambiamenti nel messaggio e versioni che scompaiono.
+Interfaccia in italiano, dati sul proprio disco, nessun account cloud richiesto.
+
+**Stato: anteprima 0.1.0 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
+umbrelOS 1.7.4 come primo ambiente di collaudo.** Il repository contiene il codice,
+la configurazione Docker e il pacchetto community store. La pubblicazione delle
+immagini e le prove dei container sono in preparazione; il collaudo sul mini PC
+resta da eseguire. Questa anteprima non include il supporto ARM.
+
+## Come funziona
+
+- Aggiungi un dominio o un indirizzo preciso e scegli l'intervallo dei controlli.
+- Salva screenshot desktop, HTML tramite SingleFile e testo della pagina.
+- Cerca altre pagine attraverso sitemap e collegamenti pubblici.
+- Consulta lo storico delle acquisizioni e confronta le versioni.
+- Esporta un backup ZIP dell'archivio e scarica il sorgente dell'app dall'interfaccia.
+- Conserva le copie esistenti anche quando una nuova visita fallisce.
+- Registra il ritorno a una versione precedente: A → B → A rimane nello storico.
+
+I controlli sono distinti dalle versioni: una visita senza cambiamenti aggiorna
+lo storico dei controlli senza richiedere un'altra copia identica. La rilevazione
+dei cambiamenti non può rivelare i risultati di conversione o garantire che una
+variante osservata sia un test A/B.
+
+## Primo avvio
+
+Per provare il progetto su un computer che dispone già di Docker con Compose:
+
+```sh
+docker compose up --build -d
+```
+
+Apri `http://localhost:4310` e crea il tuo nome utente e la password dell'archivio.
+Il collegamento locale è pubblicato solo su `127.0.0.1`; il worker browser non
+espone una porta sul computer. Questa modalità serve al collaudo locale.
+L'installazione Umbrel usa invece il suo proxy e il login Umbrel.
+
+Le istruzioni complete e i passaggi ancora necessari alla distribuzione sono in
+[Installazione](docs/INSTALL.md). Per backup, spazio su disco, riavvii e problemi
+di acquisizione vedi [Gestione dell'archivio](docs/OPERATIONS.md).
+Gli esiti verificati e le prove ancora necessarie sono nel [Resoconto di collaudo](docs/TESTING.md).
+
+## Scelte della prima versione
+
+Una pagina alla volta limita il carico del browser. Come punto di partenza si
+usano controlli ogni 6 ore e ricerca di nuove pagine ogni 24 ore; la frequenza è
+modificabile dall'interfaccia. L'archivio non cancella automaticamente le vecchie
+versioni per fare spazio.
+
+La composizione Docker limita l'app a 1 GB di RAM e il worker a 3 GB; sono limiti
+massimi dei container, non consumi costanti. Le prestazioni dipendono dalle
+pagine. Il pacchetto deve ancora essere verificato sul kernel di umbrelOS 1.7.4
+e sul mini PC destinato al primo collaudo.
+
+Le pagine senza link o sitemap pubblica devono essere aggiunte manualmente. Non
+sono inclusi accessi con account, aggiramento di CAPTCHA, catture video,
+ricostruzione di interi servizi web o scoperta automatica delle campagne pubblicitarie.
+Una copia HTML è un documento conservato, non il sito interattivo funzionante.
+
+## Struttura
+
+| Componente | Ruolo |
+| --- | --- |
+| React e Vite | Interfaccia, timeline e confronto |
+| Fastify su Node.js 24 | API, account, pianificazione e archivio |
+| SQLite | Siti, pagine, controlli e riferimenti alle versioni |
+| Worker Playwright e Chromium | Visita delle pagine e screenshot |
+| SingleFile Core | Copia HTML con risorse incorporate quando acquisibili |
+| Docker Compose | App e worker separati con archivio persistente |
+
+Non è un fork di ArchiveBox o changedetection.io. La logica dedicata a siti,
+landing e storico è parte di questa app; i componenti browser e HTML vengono
+riutilizzati dai rispettivi progetti.
+
+## Dati e distribuzione
+
+L'archivio, gli indirizzi aggiunti dall'utente, le password e i token rimangono
+nel volume dati. Non inserire esempi personali o acquisizioni nei sorgenti, nelle
+immagini Docker, negli screenshot dello store o nelle segnalazioni pubbliche.
+Il contesto di build Docker ammette soltanto i file applicativi necessari.
+
+Copyright © 2026 Proof-of-Pizza21. Il codice applicativo è distribuito con
+licenza **AGPL-3.0-or-later**; il testo è in [LICENSE](LICENSE). Le dipendenze
+mantengono le proprie licenze, elencate in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+I contenuti archiviati non diventano codice del progetto e mantengono i diritti
+dei rispettivi titolari.

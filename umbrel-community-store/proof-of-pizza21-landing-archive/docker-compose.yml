@@ -1,0 +1,73 @@
+# STAGED PACKAGE: image publication and immutable digest are required before
+# this directory can be used as an installable Community App Store package.
+services:
+  app_proxy:
+    environment:
+      APP_HOST: proof-of-pizza21-landing-archive_web_1
+      APP_PORT: 4310
+
+  web:
+    # Preview amd64. Replace with tag@sha256:<verified digest> after publication.
+    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.0
+    user: "1000:1000"
+    init: true
+    restart: on-failure
+    command: ["node", "dist/server.js"]
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "4310"
+      DATA_DIR: /data
+      CAPTURE_WORKER_URL: http://proof-of-pizza21-landing-archive_worker_1:4311
+      NODE_ENV: production
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 1.0
+    stop_grace_period: 90s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4310/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  worker:
+    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.0
+    user: "1000:1000"
+    init: true
+    restart: on-failure
+    command: ["node", "dist/worker.js"]
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "4311"
+      DATA_DIR: /data
+      NODE_ENV: production
+    volumes:
+      - ${APP_DATA_DIR}/data:/data:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=1g,mode=1777
+    shm_size: 512m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+      - seccomp=${APP_DATA_DIR}/seccomp-profile.json
+    mem_limit: 3g
+    cpus: 2.0
+    pids_limit: 256
+    stop_grace_period: 90s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4311/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3

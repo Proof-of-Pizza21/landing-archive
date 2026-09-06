@@ -1,0 +1,117 @@
+name: Verify and publish preview
+
+on:
+  push:
+    branches: [main]
+    tags: ['v0.1.0']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the tested amd64 preview to GHCR
+        type: boolean
+        required: true
+        default: false
+      version:
+        description: Release version (must match package.json)
+        type: string
+        required: true
+        default: '0.1.0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '24.13.1'
+  PREVIEW_IMAGE: landing-archive:ci
+  REGISTRY_IMAGE: ghcr.io/proof-of-pizza21/landing-archive
+
+jobs:
+  verify:
+    name: Typecheck, unit tests and browser regression
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6; verified 2026-09-06
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6; verified 2026-09-06
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          package-manager-cache: false
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Install the lockfile-pinned browser
+        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - run: npm run test:browser
+      - name: Check smoke-test syntax
+        run: node --check scripts/docker-smoke.mjs
+
+  docker-smoke:
+    name: Docker amd64 smoke test
+    needs: verify
+    if: ${{ !startsWith(github.ref, 'refs/tags/') && !(github.event_name == 'workflow_dispatch' && inputs.publish) }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Build the amd64 preview
+        run: docker build --platform linux/amd64 --tag "$PREVIEW_IMAGE" .
+      - name: Test the actual web and worker containers
+        run: node scripts/docker-smoke.mjs
+
+  publish:
+    name: Test and publish the exact preview image
+    needs: verify
+    if: ${{ github.repository == 'Proof-of-Pizza21/landing-archive' && (github.ref == 'refs/tags/v0.1.0' || (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main')) }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
+      - name: Validate release identity and version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version || '0.1.0' }}
+          TRIGGER_REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+        run: node scripts/release-metadata.mjs
+      - name: Build the release image
+        run: >-
+          docker build --platform linux/amd64 --tag "$PREVIEW_IMAGE"
+          --label "org.opencontainers.image.source=https://github.com/Proof-of-Pizza21/landing-archive"
+          --label "org.opencontainers.image.revision=$GITHUB_SHA"
+          --label "org.opencontainers.image.authors=Proof-of-Pizza21" .
+      - name: Gate publication on the actual containers
+        run: node scripts/docker-smoke.mjs
+      - name: Publish the tested image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username Proof-of-Pizza21 --password-stdin
+          docker tag "$PREVIEW_IMAGE" "$REGISTRY_IMAGE:$RELEASE_VERSION"
+          docker push "$REGISTRY_IMAGE:$RELEASE_VERSION"
+          docker image inspect --format '{{join .RepoDigests "\n"}}' "$REGISTRY_IMAGE:$RELEASE_VERSION" >> "$GITHUB_STEP_SUMMARY"
+          printf '\nPreview linux/amd64 verified and published. Use the digest above in the Umbrel community store.\n' >> "$GITHUB_STEP_SUMMARY"

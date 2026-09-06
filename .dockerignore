@@ -1,0 +1,36 @@
+# Allowlist: local URLs, archives, screenshots, credentials and reports cannot
+# enter the Docker build context, even when placed in a new top-level folder.
+**
+!package.json
+!package-lock.json
+!tsconfig.server.json
+!tsconfig.web.json
+!vite.config.ts
+!Dockerfile
+!src/
+!src/**
+!web/
+!web/**
+!tests/
+!tests/**
+!LICENSE
+!THIRD_PARTY_NOTICES.md
+!README.md
+!compose.yaml
+!.dockerignore
+!docs/
+!docs/INSTALL.md
+!docs/OPERATIONS.md
+!docs/TESTING.md
+!umbrel-community-store/
+!umbrel-community-store/README.md
+!umbrel-community-store/umbrel-app-store.yml
+!umbrel-community-store/proof-of-pizza21-landing-archive/
+!umbrel-community-store/proof-of-pizza21-landing-archive/LICENSE-PLAYWRIGHT
+!umbrel-community-store/proof-of-pizza21-landing-archive/umbrel-app.yml
+!umbrel-community-store/proof-of-pizza21-landing-archive/docker-compose.yml
+!umbrel-community-store/proof-of-pizza21-landing-archive/seccomp-profile.json.template
+!umbrel-community-store/proof-of-pizza21-landing-archive/assets/
+!umbrel-community-store/proof-of-pizza21-landing-archive/assets/icon.svg
+!umbrel-community-store/proof-of-pizza21-landing-archive/data/
+!umbrel-community-store/proof-of-pizza21-landing-archive/data/.gitkeep
