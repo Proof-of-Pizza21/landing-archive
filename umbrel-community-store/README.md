@@ -5,10 +5,29 @@ Questa directory è la radice del community app store di
 Landing Archive 0.1.0 è un'anteprima per mini PC Intel/AMD a 64 bit (`linux/amd64`),
 destinata al collaudo su umbrelOS 1.7.4. ARM non è incluso nella prima anteprima.
 
-La pubblicazione dell'immagine GHCR e il digest verificato sono in preparazione.
-Il collaudo sul dispositivo Umbrel non è ancora stato eseguito.
+Il [collaudo dei container Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34147293202) è riuscito: avvio con sandbox
+Chromium attiva, acquisizione, copia offline, controllo invariato, backup e
+persistenza dopo riavvio. Il collaudo sul dispositivo Umbrel non è ancora stato
+eseguito.
 
-La radice da pubblicare conterrà:
+## Installazione
+
+Quando la release 0.1.0 è disponibile con immagine pubblica e digest verificato:
+
+1. Apri l'App Store Umbrel e la gestione dei community app store.
+2. Aggiungi [https://github.com/Proof-of-Pizza21/umbrel-community-store](https://github.com/Proof-of-Pizza21/umbrel-community-store).
+3. Apri **Landing Archive Community Store**, installa **Landing Archive** e avviala.
+4. Crea un nome utente e una password di almeno **12 caratteri**. Non ci sono
+   credenziali predefinite.
+5. Aggiungi il primo dominio o una pagina, scegli l'intervallo dei controlli e
+   apri la timeline dopo l'acquisizione.
+
+La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.0`.
+Il pacchetto distribuito deve bloccarla al digest verificato dopo la pubblicazione.
+
+## Struttura del pacchetto
+
+La radice contiene:
 
 ```text
 umbrel-app-store.yml
@@ -31,5 +50,5 @@ del progetto applicativo e verificare gli indirizzi presenti nel manifest.
 
 Il community store segue il
 [template ufficiale Umbrel](https://github.com/getumbrel/umbrel-community-app-store).
-Non è uno store ufficiale Umbrel e questa preparazione non implica approvazione
+Non è uno store ufficiale Umbrel e la sua disponibilità non implica approvazione
 o distribuzione da parte del progetto Umbrel.

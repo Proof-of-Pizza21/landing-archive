@@ -24,7 +24,15 @@ description: >-
   I dati rimangono sul tuo dispositivo. Non è richiesto un servizio cloud.
   Le pagine protette da login, CAPTCHA o sistemi anti-bot possono non essere
   acquisibili. Le landing senza collegamenti pubblici vanno aggiunte a mano.
-releaseNotes: ""
+releaseNotes: >-
+  Prima anteprima 0.1.0 per mini PC Intel/AMD a 64 bit: controlli programmati,
+  scoperta delle pagine pubbliche, screenshot e copie HTML, timeline, confronto
+  delle versioni e backup dell'archivio.
+
+
+  Collaudo dei container Linux amd64 completato, con sandbox Chromium attiva,
+  acquisizione reale, copie offline, deduplicazione, backup e riavvio.
+  Il collaudo sul dispositivo umbrelOS 1.7.4 resta da eseguire. ARM non incluso.
 
 developer: Proof-of-Pizza21
 website: https://github.com/Proof-of-Pizza21/landing-archive

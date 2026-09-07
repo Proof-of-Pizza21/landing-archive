@@ -1,15 +1,32 @@
-# Installazione e preparazione della distribuzione
+# Installazione
 
-Questa prima versione è un'anteprima per mini PC Intel/AMD a 64 bit
-(`linux/amd64`), con umbrelOS 1.7.4 come ambiente di destinazione. L'immagine e il
-pacchetto dello store sono in preparazione per il primo collaudo. ARM sarà
-valutato in una release successiva; non è necessario per il mini PC AMD.
+Landing Archive 0.1.0 è un'anteprima per mini PC Intel/AMD a 64 bit
+(`linux/amd64`), con umbrelOS 1.7.4 come ambiente di destinazione. Le prove
+Docker su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34147293202), comprese acquisizione reale,
+consultazione offline, backup e riavvio. Il collaudo sul dispositivo Umbrel resta
+da eseguire; ARM non è incluso in questa anteprima.
 
-Le destinazioni della release sono il repository applicativo
-[Landing Archive](https://github.com/Proof-of-Pizza21/landing-archive) e il
-[community store](https://github.com/Proof-of-Pizza21/umbrel-community-store).
-L'installazione dallo store richiede che l'immagine prevista sia pubblica e
-che il pacchetto contenga il suo digest verificato.
+## Installazione su Umbrel
+
+La procedura seguente si applica quando la release 0.1.0 è disponibile: richiede
+l'immagine pubblica `ghcr.io/proof-of-pizza21/landing-archive:0.1.0` e il relativo
+digest verificato nel pacchetto del community store.
+
+1. Apri l'App Store Umbrel e la gestione dei community app store.
+2. Aggiungi l'indirizzo [https://github.com/Proof-of-Pizza21/umbrel-community-store](https://github.com/Proof-of-Pizza21/umbrel-community-store).
+3. Apri **Landing Archive Community Store** e installa **Landing Archive**.
+4. Avvia l'app e crea un nome utente e una password di almeno **12 caratteri**.
+5. Aggiungi un dominio o l'indirizzo di una pagina e scegli l'intervallo dei
+   controlli. Dopo la prima acquisizione, apri la pagina per consultare la
+   timeline, lo screenshot e la copia HTML.
+
+Non esistono nome utente e password predefiniti. L'account dell'archivio è
+separato dal login Umbrel; entrambi proteggono l'accesso. Le nuove acquisizioni
+vengono salvate sul dispositivo. Inizia con un sito e verifica che la prima copia
+sia leggibile prima di aggiungere gli altri.
+
+Il codice è nel repository [Landing Archive](https://github.com/Proof-of-Pizza21/landing-archive).
+Per backup, spazio e gestione continuativa consulta [Gestione dell'archivio](OPERATIONS.md).
 
 ## Prova locale con Docker
 
@@ -89,8 +106,8 @@ modalità è destinata allo sviluppo, non sostituisce i due servizi del pacchett
 
 ## Pacchetto community store Umbrel
 
-La directory `umbrel-community-store/` contiene il futuro contenuto della radice
-di un repository dedicato allo store. L'identificatore dello store è
+La directory `umbrel-community-store/` contiene il pacchetto distribuito
+nel repository dedicato allo store. L'identificatore dello store è
 `proof-of-pizza21`, quello dell'app è
 `proof-of-pizza21-landing-archive`; devono rimanere stabili dopo la prima
 installazione.
@@ -113,18 +130,17 @@ Il file non contiene variabili e la sostituzione non ne cambia il contenuto.
 Il Compose locale legge direttamente il template, che è già JSON valido.
 Questo evita di lasciare un vecchio profilo installato dopo un aggiornamento.
 
-L'immagine prevista è `ghcr.io/proof-of-pizza21/landing-archive:0.1.0`.
-La prima build destinata al collaudo è per `linux/amd64`. Il Compose dello store
-riporta il tag senza un digest inventato; prima della distribuzione entrambe
-le righe devono diventare
-`ghcr.io/proof-of-pizza21/landing-archive:0.1.0@sha256:<digest-verificato>`.
+La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.0`,
+per `linux/amd64`. La distribuzione del community store richiede che entrambe
+le righe `image` del Compose includano il digest dell'immagine pubblicata e
+verificata. Il digest si ricava dal registro dopo la pubblicazione.
 
 La porta esterna prevista è `4310`; va controllata sul dispositivo e rispetto
 alle app installate. Il manifest include le destinazioni del repository, del
 supporto e dell'icona, da verificare dopo la pubblicazione. L'icona SVG originale
 è presente in `assets/icon.svg`.
 
-## Verifiche che precedono la pubblicazione
+## Procedura di pubblicazione
 
 1. Eseguire controlli di tipo, test e compilazione; conservare il resoconto di
    collaudo con esiti reali, senza confondere prove locali e prove Umbrel.
@@ -151,9 +167,9 @@ supporto e dell'icona, da verificare dopo la pubblicazione. L'icona SVG original
 7. Completare gli URL reali nel manifest, pubblicare la radice dello store e
    provare l'installazione aggiungendone l'URL nell'interfaccia Umbrel.
 
-Questi passaggi descrivono il lavoro di release da svolgere; non attestano che
-sia già stato eseguito. Il pacchetto mantiene questo stato finché immagine,
-digest e prove sul dispositivo non sono disponibili.
+Le prove automatiche e Docker Linux amd64 sono completate; pubblicazione
+dell'immagine e dello store sono passaggi distinti. Il [resoconto di collaudo](TESTING.md)
+distingue le verifiche già eseguite da quelle ancora necessarie sul dispositivo.
 
 ## Verifiche del packaging eseguite
 
@@ -165,13 +181,14 @@ l'esistenza dell'immagine di base `node:24.13.1-bookworm-slim`, con immagini
 Il Dockerfile blocca tag e digest a questo risultato e installa la versione
 Chromium corrispondente al Playwright del file di lock.
 
-È stata verificata la sintassi YAML di Compose e manifest, la struttura JSON
-del profilo seccomp e la coerenza statica di porte, endpoint di salute, utente
-dei container e accesso in sola lettura del worker ai dati. Queste verifiche
-non eseguono il motore Docker e non equivalgono a un test d'installazione.
+Sono state verificate la sintassi YAML di Compose e manifest, la struttura JSON
+del profilo seccomp e la coerenza di porte, endpoint di salute e utenti.
+Il [collaudo Docker Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34147293202) ha poi avviato i due container con
+le restrizioni distribuite: filesystem in sola lettura, utente non amministratore,
+volume del worker in sola lettura e sandbox Chromium attiva. Ha verificato
+acquisizione reale, copia offline, deduplicazione, backup e persistenza al riavvio.
 
-La verifica del registro riguarda l'immagine di base, non il build di Landing
-Archive. I container non sono stati avviati in questo ambiente di sviluppo,
-nel quale Docker non è installato. Restano da provare il profilo seccomp,
-i permessi sui volumi appena creati e ripristinati, il consumo di memoria e il
-ciclo installazione/aggiornamento su Umbrel.
+Il collaudo del runner usa Compose locale e un volume Docker dedicato; non
+riproduce l'installazione attraverso Umbrel. Restano da verificare sul dispositivo
+il kernel effettivo, i permessi dei volumi creati e ripristinati da Umbrel,
+l'accesso tramite proxy, i consumi e il ciclo installazione/aggiornamento.

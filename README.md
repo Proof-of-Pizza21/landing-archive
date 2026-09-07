@@ -6,9 +6,11 @@ Interfaccia in italiano, dati sul proprio disco, nessun account cloud richiesto.
 
 **Stato: anteprima 0.1.0 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
 umbrelOS 1.7.4 come primo ambiente di collaudo.** Il repository contiene il codice,
-la configurazione Docker e il pacchetto community store. La pubblicazione delle
-immagini e le prove dei container sono in preparazione; il collaudo sul mini PC
-resta da eseguire. Questa anteprima non include il supporto ARM.
+la configurazione Docker e il pacchetto community store. Le prove dei container
+su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34147293202); il collaudo sul mini PC
+resta da eseguire. Questa anteprima non include il supporto ARM. L'installazione
+dallo store diventa disponibile al completamento della release 0.1.0, con
+immagine pubblica e digest verificato.
 
 ## Come funziona
 
@@ -25,7 +27,20 @@ lo storico dei controlli senza richiedere un'altra copia identica. La rilevazion
 dei cambiamenti non può rivelare i risultati di conversione o garantire che una
 variante osservata sia un test A/B.
 
-## Primo avvio
+## Primo avvio su Umbrel
+
+Quando la release 0.1.0 è disponibile, aggiungi questo indirizzo nella gestione
+dei community app store dell'App Store Umbrel:
+
+[https://github.com/Proof-of-Pizza21/umbrel-community-store](https://github.com/Proof-of-Pizza21/umbrel-community-store)
+
+Apri **Landing Archive Community Store**, installa **Landing Archive** e avviala.
+Crea un nome utente e una password di almeno **12 caratteri** per l'archivio,
+poi aggiungi il primo dominio o una pagina precisa. Scegli l'intervallo dei
+controlli e consulta le acquisizioni nella timeline. Non ci sono credenziali
+predefinite. Il login dell'archivio si aggiunge alla protezione del proxy Umbrel.
+
+## Prova locale con Docker
 
 Per provare il progetto su un computer che dispone già di Docker con Compose:
 
@@ -33,12 +48,13 @@ Per provare il progetto su un computer che dispone già di Docker con Compose:
 docker compose up --build -d
 ```
 
-Apri `http://localhost:4310` e crea il tuo nome utente e la password dell'archivio.
+Apri `http://localhost:4310` e crea un nome utente e una password di almeno
+12 caratteri per l'archivio.
 Il collegamento locale è pubblicato solo su `127.0.0.1`; il worker browser non
 espone una porta sul computer. Questa modalità serve al collaudo locale.
 L'installazione Umbrel usa invece il suo proxy e il login Umbrel.
 
-Le istruzioni complete e i passaggi ancora necessari alla distribuzione sono in
+Le istruzioni complete e la procedura di distribuzione sono in
 [Installazione](docs/INSTALL.md). Per backup, spazio su disco, riavvii e problemi
 di acquisizione vedi [Gestione dell'archivio](docs/OPERATIONS.md).
 Gli esiti verificati e le prove ancora necessarie sono nel [Resoconto di collaudo](docs/TESTING.md).

@@ -1,7 +1,9 @@
 # Collaudo della prima versione
 
-Data: 6 settembre 2026. Prove eseguite su macOS con Node.js 24.13.0 e Chromium
-tramite Google Chrome installato. Non sono misure del dispositivo Umbrel.
+Prove locali del 6 settembre 2026 su macOS con Node.js 24.13.0 e Chromium
+tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
+su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
+bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
 ## Verifiche completate
 
@@ -52,21 +54,50 @@ I controlli leggono nuovamente la pagina per rilevare differenze; è il salvatag
 di nuove versioni a essere evitato quando la pagina è invariata. Non è un sistema
 che evita tutti i download di rete su pagine immutate.
 
+## Container Linux amd64: prove completate
+
+Il [workflow 34147293202](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34147293202) è riuscito sul commit `f74053e`.
+Il runner Ubuntu 22.04 ha eseguito controlli di tipo, test automatici,
+compilazione e regressione browser, poi costruito e provato l'immagine Docker
+`linux/amd64`. Le verifiche sui container effettivi comprendono:
+
+- Avvio sano di app e worker con utente `1000:1000`, filesystem radice in sola
+  lettura, restrizioni del Compose distribuito e archivio del worker in sola lettura.
+- Configurazione iniziale dell'account, accesso autenticato, cookie HttpOnly e
+  SameSite Strict, rifiuto di una seconda configurazione iniziale.
+- Blocco degli indirizzi privati dalle API dell'app e del worker, rifiuto di
+  operazioni del worker senza token e di richieste malformate; scrittura del
+  worker nell'archivio impedita dal volume in sola lettura.
+- Avvio e rendering di Chromium con sandbox Linux attiva.
+- Acquisizione reale di `https://example.com/` tramite il worker: screenshot PNG,
+  copia HTML senza script eseguibili e lettura in un browser con rete e
+  JavaScript disattivati.
+- Seconda acquisizione invariata registrata come nuovo controllo, conservando
+  una sola versione.
+- Esportazione ZIP, riapertura del database esportato e verifica degli hash dei
+  file: versione presente, sessioni attive e token del worker esclusi dal backup.
+- Riavvio di app e worker con conservazione della versione, dei due controlli e
+  dell'accesso; uscita dall'account e nuovo login verificati.
+
+Queste prove usano soltanto una pagina pubblica di esempio e un account temporaneo.
+Credenziali e copie acquisite non vengono caricate come artefatti del workflow.
+Il workflow di release ripete le prove sui container prima di pubblicare
+l'immagine `ghcr.io/proof-of-pizza21/landing-archive:0.1.0`.
+
 ## Anteprima Umbrel: verifiche ancora necessarie
 
-Docker non è disponibile sul computer di collaudo. Build e prove dei container
-saranno eseguite su Linux tramite GitHub Actions per `linux/amd64`. La prima
-release è un'anteprima destinata a umbrelOS 1.7.4 su mini PC AMD; il collaudo
-sul dispositivo resta distinto dalle prove dei runner.
+La release è destinata a umbrelOS 1.7.4 su mini PC Intel/AMD a 64 bit. Il collaudo
+Docker del runner usa il Compose locale e un volume dedicato; non verifica
+l'installazione del pacchetto attraverso l'interfaccia Umbrel.
 
 Restano da provare sul mini PC: sandbox Chromium sul kernel effettivo, permessi
-del volume, accesso attraverso il proxy Umbrel, installazione pulita, riavvio
-del dispositivo, aggiornamento e ripristino. Il supporto ARM non fa parte
-di questa anteprima.
+del volume creato da Umbrel, accesso attraverso il proxy, installazione pulita,
+riavvio del dispositivo, aggiornamento e ripristino. Il supporto ARM non fa parte
+di questa anteprima. Consumi e tempi del runner non sono stime del mini PC.
 
-Le immagini pubbliche, il relativo digest e il community store non sono ancora
-pubblicati. Il manifest è un pacchetto preparatorio. La disponibilità di immagini
-Node per due architetture non dimostra che l'app sia già stata collaudata su entrambe.
+L'installazione dal community store richiede il completamento della release,
+con immagine pubblica e digest verificato nel pacchetto. La riuscita di questo
+workflow di collaudo non attesta, da sola, la pubblicazione nel registro.
 
 ## Ripetere le prove di sviluppo
 
