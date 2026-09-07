@@ -117,6 +117,20 @@ try {
   `);
   check('SSRF blocked at web and worker APIs; worker authorization and read-only archive enforced');
 
+  // Diagnose the actual sandbox before the app deliberately sanitizes browser
+  // errors. This probe contains no credentials and opens no remote page.
+  await worker(`
+    import assert from 'node:assert/strict';
+    import {chromium} from 'playwright';
+    const browser = await chromium.launch({headless:true,chromiumSandbox:true});
+    try {
+      const page = await browser.newPage();
+      await page.setContent('<title>Sandbox smoke test</title>');
+      assert.equal(await page.title(), 'Sandbox smoke test');
+    } finally {await browser.close();}
+  `);
+  check('Chromium starts and renders with its Linux sandbox enabled');
+
   const created = await json('/api/sites', { method: 'POST', body: { name: 'Public example smoke test', url: 'https://example.com/', kind: 'own', maxPages: 1, intervalHours: 24 }, expected: 201 });
   const siteId = created.site.id;
   const site = await json(`/api/sites/${siteId}`);
