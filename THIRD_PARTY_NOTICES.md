@@ -37,8 +37,13 @@ progetto originale è distribuito accanto al profilo come `LICENSE-PLAYWRIGHT`.
 Le modifiche di Landing Archive sono esplicitamente indicate nei commenti JSON:
 risposta ENOSYS per `clone3` e autorizzazione di `close_range`, `epoll_pwait2`,
 `faccessat2` per compatibilità con i runtime recenti, coerentemente con le
-corrispondenti regole del profilo Docker corrente. Il resto delle regole deriva
-dal file Playwright indicato.
+corrispondenti regole del profilo Docker corrente. La regola `chroot` non è
+condizionata alle capability iniziali del container: Chromium la usa per
+rinunciare all'accesso al filesystem dopo l'ingresso nel proprio user namespace.
+Il kernel continua a verificare i privilegi del namespace e il container
+mantiene `cap_drop: [ALL]`. Riferimento al sorgente Chromium:
+https://chromium.googlesource.com/chromium/src/sandbox/+/refs/heads/main/linux/services/credentials.cc.
+Il resto delle regole deriva dal file Playwright indicato.
 
 ## Sorgente corrispondente
 

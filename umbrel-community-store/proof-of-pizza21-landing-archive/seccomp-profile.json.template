@@ -720,12 +720,8 @@
       ],
       "action": "SCMP_ACT_ALLOW",
       "args": [],
-      "comment": "",
-      "includes": {
-        "caps": [
-          "CAP_SYS_CHROOT"
-        ]
-      },
+      "comment": "Landing Archive modification: allow Chromium to drop filesystem access with chroot inside its user namespace. The kernel still checks namespace capabilities; the container keeps cap_drop ALL.",
+      "includes": {},
       "excludes": {}
     },
     {
