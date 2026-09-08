@@ -8,9 +8,8 @@ Interfaccia in italiano, dati sul proprio disco, nessun account cloud richiesto.
 umbrelOS 1.7.4 come primo ambiente di collaudo.** Il repository contiene il codice,
 la configurazione Docker e il pacchetto community store. Le prove dei container
 su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34147293202); il collaudo sul mini PC
-resta da eseguire. Questa anteprima non include il supporto ARM. L'installazione
-dallo store diventa disponibile al completamento della release 0.1.0, con
-immagine pubblica e digest verificato.
+resta da eseguire. Questa anteprima non include il supporto ARM. L'immagine 0.1.0 è pubblica,
+verificata nei container e bloccata al suo digest nel pacchetto dello store.
 
 ## Come funziona
 
@@ -29,7 +28,7 @@ variante osservata sia un test A/B.
 
 ## Primo avvio su Umbrel
 
-Quando la release 0.1.0 è disponibile, aggiungi questo indirizzo nella gestione
+Aggiungi questo indirizzo nella gestione
 dei community app store dell'App Store Umbrel:
 
 [https://github.com/Proof-of-Pizza21/umbrel-community-store](https://github.com/Proof-of-Pizza21/umbrel-community-store)

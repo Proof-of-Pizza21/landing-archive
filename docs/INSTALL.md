@@ -8,9 +8,8 @@ da eseguire; ARM non è incluso in questa anteprima.
 
 ## Installazione su Umbrel
 
-La procedura seguente si applica quando la release 0.1.0 è disponibile: richiede
-l'immagine pubblica `ghcr.io/proof-of-pizza21/landing-archive:0.1.0` e il relativo
-digest verificato nel pacchetto del community store.
+L'immagine pubblica `ghcr.io/proof-of-pizza21/landing-archive:0.1.0` è stata
+verificata e il pacchetto dello store la identifica con il digest pubblicato.
 
 1. Apri l'App Store Umbrel e la gestione dei community app store.
 2. Aggiungi l'indirizzo [https://github.com/Proof-of-Pizza21/umbrel-community-store](https://github.com/Proof-of-Pizza21/umbrel-community-store).
@@ -131,9 +130,8 @@ Il Compose locale legge direttamente il template, che è già JSON valido.
 Questo evita di lasciare un vecchio profilo installato dopo un aggiornamento.
 
 La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.0`,
-per `linux/amd64`. La distribuzione del community store richiede che entrambe
-le righe `image` del Compose includano il digest dell'immagine pubblicata e
-verificata. Il digest si ricava dal registro dopo la pubblicazione.
+per `linux/amd64`. Entrambi i servizi del Compose usano il digest verificato:
+`sha256:beb2bfd0c0c79bf632457f753fe8ee05a6bfbbc33c93719483db73e055cd3cd7`. Il download anonimo dal registro è stato verificato.
 
 La porta esterna prevista è `4310`; va controllata sul dispositivo e rispetto
 alle app installate. Il manifest include le destinazioni del repository, del
@@ -167,8 +165,8 @@ supporto e dell'icona, da verificare dopo la pubblicazione. L'icona SVG original
 7. Completare gli URL reali nel manifest, pubblicare la radice dello store e
    provare l'installazione aggiungendone l'URL nell'interfaccia Umbrel.
 
-Le prove automatiche e Docker Linux amd64 sono completate; pubblicazione
-dell'immagine e dello store sono passaggi distinti. Il [resoconto di collaudo](TESTING.md)
+Le prove automatiche e Docker Linux amd64 sono completate. L'immagine 0.1.0 è
+pubblica e il digest dello store è verificato. Il [resoconto di collaudo](TESTING.md)
 distingue le verifiche già eseguite da quelle ancora necessarie sul dispositivo.
 
 ## Verifiche del packaging eseguite

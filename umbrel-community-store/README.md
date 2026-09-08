@@ -12,7 +12,7 @@ eseguito.
 
 ## Installazione
 
-Quando la release 0.1.0 è disponibile con immagine pubblica e digest verificato:
+La versione 0.1.0 usa un’immagine pubblica e verificata:
 
 1. Apri l'App Store Umbrel e la gestione dei community app store.
 2. Aggiungi [https://github.com/Proof-of-Pizza21/umbrel-community-store](https://github.com/Proof-of-Pizza21/umbrel-community-store).
@@ -23,7 +23,8 @@ Quando la release 0.1.0 è disponibile con immagine pubblica e digest verificato
    apri la timeline dopo l'acquisizione.
 
 La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.0`.
-Il pacchetto distribuito deve bloccarla al digest verificato dopo la pubblicazione.
+Il pacchetto la blocca al digest verificato:
+`sha256:beb2bfd0c0c79bf632457f753fe8ee05a6bfbbc33c93719483db73e055cd3cd7`. Non serve un account GitHub per scaricarla.
 
 ## Struttura del pacchetto
 

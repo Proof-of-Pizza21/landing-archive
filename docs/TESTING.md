@@ -95,9 +95,10 @@ del volume creato da Umbrel, accesso attraverso il proxy, installazione pulita,
 riavvio del dispositivo, aggiornamento e ripristino. Il supporto ARM non fa parte
 di questa anteprima. Consumi e tempi del runner non sono stime del mini PC.
 
-L'installazione dal community store richiede il completamento della release,
-con immagine pubblica e digest verificato nel pacchetto. La riuscita di questo
-workflow di collaudo non attesta, da sola, la pubblicazione nel registro.
+La [release 0.1.0](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34149224656) ha ripetuto con successo tutte le prove e pubblicato l'immagine
+del commit `4cbc8e6`. Il download anonimo dal registro, l'architettura amd64,
+i metadati pubblici e il digest sono stati verificati il 7 settembre 2026.
+Il pacchetto dello store usa `sha256:beb2bfd0c0c79bf632457f753fe8ee05a6bfbbc33c93719483db73e055cd3cd7`.
 
 ## Ripetere le prove di sviluppo
 
