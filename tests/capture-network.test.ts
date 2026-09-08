@@ -50,3 +50,27 @@ test('robots chooses specific agent and longest applicable allow/disallow rule',
   assert.equal(allowedByRobots('https://example.com/private/public', robots.rules), true);
   assert.deepEqual(robots.sitemaps, ['https://example.com/sitemap.xml']);
 });
+
+test('robots wildcard matching preserves anchors and literal punctuation with bounded work', { timeout: 2000 }, () => {
+  const allowed = (path: string, pattern: string) => allowedByRobots('https://example.com' + path, [{ path: pattern, allow: false }]);
+  assert.equal(allowed('/offer/a/b.html', '/offer/*.html$'), false);
+  assert.equal(allowed('/offer/a.html/next', '/offer/*.html$'), true);
+  assert.equal(allowed('/a/one/b/two/c', '/a*b*c$'), false);
+  assert.equal(allowed('/a/one/b/two/c/next', '/a*b*c$'), true);
+  assert.equal(allowed('/a.b?x=1', '/a.b?x=1$'), false);
+  assert.equal(allowed('/axb?x=1', '/a.b?x=1$'), true);
+  assert.equal(allowed('/abc', '/a**b*c*'), false);
+  const words = (alphabet: string, depth: number): string[] => depth ? ['', ...words(alphabet, depth - 1).flatMap(value => [...alphabet].map(char => char + value))] : [''];
+  for (const pattern of new Set(words('ab*', 3))) for (const target of new Set(words('ab', 4))) for (const terminal of ['', '$']) {
+    const rule = '/' + pattern + terminal;
+    const reference = new RegExp('^/' + pattern.split('*').join('.*') + terminal).test('/' + target);
+    assert.equal(allowed('/' + target, rule), !reference, `${rule} against /${target}`);
+  }
+  const start = performance.now();
+  for (let i = 0; i < 1000; i++) assert.equal(allowed('/' + 'a'.repeat(40), '/' + '*a'.repeat(24) + 'b'), true);
+  assert.ok(performance.now() - start < 1000, 'Previously blocking robots input must remain bounded');
+  assert.throws(() => parseRobots(('User-agent: *\nDisallow: /x\n').repeat(257)), (error: any) => error.code === 'ROBOTS_LIMIT');
+  assert.throws(() => parseRobots('User-agent: *\nDisallow: /' + 'x'.repeat(513)), (error: any) => error.code === 'ROBOTS_LIMIT');
+  const budget = { remaining: 50 };
+  assert.throws(() => allowedByRobots('https://example.com/' + 'a'.repeat(40), [{ path: '/abcdefghijk', allow: false }], budget), (error: any) => error.code === 'ROBOTS_LIMIT');
+});

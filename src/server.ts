@@ -53,7 +53,7 @@ export async function createApp() {
     const status = error instanceof CaptureError ? 400 : error.statusCode >= 400 && error.statusCode < 500 ? error.statusCode : /UNIQUE constraint/.test(error.message) ? 409 : 500;
     reply.code(status).send({ error: status === 500 ? 'Operazione non completata. Controlla lo spazio disponibile e riprova.' : status === 429 ? 'Troppi tentativi. Attendi un minuto e riprova.' : status === 409 ? 'Questo indirizzo è già presente nell’archivio' : error.message });
   });
-  app.get('/api/health', async () => ({ ok: true }));
+  app.get('/api/health', { config: { publicAccess: true } }, async () => ({ ok: true }));
   app.get('/api/dashboard', async () => ({
     stats: {
       sites: get('SELECT COUNT(*) n FROM sites')!.n, pages: get('SELECT COUNT(*) n FROM pages')!.n,
@@ -166,7 +166,7 @@ export async function createApp() {
       reply.raw.once('close', () => { if (!reply.raw.writableFinished) zip.abort(); cleanup(); });
       zip.file(destination, { name: 'archive.sqlite' });
       for (const object of objects) zip.file(join(dataDir, object.path), { name: object.path });
-      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.0', schema: 1, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
+      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.1', schema: 1, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
       reply.header('Content-Disposition', `attachment; filename="landing-archive-${now().slice(0, 10)}.zip"`).type('application/zip');
       void zip.finalize().catch(error => zip.destroy(error));
       return reply.send(zip);
@@ -189,8 +189,11 @@ export async function createApp() {
   });
   const web = resolve('web-dist');
   if (existsSync(web)) {
-    await app.register(serveStatic, { root: web, wildcard: false, index: false });
-    app.get('/', async (_request, reply) => reply.header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'").sendFile('index.html'));
+    await app.register(async publicFiles => {
+      publicFiles.addHook('onRoute', options => { options.config = { ...options.config, publicAccess: true }; });
+      await publicFiles.register(serveStatic, { root: web, wildcard: false, index: false });
+      publicFiles.get('/', async (_request, reply) => reply.header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'").sendFile('index.html'));
+    });
   }
   return app;
 }

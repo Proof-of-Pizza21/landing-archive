@@ -2,14 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
-import { metadataScript } from '../src/page-metadata.js';
+import { metadataScript, readPageMetadata } from '../src/page-metadata.js';
+import { captureLimits, screenshotClip, validateScreenshot } from '../src/capture-limits.js';
 
 test('rendered metadata excludes randomized invisible traps but retains real content and links', async () => {
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined);
   const browser = await chromium.launch({ executablePath, headless: true, chromiumSandbox: true });
   try {
-    const page = await browser.newPage();
+    const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
     await page.route('**/*', route => route.abort());
     const render = async (random: string) => {
       await page.setContent(`<base href="https://example.com/"><title>Landing</title><body>
@@ -31,5 +32,20 @@ test('rendered metadata excludes randomized invisible traps but retains real con
     assert.deepEqual(a.links, [{ url: 'https://example.com/offer', text: 'Scopri' }]);
     assert.deepEqual(a.headings, ['Offerta reale', 'Contenuto in fondo']);
     assert.deepEqual(a.imageUrls, []);
+    await page.setContent('<title>Bounded fixture</title><body style="margin:0"><div style="width:12000px;height:1200px">Wide page</div></body>');
+    const shot = await page.screenshot({ fullPage: true, clip: screenshotClip(1440, 1200) });
+    assert.deepEqual(validateScreenshot(shot), { width: 1440, height: 1200 });
+    await page.evaluate(() => {
+      let parent = document.body;
+      for (let i = 0; i < 100; i++) { const heading = document.createElement('h1'); parent.append(heading); parent = heading; }
+      parent.textContent = 'neutral'.repeat(15000);
+      // A site's monkey-patching must not alter metadata or remove its limits.
+      Array.from = (() => { throw new Error('Page-controlled Array.from'); }) as typeof Array.from;
+    });
+    const bounded = await readPageMetadata(page, []);
+    assert.equal(bounded.title, 'Bounded fixture');
+    assert.equal(bounded.headings.length, 100);
+    assert.ok(bounded.headings.every(value => value.length <= captureLimits.heading));
+    assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 200000);
   } finally { await browser.close(); }
 });

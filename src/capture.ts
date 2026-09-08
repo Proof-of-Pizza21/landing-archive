@@ -1,4 +1,5 @@
-import { metadataScript } from './page-metadata.js';
+import { readPageMetadata } from './page-metadata.js';
+import { captureLimits, screenshotClip, validateCaptureResult } from './capture-limits.js';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
@@ -127,20 +128,20 @@ export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
     const finalUrl = normalizeUrl(page.url());
     await validatePublicUrl(finalUrl);
     const ignoreSelectors = (input.ignoreSelectors ?? []).filter(selector => typeof selector === 'string' && selector.length <= 500).slice(0, 30);
-    const metadata = await page.evaluate(`${metadataScript}(${JSON.stringify(ignoreSelectors)})`) as {
-      title: string; text: string; headings: string[]; links: { url: string; text: string }[]; imageUrls: string[];
-      height: number; invalidSelectors: string[]; cookieBanner: boolean; challenge: boolean;
-    };
+    const metadata = await readPageMetadata(page, ignoreSelectors);
     if (metadata.challenge || /^(just a moment|attention required|verify you are human|checking your browser)/i.test(metadata.title.trim())) {
       throw new CaptureError('Il sito mostra una verifica anti-bot. Nessuna nuova versione è stata archiviata.', 'CAPTCHA', statusCode);
     }
     if (metadata.cookieBanner) warnings.add('È presente un banner cookie; viene conservato senza esprimere consenso.');
     if (metadata.invalidSelectors.length) warnings.add('Uno o più selettori da ignorare non sono validi.');
-    if (metadata.height > 20_000) warnings.add('Screenshot limitato ai primi 20.000 pixel; i contenuti caricati più in basso potrebbero essere incompleti.');
+    const clip = screenshotClip(page.viewportSize()!.width, metadata.height);
+    if (metadata.height > clip.height) warnings.add(`Screenshot limitato ai primi ${clip.height} pixel per contenere la memoria; la copia HTML può includere contenuti più in basso.`);
     const masks = ignoreSelectors.filter(selector => !metadata.invalidSelectors.includes(selector)).map(selector => page.locator(selector));
     const screenshot = await page.screenshot({
       type: 'png', animations: 'disabled', caret: 'hide', mask: masks, maskColor: '#e5e7eb',
-      ...(metadata.height > 20_000 ? { clip: { x: 0, y: 0, width: page.viewportSize()!.width, height: 20_000 } } : { fullPage: true }),
+      // fullPage enables capture below the viewport; the trusted clip always
+      // bounds BOTH dimensions before Chromium allocates the screenshot.
+      fullPage: true, clip,
       timeout: 15_000,
     });
     const userAgent = await page.evaluate('navigator.userAgent') as string;
@@ -191,12 +192,13 @@ export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
       doc.head.prepend(csp);
       return '<!DOCTYPE html>\\n' + doc.documentElement.outerHTML;
     })()`) as string;
-    if (Buffer.byteLength(html) > 80 * 1024 * 1024) throw new CaptureError('La copia HTML supera il limite di 80 MB.', 'SIZE_LIMIT');
-    return {
+    const result = {
       requestedUrl, finalUrl, statusCode, title: metadata.title, text: metadata.text,
       headings: metadata.headings, links: metadata.links, imageUrls: metadata.imageUrls,
-      html, screenshot, warnings: [...warnings], capturedAt: new Date().toISOString(),
+      html, screenshot, warnings: [...warnings].slice(0, captureLimits.warnings).map(warning => warning.slice(0, captureLimits.warning)), capturedAt: new Date().toISOString(),
     };
+    validateCaptureResult(result);
+    return result;
   } catch (error) {
     if (controller.signal.aborted) throw controller.signal.reason instanceof CaptureError ? controller.signal.reason : new CaptureError('Acquisizione annullata.', 'ABORTED');
     if (navigationError) throw navigationError;

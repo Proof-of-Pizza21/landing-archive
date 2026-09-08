@@ -1,5 +1,6 @@
-import pixelmatch from 'pixelmatch';
-import { PNG } from 'pngjs';
+import { visualDifference } from './image-compare.js';
+import { captureLimits, validateCaptureResult } from './capture-limits.js';
+export { visualDifference } from './image-compare.js';
 import type { CaptureResult } from './types.js';
 import { addEvent, get, id, later, now, run, transaction, type Row } from './db.js';
 import { hash, putObject, readObject } from './storage.js';
@@ -14,28 +15,13 @@ export function contentSignature(result: CaptureResult) {
   }));
 }
 
-export function visualDifference(left: Buffer, right: Buffer) {
-  if (hash(left) === hash(right)) return 0;
-  const a = PNG.sync.read(left), b = PNG.sync.read(right);
-  if (a.width !== b.width || Math.abs(a.height - b.height) > 2) return 1;
-  if (a.height !== b.height) return 0.01;
-  // A small normalized sample keeps comparison bounded on long landing pages.
-  const width = Math.min(480, a.width), height = Math.min(6000, Math.ceil(a.height * width / a.width));
-  const sample = (p: PNG) => {
-    const out = new Uint8Array(width * height * 4);
-    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-      const source = (Math.min(p.height - 1, Math.floor(y * p.height / height)) * p.width + Math.floor(x * p.width / width)) * 4;
-      out.set(p.data.subarray(source, source + 4), (y * width + x) * 4);
-    }
-    return out;
-  };
-  return pixelmatch(sample(a), sample(b), undefined, width, height, { threshold: 0.2, includeAA: false }) / (width * height);
-}
-
-export function recordCapture(page: Row, site: Row, result: CaptureResult) {
+export async function recordCapture(page: Row, site: Row, result: CaptureResult) {
+  validateCaptureResult(result);
   const signature = contentSignature(result);
   const previous = page.last_version_id ? get('SELECT * FROM versions WHERE id=?', page.last_version_id) : undefined;
-  const visualChange = previous && previous.signature === signature ? visualDifference(readObject(previous.screenshot_hash), result.screenshot) : 1;
+  const previousImage = previous && get('SELECT bytes FROM objects WHERE hash=?', previous.screenshot_hash);
+  const visualChange = previous && previous.signature === signature && previousImage?.bytes <= captureLimits.screenshotBytes
+    ? await visualDifference(readObject(previous.screenshot_hash), result.screenshot) : 1;
   const changed = !previous || previous.signature !== signature || visualChange > 0.005;
   const recovered = page.last_status && !['ok', 'unchanged'].includes(page.last_status);
   let versionId: string = previous?.id || '';

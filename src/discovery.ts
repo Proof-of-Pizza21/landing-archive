@@ -31,37 +31,88 @@ export function extractPageLinks(html: string, base: string): string[] {
 }
 
 type RobotsRule = { path: string; allow: boolean };
+export type RobotsBudget = { remaining: number };
+const robotsLimit = () => new CaptureError('Le regole robots.txt superano i limiti di elaborazione. La scoperta è stata interrotta.', 'ROBOTS_LIMIT');
 export function parseRobots(text: string): { rules: RobotsRule[]; sitemaps: string[] } {
+  if (Buffer.byteLength(text) > 128 * 1024) throw robotsLimit();
   const groups: { agents: string[]; rules: RobotsRule[] }[] = [];
   const sitemaps: string[] = [];
   let group: { agents: string[]; rules: RobotsRule[] } | undefined;
   let hasRules = false;
+  let ruleCount = 0, agentCount = 0, lineCount = 0;
   for (const raw of text.split(/\r?\n/)) {
+    if (++lineCount > 4096) throw robotsLimit();
     const line = raw.replace(/#.*/, '').trim();
     const colon = line.indexOf(':');
     if (colon < 0) continue;
     const key = line.slice(0, colon).trim().toLowerCase();
     const value = line.slice(colon + 1).trim();
-    if (key === 'sitemap') { if (sitemaps.length < 12) sitemaps.push(value); continue; }
+    if (key === 'sitemap') { if (value.length <= 4096 && sitemaps.length < 12) sitemaps.push(value); continue; }
     if (key === 'user-agent') {
+      if (++agentCount > 512 || value.length > 200 || groups.length >= 128) throw robotsLimit();
       if (!group || hasRules) { group = { agents: [], rules: [] }; groups.push(group); hasRules = false; }
       group.agents.push(value.toLowerCase());
     } else if (group && ['allow', 'disallow'].includes(key)) {
       hasRules = true;
-      if (value && group.rules.length < 500) group.rules.push({ path: value, allow: key === 'allow' });
+      if (value) {
+        if (++ruleCount > 256 || value.length > 512) throw robotsLimit();
+        group.rules.push({ path: value, allow: key === 'allow' });
+      }
     }
   }
   const dedicated = groups.filter(item => item.agents.some(agent => 'landingarchive'.startsWith(agent) && agent !== '*'));
   return { rules: (dedicated.length ? dedicated : groups.filter(item => item.agents.includes('*'))).flatMap(item => item.rules), sitemaps };
 }
 
-export function allowedByRobots(url: string, rules: RobotsRule[]): boolean {
+type Literal = { text: string; prefix: number[] };
+const compiledRules = new WeakMap<RobotsRule, { source: string; terminal: boolean; parts: Literal[] }>();
+function literal(text: string): Literal {
+  const prefix = new Array<number>(text.length).fill(0);
+  for (let i = 1, j = 0; i < text.length; i++) {
+    while (j && text[i] !== text[j]) j = prefix[j - 1];
+    if (text[i] === text[j]) j++;
+    prefix[i] = j;
+  }
+  return { text, prefix };
+}
+// KMP searches each literal once, moving only forwards through the target.
+// Wildcards never generate a regular expression or recursive backtracking.
+function findLiteral(target: string, part: Literal, start: number) {
+  if (!part.text.length) return start;
+  for (let i = start, j = 0; i < target.length; i++) {
+    while (j && target[i] !== part.text[j]) j = part.prefix[j - 1];
+    if (target[i] === part.text[j]) j++;
+    if (j === part.text.length) return i - j + 1;
+  }
+  return -1;
+}
+function matchesRobots(target: string, rule: RobotsRule) {
+  let pattern = compiledRules.get(rule);
+  if (!pattern || pattern.source !== rule.path) {
+    const terminal = rule.path.endsWith('$');
+    pattern = { source: rule.path, terminal, parts: (terminal ? rule.path.slice(0, -1) : rule.path).split('*').map(literal) };
+    compiledRules.set(rule, pattern);
+  }
+  const { parts, terminal } = pattern;
+  if (!target.startsWith(parts[0].text)) return false;
+  let cursor = parts[0].text.length;
+  if (parts.length === 1) return !terminal || cursor === target.length;
+  for (let i = 1; i < parts.length; i++) {
+    if (terminal && i === parts.length - 1) return target.length - parts[i].text.length >= cursor && target.endsWith(parts[i].text);
+    const position = findLiteral(target, parts[i], cursor);
+    if (position < 0) return false;
+    cursor = position + parts[i].text.length;
+  }
+  return true;
+}
+export function allowedByRobots(url: string, rules: RobotsRule[], budget: RobotsBudget = { remaining: 2_000_000 }): boolean {
   const target = new URL(url).pathname + new URL(url).search;
+  if (target.length > 4096 || rules.length > 256) throw robotsLimit();
   let best: RobotsRule | undefined;
   for (const rule of rules) {
-    const terminal = rule.path.endsWith('$');
-    const pattern = (terminal ? rule.path.slice(0, -1) : rule.path).split('*').map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*');
-    if (new RegExp('^' + pattern + (terminal ? '$' : '')).test(target) && (!best || rule.path.length > best.path.length || (rule.path.length === best.path.length && rule.allow))) best = rule;
+    budget.remaining -= target.length + rule.path.length;
+    if (rule.path.length > 512 || budget.remaining < 0) throw robotsLimit();
+    if (matchesRobots(target, rule) && (!best || rule.path.length > best.path.length || (rule.path.length === best.path.length && rule.allow))) best = rule;
   }
   return best?.allow ?? true;
 }
@@ -94,19 +145,23 @@ export async function discoverSite(input: DiscoveryInput): Promise<DiscoveryResu
   if (input.signal?.aborted) abort();
   const request = (url: string) => safeFetch(url, { signal: controller.signal, budget, maxBytes: 3 * 1024 * 1024, timeoutMs: 8000 });
   let robots: ReturnType<typeof parseRobots> = { rules: [], sitemaps: [] };
+  const robotsBudget: RobotsBudget = { remaining: 20_000_000 };
   const add = (raw: string, source: 'sitemap' | 'link') => {
     if (urls.size >= maxPages) return;
     try {
       const url = normalizeUrl(raw);
-      if (isUrlInScope(url, seed, input.includeSubdomains) && isDiscoverablePage(url) && allowedByRobots(url, robots.rules) && !urls.has(url)) urls.set(url, source);
-    } catch { /* Malformed sitemap entries are ignored. */ }
+      if (isUrlInScope(url, seed, input.includeSubdomains) && isDiscoverablePage(url) && allowedByRobots(url, robots.rules, robotsBudget) && !urls.has(url)) urls.set(url, source);
+    } catch (error) { if (error instanceof CaptureError && error.code === 'ROBOTS_LIMIT') throw error; /* Ignore malformed URLs. */ }
   };
   try {
     try {
-      const result = await request(new URL('/robots.txt', seed).href);
+      const result = await safeFetch(new URL('/robots.txt', seed).href, { signal: controller.signal, budget, maxBytes: 128 * 1024, timeoutMs: 8000 });
       if (result.status === 200) robots = parseRobots(result.body.toString('utf8'));
       else if (result.status >= 500) warnings.add('robots.txt non disponibile; riprovare per verificare le regole del sito.');
-    } catch { warnings.add('robots.txt non è stato letto.'); }
+    } catch (error) {
+      if (error instanceof CaptureError && ['ROBOTS_LIMIT', 'SIZE_LIMIT'].includes(error.code)) throw error;
+      warnings.add('robots.txt non è stato letto.');
+    }
     for (const url of (input.candidateUrls ?? []).slice(0, 200)) add(url, 'link');
     const sitemapQueue = [...robots.sitemaps, new URL('/sitemap.xml', seed).href, new URL('/sitemap_index.xml', seed).href];
     const sitemapSeen = new Set<string>();
@@ -122,14 +177,14 @@ export async function discoverSite(input: DiscoveryInput): Promise<DiscoveryResu
         const entries = parseSitemap(result.body.toString('utf8'));
         for (const url of entries.pages) add(url, 'sitemap');
         sitemapQueue.push(...entries.indexes.slice(0, 12));
-      } catch { warnings.add('Una sitemap non è stata letta completamente.'); }
+      } catch (error) { if (error instanceof CaptureError && error.code === 'ROBOTS_LIMIT') throw error; warnings.add('Una sitemap non è stata letta completamente.'); }
     }
     // A small breadth-first crawl finds landings omitted from the sitemap.
     const pageQueue = [seed];
     const pageSeen = new Set<string>();
     while (pageQueue.length && pageSeen.size < 8 && urls.size < maxPages && !controller.signal.aborted) {
       const url = pageQueue.shift()!;
-      if (pageSeen.has(url) || !allowedByRobots(url, robots.rules)) continue;
+      if (pageSeen.has(url) || !allowedByRobots(url, robots.rules, robotsBudget)) continue;
       pageSeen.add(url);
       try {
         const result = await request(url);
@@ -138,9 +193,9 @@ export async function discoverSite(input: DiscoveryInput): Promise<DiscoveryResu
           add(link, 'link');
           if (urls.has(link) && !pageSeen.has(link) && pageQueue.length < 30) pageQueue.push(link);
         }
-      } catch { warnings.add('Alcune pagine non sono state raggiunte durante la scoperta.'); }
+      } catch (error) { if (error instanceof CaptureError && error.code === 'ROBOTS_LIMIT') throw error; warnings.add('Alcune pagine non sono state raggiunte durante la scoperta.'); }
     }
-    if (!allowedByRobots(seed, robots.rules)) warnings.add('La pagina iniziale è esclusa da robots.txt: la scoperta dei suoi collegamenti è stata saltata.');
+    if (!allowedByRobots(seed, robots.rules, robotsBudget)) warnings.add('La pagina iniziale è esclusa da robots.txt: la scoperta dei suoi collegamenti è stata saltata.');
     if (urls.size >= maxPages) warnings.add(`Raggiunto il limite di ${maxPages} pagine; è possibile aumentarlo nelle impostazioni del sito.`);
     if (controller.signal.aborted) warnings.add('Scoperta interrotta al limite di tempo; i risultati parziali sono conservati.');
     return { urls: [...urls].map(([url, source]) => ({ url, source })), warnings: [...warnings] };

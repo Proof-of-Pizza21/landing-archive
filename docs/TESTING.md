@@ -44,7 +44,9 @@ Sono campioni, non garanzie di consumo o fedeltà su altri siti.
 Alcuni siti inviano richieste di tracciamento o hanno risorse non disponibili:
 l'acquisizione può riuscire con avvisi. L'app conserva questi avvisi nella
 versione. Video, form e contenuti incorporati non sono copie interattive.
-Il caricamento è limitato nel tempo e lo screenshot a 20.000 pixel di altezza.
+Il caricamento è limitato nel tempo. Dalla versione 0.1.1 lo screenshot ha
+limiti su larghezza, altezza e numero totale di pixel; vedere
+[SECURITY-0.1.1.md](SECURITY-0.1.1.md).
 
 Il browser riparte con un contesto nuovo a ogni visita. Cookie, personalizzazione,
 animazioni e test A/B possono far osservare varianti diverse anche senza una

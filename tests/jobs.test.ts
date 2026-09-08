@@ -9,17 +9,18 @@ test('persistent job queue retries, pause, lease recovery and remote worker prot
   const directory = mkdtempSync(join(tmpdir(), 'landing-jobs-'));
   process.env.DATA_DIR = directory; process.env.MIN_FREE_GIB = '0'; process.env.CAPTURE_WORKER_URL = 'http://worker:4311';
   const { db, get, all, run, id, now, later, addPage, enqueue } = await import('../src/db.js');
-  const { scheduleDue, processNextJob, stopJobs, startJobs } = await import('../src/jobs.js');
+  const { scheduleDue, processNextJob, stopJobs, startJobs, recoverInterruptedJobs } = await import('../src/jobs.js');
   const siteId = id();
   run('INSERT INTO sites (id,name,url,max_pages,next_discovery_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', siteId, 'Example', 'https://example.com/', 1, later(24), now(), now());
   const { page } = addPage(siteId, 'https://example.com/');
   const png = new PNG({ width: 5, height: 5 }); png.data.fill(255);
-  let fail = false, requests = 0;
+  let fail = false, invalid = false, requests = 0;
   const fetchMock = mock.method(globalThis, 'fetch', async (_url: any, options: any) => {
     requests++;
     assert.match(options.headers.Authorization, /^Bearer [a-f0-9]{64}$/);
     const input = JSON.parse(options.body); assert.equal(input.url, 'https://example.com/');
     if (fail) return new Response(JSON.stringify({ error: 'Temporary site outage', code: 'HTTP_ERROR', statusCode: 503 }), { status: 422 });
+    if (invalid) return new Response(JSON.stringify({ text: 'Malformed capture' }));
     return new Response(JSON.stringify({ requestedUrl: input.url, finalUrl: input.url, statusCode: 200, title: 'Test', text: 'Test', links: [], headings: [], imageUrls: [], html: '<html>Test</html>', screenshot: PNG.sync.write(png).toString('base64'), capturedAt: now(), warnings: [] }));
   });
   try {
@@ -41,6 +42,23 @@ test('persistent job queue retries, pause, lease recovery and remote worker prot
       assert.equal(get('SELECT status FROM jobs WHERE id=?', pending.id)!.status, 'done');
       assert.equal(get('SELECT COUNT(*) n FROM versions')!.n, 1);
       assert.equal(get("SELECT COUNT(*) n FROM events WHERE kind='recovered'")!.n, 1);
+    });
+    await t.test('invalid worker data is rejected once, preserves versions, and does not block the next job', async () => {
+      invalid = true;
+      const bad = enqueue(siteId, page.id, 'capture')!; await processNextJob();
+      assert.equal(get('SELECT status FROM jobs WHERE id=?', bad)!.status, 'error');
+      assert.equal(get('SELECT COUNT(*) n FROM versions')!.n, 1);
+      invalid = false;
+      const good = enqueue(siteId, page.id, 'capture')!; await processNextJob();
+      assert.equal(get('SELECT status FROM jobs WHERE id=?', good)!.status, 'done');
+    });
+    await t.test('three interrupted attempts pause the site instead of restarting a crash loop', () => {
+      const crashed = enqueue(siteId, page.id, 'capture')!;
+      run("UPDATE jobs SET status='running',attempts=3,lease_until=? WHERE id=?", later(-1), crashed);
+      recoverInterruptedJobs();
+      assert.equal(get('SELECT status FROM jobs WHERE id=?', crashed)!.status, 'error');
+      assert.equal(get('SELECT paused FROM sites WHERE id=?', siteId)!.paused, 1);
+      run('UPDATE sites SET paused=0 WHERE id=?', siteId);
     });
     await t.test('pause prevents scheduling and execution; restart resumes one interrupted job', async () => {
       run('UPDATE sites SET paused=1 WHERE id=?', siteId); run('UPDATE pages SET next_check_at=?', now());

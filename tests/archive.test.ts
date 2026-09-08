@@ -68,26 +68,26 @@ test('archive workflow: authentication, version history, failures, comparison an
       return { requestedUrl: 'https://1.1.1.1/', finalUrl: 'https://1.1.1.1/', statusCode: 200, title: 'Landing', text: `Offerta ${value}`, links: [{ url: `https://1.1.1.1/${value}`, text: value }], headings: ['Landing'], imageUrls: [], html: `<html><body>Offerta ${value}</body></html>`, screenshot: PNG.sync.write(png), capturedAt: new Date(instant += 1000).toISOString(), warnings: [] };
     }
     const record = (result: CaptureResult) => recordCapture(get('SELECT * FROM pages WHERE id=?', pageId)!, get('SELECT * FROM sites WHERE id=?', siteId)!, result);
-    await t.test('A → A → B → A keeps three versions, four checks and reuses files', () => {
-      const a = record(capture('A')); first = a.versionId;
+    await t.test('A → A → B → A keeps three versions, four checks and reuses files', async () => {
+      const a = await record(capture('A')); first = a.versionId;
       assert.equal(a.kind, 'captured');
-      const unchanged = record(capture('A'));
+      const unchanged = await record(capture('A'));
       assert.equal(unchanged.changed, false); assert.equal(unchanged.versionId, first);
-      second = record(capture('B')).versionId;
-      const returned = record(capture('A'));
+      second = (await record(capture('B'))).versionId;
+      const returned = await record(capture('A'));
       assert.equal(returned.kind, 'returned'); assert.notEqual(returned.versionId, first);
       assert.equal(get('SELECT COUNT(*) n FROM versions')!.n, 3);
       assert.equal(get('SELECT COUNT(*) n FROM checks')!.n, 4);
       assert.equal(get('SELECT COUNT(*) n FROM objects')!.n, 4);
       assert.equal(get('SELECT html_hash FROM versions WHERE id=?', first)!.html_hash, get('SELECT html_hash FROM versions WHERE id=?', returned.versionId)!.html_hash);
     });
-    await t.test('two 404s mark missing without losing copies; recovery keeps chronology', () => {
+    await t.test('two 404s mark missing without losing copies; recovery keeps chronology', async () => {
       const failed = () => recordFailure(get('SELECT * FROM pages WHERE id=?', pageId)!, get('SELECT * FROM sites WHERE id=?', siteId)!, { statusCode: 404, message: 'HTTP 404' });
       failed(); assert.equal(get('SELECT last_status FROM pages WHERE id=?', pageId)!.last_status, 'unavailable');
       failed(); assert.equal(get('SELECT last_status FROM pages WHERE id=?', pageId)!.last_status, 'missing');
       assert.equal(get('SELECT COUNT(*) n FROM versions')!.n, 3);
       for (const v of all('SELECT * FROM versions')) { assert.ok(readObject(v.html_hash).length); assert.ok(readObject(v.screenshot_hash).length); }
-      record(capture('A'));
+      await record(capture('A'));
       assert.equal(get("SELECT COUNT(*) n FROM events WHERE kind='recovered'")!.n, 1);
     });
     await t.test('notes, text/link comparison, historic search and safe file downloads', async () => {

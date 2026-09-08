@@ -86,6 +86,7 @@ try {
   check('Linux amd64 image starts with the shipped container restrictions');
 
   await api('/api/dashboard', { authenticated: false, expected: 401 });
+  for (const path of ['/%61pi/dashboard', '/a%70i/sites', '/ap%69/export']) await api(path, { authenticated: false, expected: 401 });
   assert.equal((await json('/api/auth/status', { authenticated: false })).setupRequired, true);
   const password = randomBytes(24).toString('base64url');
   const setup = await api('/api/auth/setup', { method: 'POST', body: { username: 'smoke-test', password }, authenticated: false });
@@ -95,6 +96,26 @@ try {
   assert.match(setup.headers.get('set-cookie') || '', /samesite=strict/i);
   await api('/api/auth/setup', { method: 'POST', body: { username: 'smoke-test', password }, expected: 409 });
   check('First-run setup and authenticated API access');
+
+  await compose(['exec', '-T', 'web', 'node', '--input-type=module'], { quiet: true, input: `
+    import assert from 'node:assert/strict';
+    import {existsSync} from 'node:fs';
+    import {PNG} from 'pngjs';
+    import {visualDifference} from './dist/image-compare.js';
+    assert.equal(process.versions.node, '24.20.0');
+    assert.equal(existsSync('/usr/local/lib/node_modules/npm'), false);
+    const make = value => {
+      const image = new PNG({width:1200,height:10000});
+      image.data.fill(value);
+      for(let i=3;i<image.data.length;i+=4) image.data[i]=255;
+      return PNG.sync.write(image);
+    };
+    const left=make(0),right=make(255);
+    assert.equal(await visualDifference(left,right),1);
+    const response=await fetch('http://127.0.0.1:4310/api/health');
+    assert.equal(response.status,200);
+  ` });
+  check('Updated Node runtime without npm; maximum-pixel comparison completes under the web memory limit');
 
   for (const url of ['http://127.0.0.1/', 'http://169.254.169.254/', 'http://[::1]/']) {
     await api('/api/sites', { method: 'POST', body: { name: 'Blocked internal target', url }, expected: 400 });

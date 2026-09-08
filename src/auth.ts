@@ -2,6 +2,10 @@ import { randomBytes, scryptSync, timingSafeEqual, createHash } from 'node:crypt
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { all, get, id, now, run, transaction } from './db.js';
 
+declare module 'fastify' {
+  interface FastifyContextConfig { publicAccess?: boolean }
+}
+
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const cookieName = 'landing_archive_session';
 export function passwordHash(password: string) {
@@ -31,7 +35,9 @@ function establishSession(request: FastifyRequest, reply: FastifyReply, userId: 
 export function registerAuth(app: FastifyInstance) {
   app.addHook('onRequest', async (request, reply) => {
     reply.header('X-Content-Type-Options', 'nosniff').header('Referrer-Policy', 'same-origin').header('X-Frame-Options', 'DENY');
-    if (request.url.startsWith('/api/')) reply.header('Cache-Control', 'no-store');
+    // Authorization belongs to the matched route, never to the raw request target.
+    // New routes are private unless registration explicitly marks them public.
+    if (request.routeOptions.url?.startsWith('/api/') || !request.routeOptions.config.publicAccess) reply.header('Cache-Control', 'no-store');
     if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
       const origin = request.headers.origin;
       if (origin) {
@@ -40,14 +46,13 @@ export function registerAuth(app: FastifyInstance) {
       }
       if (request.headers['sec-fetch-site'] === 'cross-site') return reply.code(403).send({ error: 'Richiesta esterna non consentita' });
     }
-    const path = request.url.split('?')[0];
-    if (path.startsWith('/api/') && !path.startsWith('/api/auth/') && path !== '/api/health' && !sessionUser(request)) {
+    if (!request.routeOptions.config.publicAccess && !sessionUser(request)) {
       return reply.code(401).send({ error: 'Accedi per consultare l’archivio' });
     }
   });
-  app.get('/api/auth/status', async request => ({ setupRequired: setupRequired(), authenticated: !!sessionUser(request) }));
+  app.get('/api/auth/status', { config: { publicAccess: true } }, async request => ({ setupRequired: setupRequired(), authenticated: !!sessionUser(request) }));
   const rateLimit = { max: 8, timeWindow: '1 minute' };
-  app.post('/api/auth/setup', { config: { rateLimit } }, async (request, reply) => {
+  app.post('/api/auth/setup', { config: { rateLimit, publicAccess: true } }, async (request, reply) => {
     if (!setupRequired()) return reply.code(409).send({ error: 'L’account è già stato creato' });
     const { username, password } = (request.body || {}) as any;
     if (typeof username !== 'string' || !/^[\p{L}\p{N}_.-]{3,40}$/u.test(username) || typeof password !== 'string' || password.length < 12 || password.length > 200) {
@@ -61,7 +66,7 @@ export function registerAuth(app: FastifyInstance) {
     establishSession(request, reply, userId);
     return { ok: true };
   });
-  app.post('/api/auth/login', { config: { rateLimit } }, async (request, reply) => {
+  app.post('/api/auth/login', { config: { rateLimit, publicAccess: true } }, async (request, reply) => {
     const { username, password } = (request.body || {}) as any;
     if (typeof username !== 'string' || typeof password !== 'string' || password.length > 200) return reply.code(400).send({ error: 'Credenziali non valide' });
     const user = get('SELECT * FROM users WHERE username=?', username);

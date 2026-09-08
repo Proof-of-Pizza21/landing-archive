@@ -3,7 +3,7 @@ name: Verify and publish preview
 on:
   push:
     branches: [main]
-    tags: ['v0.1.0']
+    tags: ['v0.1.1']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -16,7 +16,7 @@ on:
         description: Release version (must match package.json)
         type: string
         required: true
-        default: '0.1.0'
+        default: '0.1.1'
 
 permissions:
   contents: read
@@ -26,7 +26,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION: '24.13.1'
+  NODE_VERSION: '24.20.0'
   PREVIEW_IMAGE: landing-archive:ci
   REGISTRY_IMAGE: ghcr.io/proof-of-pizza21/landing-archive
 
@@ -45,6 +45,7 @@ jobs:
           cache: npm
           package-manager-cache: false
       - run: npm ci
+      - run: npm audit --audit-level=high
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
@@ -70,13 +71,22 @@ jobs:
           package-manager-cache: false
       - name: Build the amd64 preview
         run: docker build --platform linux/amd64 --tag "$PREVIEW_IMAGE" .
+      - name: Scan the actual image before testing
+        run: bash scripts/scan-image.sh
+      - name: Save image vulnerability inventory
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4; verified 2026-09-08
+        with:
+          name: image-vulnerabilities
+          path: image-vulnerabilities.json
+          retention-days: 14
       - name: Test the actual web and worker containers
         run: node scripts/docker-smoke.mjs
 
   publish:
     name: Test and publish the exact preview image
     needs: verify
-    if: ${{ github.repository == 'Proof-of-Pizza21/landing-archive' && (github.ref == 'refs/tags/v0.1.0' || (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main')) }}
+    if: ${{ github.repository == 'Proof-of-Pizza21/landing-archive' && (github.ref == 'refs/tags/v0.1.1' || (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main')) }}
     runs-on: ubuntu-22.04
     timeout-minutes: 40
     permissions:
@@ -92,7 +102,7 @@ jobs:
           package-manager-cache: false
       - name: Validate release identity and version
         env:
-          REQUESTED_VERSION: ${{ inputs.version || '0.1.0' }}
+          REQUESTED_VERSION: ${{ inputs.version || '0.1.1' }}
           TRIGGER_REF: ${{ github.ref }}
           REPOSITORY: ${{ github.repository }}
         run: node scripts/release-metadata.mjs
@@ -102,6 +112,15 @@ jobs:
           --label "org.opencontainers.image.source=https://github.com/Proof-of-Pizza21/landing-archive"
           --label "org.opencontainers.image.revision=$GITHUB_SHA"
           --label "org.opencontainers.image.authors=Proof-of-Pizza21" .
+      - name: Gate publication on image security
+        run: bash scripts/scan-image.sh
+      - name: Save release vulnerability inventory
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4; verified 2026-09-08
+        with:
+          name: image-vulnerabilities
+          path: image-vulnerabilities.json
+          retention-days: 14
       - name: Gate publication on the actual containers
         run: node scripts/docker-smoke.mjs
       - name: Publish the tested image

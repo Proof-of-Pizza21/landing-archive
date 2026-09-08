@@ -75,7 +75,7 @@ quindi distrugge i dati. Non usarlo come procedura di aggiornamento.
 
 ## Sviluppo senza container
 
-Sono necessari Node.js 24.13.1 o successivo della linea 24, npm e le dipendenze
+Per il codice 0.1.1 sono necessari Node.js 24.20.0 o successivo della linea 24, npm e le dipendenze
 di sistema di Chromium. Installazione e compilazione:
 
 ```sh
@@ -171,11 +171,11 @@ distingue le verifiche già eseguite da quelle ancora necessarie sul dispositivo
 
 ## Verifiche del packaging eseguite
 
-Il 5 settembre 2026 è stata verificata tramite
-[Docker Hub API](https://hub.docker.com/v2/repositories/library/node/tags/24.13.1-bookworm-slim)
-l'esistenza dell'immagine di base `node:24.13.1-bookworm-slim`, con immagini
+L’8 settembre 2026 è stata verificata tramite
+[Docker Hub API](https://hub.docker.com/v2/repositories/library/node/tags/24.20.0-bookworm-slim)
+l'esistenza dell'immagine di base `node:24.20.0-bookworm-slim`, con immagini
 `linux/amd64` e `linux/arm64` attive e digest dell'indice
-`sha256:a81a03dd965b4052269a57fac857004022b522a4bf06e7a739e25e18bce45af2`.
+`sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e`.
 Il Dockerfile blocca tag e digest a questo risultato e installa la versione
 Chromium corrispondente al Playwright del file di lock.
 

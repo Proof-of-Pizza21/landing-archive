@@ -3,6 +3,7 @@ import { workerUrl, getWorkerToken, schedulerEnabled } from './config.js';
 import { checkSpace } from './storage.js';
 import { recordCapture, recordFailure } from './history.js';
 import type { CaptureResult, DiscoveryResult } from './types.js';
+import { decodeCaptureResult, readWorkerJson, validateDiscoveryResult } from './capture-limits.js';
 
 let busy = false;
 let stopped = false;
@@ -24,8 +25,8 @@ async function remote<T>(path: string, body: unknown): Promise<T> {
     method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getWorkerToken()}` },
     body: JSON.stringify(body), signal: controller?.signal,
   });
-  const result: any = await response.json();
-  if (!response.ok) throw Object.assign(new Error(result.error || 'Il motore di acquisizione non risponde'), { code: result.code, statusCode: result.statusCode });
+  const result = await readWorkerJson(response, response.ok ? undefined : 16 * 1024);
+  if (!response.ok) throw Object.assign(new Error(typeof result?.error === 'string' ? result.error.slice(0, 1500) : 'Il motore di acquisizione non risponde'), { code: typeof result?.code === 'string' ? result.code.slice(0, 100) : 'INVALID_RESULT', statusCode: Number(result?.statusCode) || undefined });
   return result;
 }
 
@@ -34,14 +35,14 @@ async function doCapture(page: Row, site: Row) {
   let result: CaptureResult;
   if (workerUrl) {
     const json: any = await remote('/capture', input);
-    result = { ...json, screenshot: Buffer.from(json.screenshot, 'base64') };
+    result = decodeCaptureResult(json);
   } else {
     const { capturePage } = await import('./capture.js');
     result = await capturePage({ ...input, signal: controller?.signal });
   }
   if (result.statusCode >= 400) throw Object.assign(new Error(`Il sito ha risposto con errore ${result.statusCode}`), { statusCode: result.statusCode });
   if (!result.screenshot?.length || !result.html?.length) throw new Error('La cattura non contiene tutti i file richiesti');
-  recordCapture(page, site, result);
+  await recordCapture(page, site, result);
 
 }
 
@@ -64,6 +65,7 @@ async function doDiscovery(site: Row) {
     const { discoverSite } = await import('./discovery.js');
     result = await discoverSite({ ...input, signal: controller?.signal });
   }
+  validateDiscoveryResult(result);
   const { normalizeUrl } = await import('./network.js');
   let count = get('SELECT COUNT(*) n FROM pages WHERE site_id=?', site.id)!.n;
   let addedCount = 0;
@@ -87,13 +89,27 @@ export function scheduleDue() {
   for (const site of all('SELECT * FROM sites WHERE paused=0 AND max_pages>1 AND next_discovery_at<=?', timestamp)) enqueue(site.id, null, 'discover');
 }
 
+export function recoverInterruptedJobs(force = false) {
+  const interrupted = force ? all("SELECT * FROM jobs WHERE status='running'") : all("SELECT * FROM jobs WHERE status='running' AND lease_until<?", now());
+  transaction(() => {
+    for (const job of interrupted) {
+      if (job.attempts >= 3) {
+        const message = 'Monitoraggio in pausa: un lavoro è rimasto interrotto dopo tre tentativi. Controlla il sito prima di riattivarlo.';
+        run("UPDATE jobs SET status='error',finished_at=?,lease_until=NULL,error=? WHERE id=?", now(), message, job.id);
+        run('UPDATE sites SET paused=1,updated_at=? WHERE id=?', now(), job.site_id);
+        addEvent(job.site_id, job.page_id, 'error', message);
+      } else run("UPDATE jobs SET status='queued',available_at=?,lease_until=NULL WHERE id=?", now(), job.id);
+    }
+  });
+}
+
 export async function processNextJob() {
   if (busy || stopped) return;
   busy = true;
   let job: Row | undefined;
   let deadline: ReturnType<typeof setTimeout> | undefined;
   try {
-    run(`UPDATE jobs SET status='queued',lease_until=NULL,available_at=? WHERE status='running' AND lease_until<?`, now(), now());
+    recoverInterruptedJobs();
     scheduleDue();
     job = transaction(() => {
       const next = get(`SELECT j.* FROM jobs j JOIN sites s ON s.id=j.site_id WHERE j.status='queued' AND j.available_at<=? AND s.paused=0 ORDER BY CASE WHEN j.kind='capture' THEN 0 ELSE 1 END,j.created_at ASC LIMIT 1`, now());
@@ -116,7 +132,7 @@ export async function processNextJob() {
     const message = String(error.message || 'Errore di acquisizione').slice(0, 1500);
     if (job) {
       const site = get('SELECT * FROM sites WHERE id=?', job.site_id)!;
-      const transient = ![404, 410, 401, 403].includes(error.statusCode) && error.code !== 'CAPTCHA' && error.code !== 'DISK_FULL';
+      const transient = ![404, 410, 401, 403].includes(error.statusCode) && !['CAPTCHA', 'DISK_FULL', 'SIZE_LIMIT', 'IMAGE_LIMIT', 'INVALID_RESULT', 'ROBOTS_LIMIT'].includes(error.code);
       const retry = transient && job.attempts < 3 && !stopped;
       run('UPDATE jobs SET status=?,finished_at=?,available_at=?,lease_until=NULL,error=? WHERE id=?', retry ? 'queued' : 'error', retry ? null : now(), later(Math.min(0.25, 0.02 * job.attempts)), message, job.id);
       if (job.page_id && error.code !== 'DISK_FULL') {
@@ -139,7 +155,7 @@ export async function processNextJob() {
 export function startJobs() {
   stopped = false;
   // Only one coordinator process is supported. Requeue jobs interrupted by its restart.
-  run(`UPDATE jobs SET status='queued',available_at=?,lease_until=NULL WHERE status='running'`, now());
+  recoverInterruptedJobs(true);
   void processNextJob();
   tickTimer = setInterval(() => void processNextJob(), 2000);
   tickTimer.unref();
