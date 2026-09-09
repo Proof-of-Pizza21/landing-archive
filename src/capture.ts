@@ -1,5 +1,6 @@
 import { readPageMetadata } from './page-metadata.js';
 import { captureLimits, screenshotClip, validateCaptureResult } from './capture-limits.js';
+import { browserStartupFailure, logBrowserStartupFailure } from './browser-startup.js';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
@@ -25,7 +26,12 @@ async function getBrowser(): Promise<Browser> {
     }).then(browser => {
       browser.on('disconnected', () => { browserPromise = undefined; });
       return browser;
-    }).catch(error => { browserPromise = undefined; throw error; });
+    }).catch(error => {
+      browserPromise = undefined;
+      const failure = browserStartupFailure(error);
+      logBrowserStartupFailure(failure);
+      throw failure;
+    });
   }
   return browserPromise;
 }
@@ -67,6 +73,7 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
   try {
     const browser = await getBrowser();
     controller.signal.throwIfAborted();
+    phase = 'preparazione della pagina';
     context = await browser.newContext({
       viewport: { width: Math.max(360, Math.min(input.viewport?.width ?? 1440, 1920)), height: Math.max(600, Math.min(input.viewport?.height ?? 1000, 1200)) },
       deviceScaleFactor: 1, locale: 'it-IT', timezoneId: 'Europe/Rome',

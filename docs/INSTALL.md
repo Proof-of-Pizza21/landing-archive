@@ -49,7 +49,14 @@ Richiede Docker Engine o Docker Desktop e il plugin Compose già installati. Non
 è necessario eseguire l'app come amministratore, installare un database o avviare
 un servizio browser esterno.
 
-Dalla cartella del progetto:
+Dalla cartella del progetto, su Linux con AppArmor attivo caricare prima
+il profilo dedicato del worker (Umbrel lo fa automaticamente tramite hook):
+
+```sh
+sudo bash umbrel-community-store/proof-of-pizza21-landing-archive/hooks/pre-start
+```
+
+Poi avviare i servizi:
 
 ```sh
 docker compose config

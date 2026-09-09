@@ -45,6 +45,16 @@ mantiene `cap_drop: [ALL]`. Riferimento al sorgente Chromium:
 https://chromium.googlesource.com/chromium/src/sandbox/+/refs/heads/main/linux/services/credentials.cc.
 Il resto delle regole deriva dal file Playwright indicato.
 
+## Profilo AppArmor
+
+Il profilo dedicato del worker deriva da `apparmor/template.go` di
+[Moby Profiles apparmor/v0.2.0](https://github.com/moby/profiles/blob/apparmor/v0.2.0/apparmor/template.go),
+con licenza Apache-2.0 e copyright The Moby Authors. La licenza è distribuita
+in `umbrel-community-store/proof-of-pizza21-landing-archive/hooks/LICENSE-MOBY`.
+Le modifiche sono indicate nel template: nome dedicato, ABI 4, autorizzazione
+esplicita `userns` e `unix`; l'hook mantiene una variante ABI 3 per parser
+precedenti. I divieti del profilo Moby sono conservati.
+
 ## Sorgente corrispondente
 
 Il codice originale di Landing Archive è disponibile sotto AGPL-3.0-or-later.

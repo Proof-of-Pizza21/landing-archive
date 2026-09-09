@@ -47,9 +47,20 @@ poi aggiungi il primo dominio o una pagina precisa. Scegli l'intervallo dei
 controlli e consulta le acquisizioni nella timeline. Non ci sono credenziali
 predefinite. Il login dell'archivio si aggiunge alla protezione del proxy Umbrel.
 
+La correzione del codice 0.1.3 per il blocco AppArmor è descritta in
+[Avvio del browser su Umbrel](docs/RELEASE-0.1.3.md).
+
 ## Prova locale con Docker
 
 Per provare il progetto su un computer che dispone già di Docker con Compose:
+
+Su Linux con AppArmor attivo, carica prima il profilo dedicato:
+
+```sh
+sudo bash umbrel-community-store/proof-of-pizza21-landing-archive/hooks/pre-start
+```
+
+Poi avvia i servizi:
 
 ```sh
 docker compose up --build -d

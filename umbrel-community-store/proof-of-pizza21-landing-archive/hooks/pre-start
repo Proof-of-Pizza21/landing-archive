@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Umbrel 1.7.4 runs this host hook before Compose on install, update and start.
+# Only a named in-memory profile is loaded. No global policy or sysctl is changed.
+if [[ ! -r /sys/module/apparmor/parameters/enabled ]] || [[ "$(cat /sys/module/apparmor/parameters/enabled)" != Y ]]; then
+  echo 'Landing Archive: AppArmor is not enabled on this host; container and Chromium restrictions remain configured.'
+  exit 0
+fi
+if [[ ${EUID} -ne 0 ]]; then
+  echo 'Landing Archive: loading the worker AppArmor profile requires the Umbrel host hook to run as root.' >&2
+  exit 1
+fi
+parser=''
+for candidate in /usr/sbin/apparmor_parser /sbin/apparmor_parser; do
+  if [[ -x "$candidate" ]]; then parser="$candidate"; break; fi
+done
+if [[ -z "$parser" ]]; then
+  echo 'Landing Archive: AppArmor is enabled but its profile loader is missing. The worker cannot start safely.' >&2
+  exit 1
+fi
+profile_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+template="${profile_dir}/landing-archive.apparmor.template"
+parser_version="$("$parser" --version)"
+if [[ ! "$parser_version" =~ version[[:space:]]+([0-9]+)\. ]]; then
+  echo 'Landing Archive: unable to identify the AppArmor parser version.' >&2
+  exit 1
+fi
+parser_major="${BASH_REMATCH[1]}"
+temporary="$(mktemp "${profile_dir}/.landing-apparmor.XXXXXX")"
+trap 'rm -f -- "$temporary"' EXIT
+if (( parser_major >= 4 )); then
+  cp -- "$template" "$temporary"
+else
+  # Before ABI 4, user namespaces are not mediated separately by AppArmor.
+  # Keep all file, mount, signal and ptrace rules on these older hosts.
+  sed -e 's|abi <abi/4.0>,|abi <abi/3.0>,|' -e '/^  userns,$/d' "$template" > "$temporary"
+fi
+"$parser" --replace --skip-cache "$temporary"
+echo 'Landing Archive: dedicated worker AppArmor profile loaded; Chromium sandbox remains enabled.'

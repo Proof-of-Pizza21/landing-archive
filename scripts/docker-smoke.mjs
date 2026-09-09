@@ -16,6 +16,7 @@ const composeFile = join(temporary, 'compose.json');
 const base = 'http://127.0.0.1:4310';
 let cookie = '';
 let started = false;
+let deniedProfileFile;
 
 function command(binary, args, { input, quiet = false, timeout = 180_000 } = {}) {
   return new Promise((done, reject) => {
@@ -73,6 +74,26 @@ try {
   assert.ok(configuration.services.worker.security_opt.some(option => option.startsWith('seccomp=')), 'Worker must use the supplied Chromium seccomp profile');
   const seccomp = resolve('umbrel-community-store/proof-of-pizza21-landing-archive/seccomp-profile.json.template');
   await readFile(seccomp);
+  assert.ok(configuration.services.worker.security_opt.includes('apparmor=landing-archive-worker'), 'Worker must use its own AppArmor profile');
+  const appPackage = resolve('umbrel-community-store/proof-of-pizza21-landing-archive');
+  // Run the same host hook used by Umbrel, including a second idempotent load.
+  await command('sudo', ['-n', 'bash', join(appPackage, 'hooks/pre-start')]);
+  await command('sudo', ['-n', 'bash', join(appPackage, 'hooks/pre-start')]);
+  // ABI 4 is required here: this deliberately reproduces the userns denial
+  // observed on modern hosts before trying the corrected worker profile.
+  const deniedProfileName = `landing-archive-denied-${randomBytes(5).toString('hex')}`;
+  deniedProfileFile = join(temporary, 'denied.apparmor');
+  const profile = await readFile(join(appPackage, 'landing-archive.apparmor.template'), 'utf8');
+  await writeFile(deniedProfileFile, profile.replaceAll('landing-archive-worker', deniedProfileName).replace('  userns,', '  deny userns,'));
+  await command('sudo', ['-n', '/sbin/apparmor_parser', '--replace', '--skip-cache', deniedProfileFile]);
+  await command('docker', ['run', '--rm', '-i', '--network', 'none', '--user', '1000:1000', '--read-only', '--tmpfs', '/tmp:size=1g,mode=1777', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true', '--security-opt', `seccomp=${seccomp}`, '--security-opt', `apparmor=${deniedProfileName}`, '--memory', '3g', '--pids-limit', '256', '--entrypoint', 'node', image, '--input-type=module'], { input: `
+    import assert from 'node:assert/strict';
+    import {capturePage,closeBrowser} from './dist/capture.js';
+    try {
+      await assert.rejects(capturePage({url:'https://1.1.1.1/'}), error => error.code === 'BROWSER_SANDBOX_DENIED');
+    } finally {await closeBrowser();}
+  ` });
+  check('AppArmor userns denial is reproduced and reported without disabling the browser sandbox');
   configuration.services.worker.security_opt = configuration.services.worker.security_opt.map(option => option.startsWith('seccomp=') ? `seccomp=${seccomp}` : option);
   // Override resource names only: the shipped security, health and volume flags stay intact.
   for (const [name, value] of Object.entries(configuration.volumes || {})) value.name = `${project}_${name}`;
@@ -83,6 +104,8 @@ try {
   assert.equal(metadata.Os, 'linux');
   started = true;
   await compose(['up', '-d', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '180']);
+  const workerId = (await compose(['ps', '-q', 'worker'], { quiet: true })).trim();
+  assert.equal((await command('docker', ['inspect', '--format', '{{.AppArmorProfile}}', workerId], { quiet: true })).trim(), 'landing-archive-worker');
   check('Linux amd64 image starts with the shipped container restrictions');
 
   await api('/api/dashboard', { authenticated: false, expected: 401 });
@@ -237,5 +260,6 @@ try {
   console.log('Docker smoke test completed. No captured content or credentials will be uploaded.');
 } finally {
   if (started) await compose(['down', '--volumes', '--remove-orphans'], { quiet: true }).catch(() => console.error('Could not remove the isolated smoke-test containers.'));
+  if (deniedProfileFile) await command('sudo', ['-n', '/sbin/apparmor_parser', '--remove', deniedProfileFile], { quiet: true }).catch(() => console.error('Could not unload the isolated denial-test profile.'));
   await rm(temporary, { recursive: true, force: true });
 }

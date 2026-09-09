@@ -36,3 +36,9 @@
 !umbrel-community-store/proof-of-pizza21-landing-archive/assets/icon.svg
 !umbrel-community-store/proof-of-pizza21-landing-archive/data/
 !umbrel-community-store/proof-of-pizza21-landing-archive/data/.gitkeep
+
+!docs/RELEASE-0.1.3.md
+!umbrel-community-store/proof-of-pizza21-landing-archive/landing-archive.apparmor.template
+!umbrel-community-store/proof-of-pizza21-landing-archive/hooks/
+!umbrel-community-store/proof-of-pizza21-landing-archive/hooks/pre-start
+!umbrel-community-store/proof-of-pizza21-landing-archive/hooks/LICENSE-MOBY

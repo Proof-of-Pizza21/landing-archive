@@ -4,7 +4,7 @@ import { appendFileSync, readFileSync } from 'node:fs';
 const version = process.env.REQUESTED_VERSION;
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 assert.equal(process.env.REPOSITORY, 'Proof-of-Pizza21/landing-archive', 'Unexpected publication repository');
-assert.match(version || '', /^0\.1\.2$/, 'Only the reviewed 0.1.2 preview is enabled');
+assert.match(version || '', /^0\.1\.3$/, 'Only the reviewed 0.1.3 preview is enabled');
 assert.equal(pkg.version, version, 'Requested version differs from package.json');
 assert.equal(pkg.author, 'Proof-of-Pizza21 <259956083+Proof-of-Pizza21@users.noreply.github.com>', 'Unexpected package author');
 const ref = process.env.TRIGGER_REF;

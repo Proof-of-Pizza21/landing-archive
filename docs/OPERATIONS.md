@@ -146,7 +146,7 @@ precedente; non è previsto un cestino.
 | Sintomo | Cosa verificare |
 | --- | --- |
 | Nessuna acquisizione parte | Stato worker, coda, prossima esecuzione e spazio libero |
-| Browser non si avvia | Versione Playwright coerente con i browser installati, user namespace Linux e seccomp |
+| Browser non si avvia | Versione Playwright, profilo AppArmor del worker, user namespace Linux e seccomp |
 | Cattura bianca o parziale | Cookie banner, caricamento lento, blocco anti-bot, risorse esterne |
 | Continui cambiamenti | Caroselli, date dinamiche, contenuti personalizzati, selettori da ignorare |
 | Permesso negato nei dati | Proprietà della directory persistente `1000:1000` dopo un ripristino |
@@ -159,6 +159,14 @@ condividerli. Non inviare il database o una copia dell'archivio per segnalare
 un problema.
 
 ## Isolamento
+
+Dalla 0.1.3 il worker usa un profilo AppArmor dedicato, caricato dall'hook di
+avvio dell'app. Questo risolve il rifiuto `userns_create` del profilo Docker
+predefinito osservato su sistemi recenti. Se il messaggio parla di permessi
+per l'isolamento del browser, aggiornare l'app e riavviarla dall'interfaccia
+Umbrel. Nei log del motore cercare `browser_startup_failed`; nei log di avvio
+dell'app cercare `dedicated worker AppArmor profile loaded`.
+Vedi [correzione e diagnostica 0.1.3](RELEASE-0.1.3.md).
 
 L'app serve l'interfaccia; il worker visita i siti esterni. Il worker non riceve
 accesso in scrittura al volume persistente, ma può leggere il token interno

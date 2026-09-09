@@ -59,6 +59,7 @@ services:
     security_opt:
       - no-new-privileges:true
       - seccomp=./umbrel-community-store/proof-of-pizza21-landing-archive/seccomp-profile.json.template
+      - apparmor=landing-archive-worker
     mem_limit: 3g
     cpus: 2.0
     pids_limit: 256
