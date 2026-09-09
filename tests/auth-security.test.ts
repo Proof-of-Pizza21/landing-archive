@@ -27,7 +27,7 @@ test('matched routes require a session for every equivalent HTTP request target'
       req.end(['POST', 'PATCH'].includes(method) ? '{}' : undefined);
     });
     const routes = [
-      ['GET', '/sites'], ['GET', '/dashboard'], ['GET', '/sites/fixture'],
+      ['DELETE', '/sites/fixture'], ['GET', '/sites'], ['GET', '/dashboard'], ['GET', '/sites/fixture'],
       ['GET', '/pages/fixture'], ['GET', '/versions/fixture'],
       ['GET', '/versions/fixture/html'], ['HEAD', '/versions/fixture/html'],
       ['GET', '/versions/fixture/screenshot'], ['HEAD', '/versions/fixture/screenshot'],

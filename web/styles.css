@@ -240,7 +240,7 @@ small { font-size: 12px; }
 .table-toolbar { padding: 0 24px 18px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .table-toolbar .input-search { width: 320px; }
 .table-toolbar .muted { font-size: 10px; }
-.table-scroll { width: 100%; overflow-x: auto; }
+.table-scroll { position: relative; width: 100%; overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; text-align: left; font-size: 11px; }
 th { font-size: 9px; font-weight: 500; color: #98a680; padding: 12px 17px; background: #f7f9f0; border-top: 1px solid #e8eedc; border-bottom: 1px solid #e8eedc; white-space: nowrap; }
 th:first-child, td:first-child { padding-left: 24px; }
@@ -443,3 +443,21 @@ tr:last-child td { border-bottom: 0; }
 .capture-warnings p { font-size: 12px; color: #6a5a38; }
 input:disabled { opacity: .7; }
 @media (max-width: 680px) { .modal-body input, .modal-body textarea, .auth-form input { font-size: 16px !important; } .site-row { flex-wrap: wrap; } }
+
+.button.danger { background: #9b3f38; border-color: #9b3f38; color: #fff; }
+.button.danger:hover { background: #80342e; border-color: #80342e; }
+.button.danger-outline { color: #913d36; background: #fff; border-color: #dbc0bb; }
+.button.danger-outline:hover { background: #fbefeb; }
+.site-card-link { display: block; color: inherit; text-decoration: none; }
+.site-card-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 17px; padding-top: 15px; border-top: 1px solid #dfe2d5; }
+.site-heading .button-group { flex-wrap: wrap; justify-content: flex-end; }
+.acquisition-status { margin: 18px 0 24px; padding: 17px 20px; background: #f4f5ef; border: 1px solid #dfe2d5; border-radius: 10px; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.acquisition-status strong { font-size: 13px; color: #394235; }
+.acquisition-status p { margin: 5px 0 0; color: #596353; }
+.acquisition-error { margin-top: 13px; padding-top: 12px; border-top: 1px solid #dccbc1; }
+.acquisition-error strong, .acquisition-error p { color: #893f35; }
+@media (max-width: 650px) {
+  .site-heading .button-group { justify-content: flex-start; }
+  .site-card-actions .button { flex: 1; }
+  .acquisition-status { padding: 15px; }
+}

@@ -3,7 +3,7 @@ name: Verify and publish preview
 on:
   push:
     branches: [main]
-    tags: ['v0.1.1']
+    tags: ['v0.1.2']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -16,7 +16,7 @@ on:
         description: Release version (must match package.json)
         type: string
         required: true
-        default: '0.1.1'
+        default: '0.1.2'
 
 permissions:
   contents: read
@@ -86,7 +86,7 @@ jobs:
   publish:
     name: Test and publish the exact preview image
     needs: verify
-    if: ${{ github.repository == 'Proof-of-Pizza21/landing-archive' && (github.ref == 'refs/tags/v0.1.1' || (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main')) }}
+    if: ${{ github.repository == 'Proof-of-Pizza21/landing-archive' && (github.ref == 'refs/tags/v0.1.2' || (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main')) }}
     runs-on: ubuntu-22.04
     timeout-minutes: 40
     permissions:
@@ -102,7 +102,7 @@ jobs:
           package-manager-cache: false
       - name: Validate release identity and version
         env:
-          REQUESTED_VERSION: ${{ inputs.version || '0.1.1' }}
+          REQUESTED_VERSION: ${{ inputs.version || '0.1.2' }}
           TRIGGER_REF: ${{ github.ref }}
           REPOSITORY: ${{ github.repository }}
         run: node scripts/release-metadata.mjs

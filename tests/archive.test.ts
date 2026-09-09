@@ -103,18 +103,19 @@ test('archive workflow: authentication, version history, failures, comparison an
       const image = await call('GET', `/api/versions/${first}/screenshot`);
       assert.equal(image.headers['content-type'], 'image/png'); assert.equal(PNG.sync.read(image.rawPayload).width, 12);
     });
-    await t.test('changing frequency updates existing schedules; pause blocks manual jobs visibly', async () => {
+    await t.test('changing frequency updates existing schedules; pause still allows an explicit manual check', async () => {
       await call('PATCH', `/api/sites/${siteId}`, { intervalHours: 12, paused: true });
       const page = get('SELECT * FROM pages WHERE id=?', pageId)!;
       assert.equal(Date.parse(page.next_check_at) - Date.parse(page.last_checked_at), 12 * 3600000);
-      assert.equal((await call('POST', `/api/pages/${pageId}/scan`)).statusCode, 400);
+      assert.equal((await call('POST', `/api/pages/${pageId}/scan`)).statusCode, 200);
+      assert.equal(get('SELECT paused FROM sites WHERE id=?', siteId)!.paused, 1);
       assert.equal((await call('PATCH', `/api/sites/${siteId}`, { url: 'https://8.8.8.8/' })).statusCode, 400);
     });
     await t.test('backup restores consistent database and objects without active sessions', async () => {
       const result = await call('GET', '/api/export');
       assert.equal(result.statusCode, 200, result.body.slice(0, 100));
       const files = zipEntries(result.rawPayload);
-      assert.equal(JSON.parse(files.get('manifest.json')!.toString()).schema, 1);
+      assert.equal(JSON.parse(files.get('manifest.json')!.toString()).schema, 2);
       assert.equal(files.has('worker-token'), false);
       const restoredPath = join(directory, 'restored.sqlite'); writeFileSync(restoredPath, files.get('archive.sqlite')!);
       const restored = new DatabaseSync(restoredPath);

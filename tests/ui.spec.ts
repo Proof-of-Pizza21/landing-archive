@@ -1,0 +1,60 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { chromium } from 'playwright';
+
+test('site controls work from the interface on desktop and phone', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'landing-ui-'));
+  process.env.DATA_DIR = directory; process.env.MIN_FREE_GIB = '0'; process.env.SCHEDULER_ENABLED = 'false';
+  const { createApp } = await import('../src/server.js');
+  const { db, get } = await import('../src/db.js');
+  const app = await createApp();
+  const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'interface-test', password: 'temporary-test-password' } });
+  const cookie = String(setup.headers['set-cookie']).split(';')[0];
+  const add = async (name: string, url: string) => (await app.inject({ method: 'POST', url: '/api/sites', headers: { cookie }, payload: { name, url, maxPages: 1, paused: true } })).json().site;
+  const a = await add('Fixture A', 'https://1.1.1.1/'), b = await add('Fixture B', 'https://8.8.8.8/');
+  await app.listen({ host: '127.0.0.1', port: 0 });
+  const origin = `http://127.0.0.1:${(app.server.address() as { port: number }).port}`;
+  const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined);
+  const browser = await chromium.launch({ executablePath, headless: true, chromiumSandbox: true });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+  await context.addCookies([{ url: origin, name: cookie.split('=')[0], value: cookie.slice(cookie.indexOf('=') + 1), httpOnly: true, sameSite: 'Strict' }]);
+  const page = await context.newPage();
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  try {
+    await page.goto(`${origin}/#/site/${a.id}`);
+    const scan = page.getByRole('button', { name: 'Controlla e scarica ora', exact: true });
+    await scan.waitFor(); assert.ok(await scan.isEnabled());
+    await scan.click();
+    await page.getByText('Controllo pronto, in attesa del motore', { exact: true }).waitFor();
+    assert.equal(get('SELECT paused FROM sites WHERE id=?', a.id)!.paused, 1);
+    assert.equal(get('SELECT manual FROM jobs WHERE site_id=?', a.id)!.manual, 1);
+    const screenshots = process.env.UI_SCREENSHOT_DIR;
+    if (screenshots) { mkdirSync(screenshots, { recursive: true }); await page.screenshot({ path: join(screenshots, 'site-desktop.png'), fullPage: true }); }
+    await page.getByRole('button', { name: 'Elimina sito', exact: true }).click();
+    const confirm = page.getByRole('button', { name: 'Elimina definitivamente', exact: true });
+    assert.equal(await confirm.isEnabled(), false);
+    await page.getByRole('button', { name: 'Annulla', exact: true }).click();
+    assert.ok(get('SELECT id FROM sites WHERE id=?', a.id));
+    await page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, JSON.stringify(await page.evaluate(() => Array.from(document.querySelectorAll('main *')).filter(node => node.getBoundingClientRect().right > innerWidth + 1).slice(0, 12).map(node => ({ tag: node.tagName, className: node.className, right: node.getBoundingClientRect().right })))));
+    await page.getByRole('button', { name: 'Elimina sito', exact: true }).click();
+    if (screenshots) await page.screenshot({ path: join(screenshots, 'delete-phone.png'), fullPage: true });
+    await page.getByRole('checkbox').check();
+    await confirm.click();
+    await page.waitForURL('**/#/sites');
+    await page.locator('.site-card').filter({ hasText: b.name }).waitFor();
+    assert.equal(await page.locator('.site-card').count(), 1);
+    assert.equal(get('SELECT id FROM sites WHERE id=?', a.id), undefined);
+    assert.ok(get('SELECT id FROM sites WHERE id=?', b.id));
+    assert.ok(await page.getByRole('button', { name: 'Scarica ora', exact: true }).isEnabled());
+    assert.ok(await page.getByRole('button', { name: 'Elimina Fixture B', exact: true }).isVisible());
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    if (screenshots) await page.screenshot({ path: join(screenshots, 'sites-phone.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+  } finally { await browser.close(); await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }); }
+});

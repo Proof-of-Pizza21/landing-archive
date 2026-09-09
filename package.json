@@ -1,6 +1,6 @@
 {
   "name": "landing-archive",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -12,7 +12,7 @@
     "start": "node dist/server.js",
     "start:worker": "node dist/worker.js",
     "test": "node --import tsx --test tests/*.test.ts",
-    "test:browser": "node --import tsx --test tests/browser.spec.ts",
+    "test:browser": "node --import tsx --test tests/*.spec.ts",
     "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.web.json --noEmit"
   },
   "dependencies": {

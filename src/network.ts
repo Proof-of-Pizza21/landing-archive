@@ -159,12 +159,17 @@ export async function safeRequest(raw: string, options: RequestOptions = {}): Pr
   });
 }
 
-export async function safeFetch(raw: string, options: RequestOptions = {}): Promise<SafeResponse> {
+export async function safeFetch(raw: string, options: RequestOptions = {}, requestHop = safeRequest): Promise<SafeResponse> {
   let current = normalizeUrl(raw);
+  let headers = options.headers;
   for (let hop = 0; hop < 6; hop++) {
-    const response = await safeRequest(current, options);
+    const response = await requestHop(current, { ...options, headers });
     if ([301, 302, 303, 307, 308].includes(response.status) && response.headers.location) {
-      current = normalizeUrl(new URL(response.headers.location, current).href);
+      const next = normalizeUrl(new URL(response.headers.location, current).href);
+      if (new URL(next).origin !== new URL(current).origin) {
+        headers = Object.fromEntries(Object.entries(headers ?? {}).filter(([key]) => !['cookie', 'authorization', 'proxy-authorization', 'origin', 'referer'].includes(key.toLowerCase())));
+      }
+      current = next;
       continue;
     }
     return response;

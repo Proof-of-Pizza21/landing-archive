@@ -5,6 +5,25 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
+## Aggiornamento 0.1.2 — verifiche locali del 9 settembre 2026
+
+Con Node.js 24.20.0: **39 test automatici** riusciti, compilazione completata e
+**3 prove nel browser** riuscite. I nuovi casi verificano priorità manuale,
+controlli durante la pausa, riavvio di lavori bloccati, rifiuto dei risultati
+arrivati dopo un'interruzione, cancellazione dei soli file non condivisi,
+protezione durante il backup e aggiornamento della coda dal vecchio schema.
+
+La regressione nel browser verifica reindirizzamenti di pagine e risorse,
+collegamenti relativi basati sull'indirizzo finale e blocco dei reindirizzamenti
+verso reti private. L'interfaccia è provata a 1.440 e 390 pixel, inclusa la
+conferma di eliminazione e l'assenza di scorrimento orizzontale della pagina.
+
+Un'acquisizione pubblica riproduceva `ERR_PROXY_CONNECTION_FAILED` prima della
+correzione. La stessa pagina ha poi prodotto HTML e screenshot con HTTP 200
+in circa 7 secondi sul computer locale. Indirizzo e copie rimangono esclusi dal
+repository. Il collaudo dell'immagine Linux e la pubblicazione della 0.1.2
+vengono registrati solo dopo il completamento del workflow.
+
 ## Aggiornamento 0.1.1 — 9 settembre 2026
 
 Il [workflow di release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34314394725)

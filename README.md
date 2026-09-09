@@ -15,6 +15,9 @@ Le correzioni di sicurezza della versione 0.1.1 sono descritte in
 [docs/SECURITY-0.1.1.md](docs/SECURITY-0.1.1.md). Lo store usa la nuova
 immagine dopo il collaudo e la verifica del download pubblico.
 
+Le nuove funzioni del codice 0.1.2 sono descritte in
+[Controlli manuali, eliminazione e reindirizzamenti](docs/RELEASE-0.1.2.md).
+
 ## Come funziona
 
 - Aggiungi un dominio o un indirizzo preciso e scegli l'intervallo dei controlli.
@@ -23,6 +26,8 @@ immagine dopo il collaudo e la verifica del download pubblico.
 - Consulta lo storico delle acquisizioni e confronta le versioni.
 - Esporta un backup ZIP dell'archivio e scarica il sorgente dell'app dall'interfaccia.
 - Conserva le copie esistenti anche quando una nuova visita fallisce.
+- Avvia un controllo manuale prioritario e riavvia un tentativo rimasto fermo.
+- Elimina un sito e le sue copie, dopo una conferma, conservando i file usati da altri siti.
 - Registra il ritorno a una versione precedente: A → B → A rimane nello storico.
 
 I controlli sono distinti dalle versioni: una visita senza cambiamenti aggiorna

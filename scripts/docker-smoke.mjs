@@ -183,11 +183,13 @@ try {
   `);
   check(`Real example.com capture through the worker; PNG ${screenshot.length} bytes and static offline HTML ${Buffer.byteLength(html)} bytes`);
 
-  await api(`/api/pages/${pageId}/scan`, { method: 'POST', body: {} });
+  await api(`/api/sites/${siteId}`, { method: 'PATCH', body: { paused: true } });
+  await api(`/api/pages/${pageId}/scan`, { method: 'POST', body: { force: true } });
   const repeated = await waitForCheck(pageId, 2);
   assert.equal(repeated.versions.length, 1, 'An unchanged page must not create a duplicate version');
   assert.equal(repeated.checks[0].status, 'unchanged');
-  check('A second real scan records a check without duplicating the unchanged version');
+  assert.equal((await json(`/api/sites/${siteId}`)).site.paused, true);
+  check('A forced scan runs while paused and records an unchanged check without duplicating the version');
 
   const zipPath = join(temporary, 'backup.zip');
   await writeFile(zipPath, Buffer.from(await (await api('/api/export')).arrayBuffer()), { mode: 0o600 });
@@ -222,6 +224,13 @@ try {
   cookie = '';
   await api('/api/auth/login', { method: 'POST', body: { username: 'smoke-test', password }, authenticated: false });
   check('Archive, checks and login survive a service restart; logout revokes its session');
+  await api(`/api/sites/${siteId}`, { method: 'DELETE', body: {} , expected: 400 });
+  await api(`/api/sites/${siteId}`, { method: 'DELETE', body: { confirmSiteId: siteId } });
+  await api(`/api/pages/${pageId}`, { expected: 404 });
+  await api(`/api/versions/${versionId}/html`, { expected: 404 });
+  const deleted = await json('/api/dashboard');
+  assert.equal(deleted.stats.sites, 0); assert.equal(deleted.stats.versions, 0); assert.equal(deleted.stats.bytes, 0);
+  check('Confirmed deletion removes the site, archived files and pending jobs in the actual containers');
   console.log('Docker smoke test completed. No captured content or credentials will be uploaded.');
 } finally {
   if (started) await compose(['down', '--volumes', '--remove-orphans'], { quiet: true }).catch(() => console.error('Could not remove the isolated smoke-test containers.'));

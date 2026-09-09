@@ -15,13 +15,16 @@ export function contentSignature(result: CaptureResult) {
   }));
 }
 
-export async function recordCapture(page: Row, site: Row, result: CaptureResult) {
+export async function recordCapture(page: Row, site: Row, result: CaptureResult, signal?: AbortSignal) {
+  signal?.throwIfAborted();
   validateCaptureResult(result);
   const signature = contentSignature(result);
   const previous = page.last_version_id ? get('SELECT * FROM versions WHERE id=?', page.last_version_id) : undefined;
   const previousImage = previous && get('SELECT bytes FROM objects WHERE hash=?', previous.screenshot_hash);
   const visualChange = previous && previous.signature === signature && previousImage?.bytes <= captureLimits.screenshotBytes
     ? await visualDifference(readObject(previous.screenshot_hash), result.screenshot) : 1;
+  // A site may be removed or its running check restarted during comparison.
+  signal?.throwIfAborted();
   const changed = !previous || previous.signature !== signature || visualChange > 0.005;
   const recovered = page.last_status && !['ok', 'unchanged'].includes(page.last_status);
   let versionId: string = previous?.id || '';

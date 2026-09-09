@@ -42,3 +42,18 @@ export function objectPath(digest: string) {
 }
 
 export const readObject = (digest: string) => readFileSync(objectPath(digest));
+
+/** Remove only objects that no remaining version references, including shared files. */
+export function removeUnusedObjects(hashes: string[]) {
+  let deletedBytes = 0, pendingFiles = 0;
+  for (const digest of new Set(hashes)) {
+    const object = get(`SELECT * FROM objects o WHERE hash=? AND NOT EXISTS
+      (SELECT 1 FROM versions v WHERE v.html_hash=o.hash OR v.screenshot_hash=o.hash)`, digest);
+    if (!object) continue;
+    try { unlinkSync(join(dataDir, object.path)); }
+    catch (error: any) { if (error.code !== 'ENOENT') { pendingFiles++; continue; } }
+    run('DELETE FROM objects WHERE hash=?', digest);
+    deletedBytes += object.bytes;
+  }
+  return { deletedBytes, pendingFiles };
+}

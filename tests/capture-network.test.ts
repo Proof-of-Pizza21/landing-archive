@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CaptureError, isPublicAddress, isUrlInScope, normalizeUrl, resolvePublicAddress, safeRequest, validatePublicUrl } from '../src/network.js';
+import { CaptureError, isPublicAddress, isUrlInScope, normalizeUrl, resolvePublicAddress, safeRequest, safeFetch, validatePublicUrl, type RequestOptions } from '../src/network.js';
 import { allowedByRobots, extractPageLinks, parseRobots, parseSitemap } from '../src/discovery.js';
 
 test('rejects private, loopback, metadata and transition addresses', () => {
@@ -30,6 +30,30 @@ test('scope matches www alias and explicit subdomains, never suffix tricks', () 
   assert.equal(isUrlInScope('https://sale.example.com/a', 'https://example.com', true), true);
   assert.equal(isUrlInScope('https://example.com.attacker.org/a', 'https://example.com', true), false);
   assert.equal(isUrlInScope('https://notexample.com/a', 'https://example.com', true), false);
+});
+
+test('redirect transport validates every destination, bounds loops and strips cross-origin credentials', async () => {
+  const requests: { url: string; headers?: Record<string, string> }[] = [];
+  const hop = async (url: string, options: RequestOptions = {}) => {
+    await validatePublicUrl(url);
+    requests.push({ url, headers: options.headers });
+    return { url, status: url.includes('1.1.1.1') ? 301 : 200, headers: url.includes('1.1.1.1') ? { location: 'https://8.8.8.8/final/' } : {}, body: Buffer.from('fixture') };
+  };
+  const result = await safeFetch('https://1.1.1.1/start', { headers: { Cookie: 'test-cookie', Authorization: 'test-auth', Referer: 'https://1.1.1.1/private', 'User-Agent': 'Fixture' } }, hop);
+  assert.equal(result.url, 'https://8.8.8.8/final/');
+  assert.equal(requests.length, 2);
+  assert.deepEqual(requests[1].headers, { 'User-Agent': 'Fixture' });
+  let loops = 0;
+  await assert.rejects(safeFetch('https://1.1.1.1/', {}, async url => {
+    loops++; return { url, status: 302, headers: { location: '/' }, body: Buffer.alloc(0) };
+  }), (error: any) => error.code === 'REDIRECT_LIMIT');
+  assert.equal(loops, 6);
+  let publicHops = 0;
+  await assert.rejects(safeFetch('https://1.1.1.1/', {}, async url => {
+    await validatePublicUrl(url); publicHops++;
+    return { url, status: 302, headers: { location: 'http://127.0.0.1/private' }, body: Buffer.alloc(0) };
+  }), (error: any) => error.code === 'BLOCKED_URL');
+  assert.equal(publicHops, 1);
 });
 
 test('discovery extracts relative and encoded links without treating scripts or files as pages', () => {

@@ -37,8 +37,9 @@ cambiamento che si vuole osservare.
 
 ## Spazio e limiti
 
-La prima versione conserva tutte le copie e non offre ancora l'eliminazione
-selettiva dall'interfaccia. Non cancella l'archivio in automatico.
+La versione 0.1.2 permette di eliminare un sito e tutto il suo archivio dopo
+una conferma. I file condivisi con altri siti rimangono conservati.
+Non cancella le vecchie versioni in automatico per fare spazio.
 La soglia iniziale di riserva disco è 5 GiB
 (circa 5,4 GB):
 va intesa come protezione d'emergenza, non come spazio operativo consigliato.
@@ -123,6 +124,24 @@ solo quando una release con immagine verificata è disponibile. Non effettuare
 un downgrade del database senza indicazioni esplicite di compatibilità.
 
 ## Diagnosi
+
+Da **Siti monitorati** usa **Scarica ora**, oppure apri il sito e premi
+**Controlla e scarica ora**. Il controllo manuale funziona anche in pausa e
+anticipa i lavori in attesa. Se un tentativo è già in corso, **Riavvia controllo**
+lo interrompe e prepara un nuovo tentativo. Il riquadro di stato mostra cosa
+sta accadendo e l'ultimo errore; una nuova visita senza modifiche aggiorna i
+controlli ma non crea una versione duplicata.
+
+Se tutte le pagine reindirizzate falliscono con la vecchia indicazione generica
+«Acquisizione non completata», aggiorna almeno alla 0.1.2. La versione effettiva
+è visibile in fondo alla barra laterale. La correzione dei reindirizzamenti non
+aggira CAPTCHA, indisponibilità del sito o problemi di avvio del browser.
+
+Per rimuovere un sito scegli **Elimina sito** e leggi la conferma. Puoi scaricare
+un backup prima della cancellazione. Attendi la fine del download del backup
+prima di confermare: l'app impedisce che la cancellazione interrompa
+l'esportazione. Le copie eliminate si possono recuperare solo da un backup
+precedente; non è previsto un cestino.
 
 | Sintomo | Cosa verificare |
 | --- | --- |

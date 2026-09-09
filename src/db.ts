@@ -39,6 +39,8 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS versions_page_date ON versions(page_id,captured_at DESC);
   CREATE INDEX IF NOT EXISTS versions_page_signature ON versions(page_id,signature);
+  CREATE INDEX IF NOT EXISTS versions_html_object ON versions(html_hash);
+  CREATE INDEX IF NOT EXISTS versions_screenshot_object ON versions(screenshot_hash);
   CREATE TABLE IF NOT EXISTS checks (
     id TEXT PRIMARY KEY, page_id TEXT NOT NULL REFERENCES pages(id), created_at TEXT NOT NULL,
     status TEXT NOT NULL, message TEXT NOT NULL, version_id TEXT REFERENCES versions(id), status_code INTEGER, final_url TEXT
@@ -57,8 +59,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS jobs_pending ON jobs(status,available_at);
   CREATE UNIQUE INDEX IF NOT EXISTS jobs_unique_page_active ON jobs(page_id) WHERE kind='capture' AND status IN ('queued','running');
   CREATE UNIQUE INDEX IF NOT EXISTS jobs_unique_site_discovery ON jobs(site_id) WHERE kind='discover' AND status IN ('queued','running');
-  PRAGMA user_version=1;
 `);
+// Additive migration: retain existing archives and queued jobs from 0.1.0/0.1.1.
+if (!(db.prepare('PRAGMA table_info(jobs)').all() as Row[]).some(column => column.name === 'manual')) {
+  db.exec('ALTER TABLE jobs ADD COLUMN manual INTEGER NOT NULL DEFAULT 0');
+}
+db.exec('PRAGMA user_version=2');
 
 export const get = (sql: string, ...params: any[]) => db.prepare(sql).get(...params) as Row | undefined;
 export const all = (sql: string, ...params: any[]) => db.prepare(sql).all(...params) as Row[];
@@ -73,9 +79,16 @@ export function addEvent(siteId: string, pageId: string | null, kind: string, me
   run('INSERT INTO events VALUES (?,?,?,?,?,?,?)', id(), siteId, pageId, kind, now(), message, versionId);
 }
 
-export function enqueue(siteId: string, pageId: string | null, kind: 'capture' | 'discover') {
+export function enqueue(siteId: string, pageId: string | null, kind: 'capture' | 'discover', manual = false) {
   const jobId = id();
-  const result = run('INSERT OR IGNORE INTO jobs (id,site_id,page_id,kind,created_at,available_at) VALUES (?,?,?,?,?,?)', jobId, siteId, pageId, kind, now(), now());
+  if (manual) {
+    const existing = get("SELECT * FROM jobs WHERE site_id=? AND page_id IS ? AND kind=? AND status IN ('queued','running')", siteId, pageId, kind);
+    if (existing) {
+      if (existing.status === 'queued') run('UPDATE jobs SET manual=1,available_at=?,attempts=0,error=NULL WHERE id=?', now(), existing.id);
+      return existing.id as string;
+    }
+  }
+  const result = run('INSERT OR IGNORE INTO jobs (id,site_id,page_id,kind,created_at,available_at,manual) VALUES (?,?,?,?,?,?,?)', jobId, siteId, pageId, kind, now(), now(), +manual);
   return result.changes ? jobId : null;
 }
 
@@ -123,4 +136,17 @@ export function listPages(siteId: string) {
       (SELECT MAX(created_at) FROM events e WHERE e.page_id=p.id AND e.kind IN ('changed','captured','returned')) lastChangeAt
       FROM pages p WHERE site_id=? ORDER BY p.first_seen_at ASC`, siteId)
     .map(p => ({ id: p.id, url: p.url, title: p.title, notes: p.notes, source: p.source, lastCheckedAt: p.last_checked_at, lastStatus: p.last_status, versionCount: p.versionCount, latestVersionId: p.last_version_id, latestCheckId: p.latestCheckId, lastChangeAt: p.lastChangeAt }));
+}
+
+export function listJobs(siteId?: string, pageId?: string) {
+  const conditions = ["j.status IN ('queued','running')"];
+  const params: string[] = [];
+  if (siteId) { conditions.push('j.site_id=?'); params.push(siteId); }
+  if (pageId) { conditions.push('j.page_id=?'); params.push(pageId); }
+  return all(`SELECT j.id,j.site_id siteId,j.page_id pageId,j.kind,j.status,j.manual,j.attempts,j.error,
+    j.created_at createdAt,j.started_at startedAt,j.available_at availableAt,
+    s.name siteName,s.paused,COALESCE(p.url,s.url) url FROM jobs j JOIN sites s ON s.id=j.site_id
+    LEFT JOIN pages p ON p.id=j.page_id WHERE ${conditions.join(' AND ')}
+    ORDER BY CASE WHEN j.status='running' THEN 0 ELSE 1 END,j.manual DESC,
+    CASE WHEN j.kind='capture' THEN 0 ELSE 1 END,j.created_at LIMIT 100`, ...params);
 }

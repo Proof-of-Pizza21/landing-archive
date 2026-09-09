@@ -47,7 +47,7 @@ COPY umbrel-community-store/proof-of-pizza21-landing-archive/LICENSE-PLAYWRIGHT 
 LABEL org.opencontainers.image.title="Landing Archive" \
       org.opencontainers.image.description="Archivio locale delle versioni di siti e landing page" \
       org.opencontainers.image.authors="Proof-of-Pizza21" \
-      org.opencontainers.image.version="0.1.1" \
+      org.opencontainers.image.version="0.1.2" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 USER 1000:1000
 EXPOSE 4310

@@ -9,11 +9,11 @@ import { createReadStream, existsSync, rmSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { dataDir, host, port } from './config.js';
-import { all, get, run, db, id, now, later, transaction, addPage, enqueue, serializeSite, serializeVersion, listEvents, listPages, type Row } from './db.js';
+import { all, get, run, db, id, now, later, transaction, addPage, enqueue, serializeSite, serializeVersion, listEvents, listPages, listJobs, type Row } from './db.js';
 import { registerAuth } from './auth.js';
 import { normalizeUrl, validatePublicUrl, CaptureError } from './network.js';
-import { objectPath, storageStatus, checkSpace } from './storage.js';
-import { startJobs, stopJobs, workerState } from './jobs.js';
+import { objectPath, storageStatus, checkSpace, removeUnusedObjects } from './storage.js';
+import { startJobs, stopJobs, workerState, cancelSiteJobs, requestManualScan } from './jobs.js';
 
 const fail = (message: string, statusCode = 400): never => { throw Object.assign(new Error(message), { statusCode }); };
 const required = (table: 'sites' | 'pages' | 'versions', value: unknown) => {
@@ -51,16 +51,17 @@ export async function createApp() {
   registerAuth(app);
   app.setErrorHandler((error: any, _request, reply) => {
     const status = error instanceof CaptureError ? 400 : error.statusCode >= 400 && error.statusCode < 500 ? error.statusCode : /UNIQUE constraint/.test(error.message) ? 409 : 500;
-    reply.code(status).send({ error: status === 500 ? 'Operazione non completata. Controlla lo spazio disponibile e riprova.' : status === 429 ? 'Troppi tentativi. Attendi un minuto e riprova.' : status === 409 ? 'Questo indirizzo è già presente nell’archivio' : error.message });
+    reply.code(status).send({ error: status === 500 ? 'Operazione non completata. Controlla lo spazio disponibile e riprova.' : status === 429 ? 'Troppi tentativi. Attendi un minuto e riprova.' : /UNIQUE constraint/.test(error.message) ? 'Questo indirizzo è già presente nell’archivio' : error.message });
   });
   app.get('/api/health', { config: { publicAccess: true } }, async () => ({ ok: true }));
   app.get('/api/dashboard', async () => ({
+    version: '0.1.2',
     stats: {
       sites: get('SELECT COUNT(*) n FROM sites')!.n, pages: get('SELECT COUNT(*) n FROM pages')!.n,
       versions: get('SELECT COUNT(*) n FROM versions')!.n, bytes: get('SELECT COALESCE(SUM(bytes),0) n FROM objects')!.n,
       queued: get("SELECT COUNT(*) n FROM jobs WHERE status='queued'")!.n, running: get("SELECT COUNT(*) n FROM jobs WHERE status='running'")!.n,
     }, storage: storageStatus(), worker: await workerState(), events: listEvents(),
-    queue: all("SELECT j.id,j.kind,j.status,j.created_at createdAt,s.name siteName,COALESCE(p.url,s.url) url FROM jobs j JOIN sites s ON s.id=j.site_id LEFT JOIN pages p ON p.id=j.page_id WHERE j.status IN ('queued','running') ORDER BY j.created_at LIMIT 100"),
+    queue: listJobs(),
   }));
   app.get('/api/sites', async () => ({ sites: all('SELECT * FROM sites ORDER BY created_at').map(serializeSite) }));
   app.post('/api/sites', async (request, reply) => {
@@ -77,7 +78,7 @@ export async function createApp() {
   });
   app.get<{ Params: { id: string } }>('/api/sites/:id', async request => {
     const site = required('sites', request.params.id);
-    return { site: serializeSite(site), pages: listPages(site.id), events: listEvents(site.id) };
+    return { site: serializeSite(site), pages: listPages(site.id), events: listEvents(site.id), jobs: listJobs(site.id) };
   });
   app.patch<{ Params: { id: string } }>('/api/sites/:id', async request => {
     const site = required('sites', request.params.id), f = siteFields(bodyObject(request.body), site);
@@ -94,13 +95,27 @@ export async function createApp() {
   });
   app.post<{ Params: { id: string } }>('/api/sites/:id/scan', async request => {
     const site = required('sites', request.params.id);
-    if (site.paused) fail('Riattiva il monitoraggio dalle impostazioni prima di avviare una scansione');
     const body = request.body ? bodyObject(request.body) : {};
+    if (body.force !== undefined && typeof body.force !== 'boolean') fail('Opzione di riavvio non valida');
+    return requestManualScan(site.id, { restart: body.force === true, discover: body.discover === true });
+  });
+  let exporting = false;
+  app.delete<{ Params: { id: string } }>('/api/sites/:id', async request => {
+    const site = required('sites', request.params.id);
+    if (bodyObject(request.body).confirmSiteId !== site.id) fail('Conferma il sito da eliminare');
+    if (exporting) fail('Un backup è in corso. Attendi che termini prima di eliminare il sito.', 409);
+    const hashes = all('SELECT v.html_hash,v.screenshot_hash FROM versions v JOIN pages p ON p.id=v.page_id WHERE p.site_id=?', site.id)
+      .flatMap(version => [version.html_hash, version.screenshot_hash]);
     transaction(() => {
-      for (const page of all('SELECT id FROM pages WHERE site_id=?', site.id)) enqueue(site.id, page.id, 'capture');
-      if (body.discover === true && site.max_pages > 1) enqueue(site.id, null, 'discover');
+      cancelSiteJobs(site.id, undefined, true);
+      run('DELETE FROM jobs WHERE site_id=?', site.id);
+      run('DELETE FROM events WHERE site_id=?', site.id);
+      run('DELETE FROM checks WHERE page_id IN (SELECT id FROM pages WHERE site_id=?)', site.id);
+      run('DELETE FROM versions WHERE page_id IN (SELECT id FROM pages WHERE site_id=?)', site.id);
+      run('DELETE FROM pages WHERE site_id=?', site.id);
+      run('DELETE FROM sites WHERE id=?', site.id);
     });
-    return { ok: true };
+    return { ok: true, ...removeUnusedObjects(hashes) };
   });
   app.post<{ Params: { id: string } }>('/api/sites/:id/pages', async (request, reply) => {
     const site = required('sites', request.params.id), url = normalizeUrl(textField(bodyObject(request.body).url, 4096, false));
@@ -115,6 +130,7 @@ export async function createApp() {
     const page = required('pages', request.params.id), site = required('sites', page.site_id);
     return { page: listPages(site.id).find(p => p.id === page.id), site: serializeSite(site), notes: page.notes,
       versions: all('SELECT * FROM versions WHERE page_id=? ORDER BY captured_at DESC', page.id).map(v => serializeVersion(v)),
+      jobs: listJobs(site.id, page.id),
       checks: all('SELECT id,created_at createdAt,status,message,version_id versionId FROM checks WHERE page_id=? ORDER BY created_at DESC LIMIT 1000', page.id) };
   });
   app.patch<{ Params: { id: string } }>('/api/pages/:id', async request => {
@@ -123,8 +139,9 @@ export async function createApp() {
   });
   app.post<{ Params: { id: string } }>('/api/pages/:id/scan', async request => {
     const page = required('pages', request.params.id);
-    if (required('sites', page.site_id).paused) fail('Riattiva il monitoraggio dalle impostazioni prima di avviare una scansione');
-    enqueue(page.site_id, page.id, 'capture'); return { ok: true };
+    const body = request.body ? bodyObject(request.body) : {};
+    if (body.force !== undefined && typeof body.force !== 'boolean') fail('Opzione di riavvio non valida');
+    return requestManualScan(page.site_id, { pageId: page.id, restart: body.force === true });
   });
   app.get<{ Params: { id: string } }>('/api/versions/:id', async request => ({ version: serializeVersion(required('versions', request.params.id), true) }));
   for (const kind of ['screenshot', 'html'] as const) app.get<{ Params: { id: string } }>(`/api/versions/:id/${kind}`, async (request, reply) => {
@@ -148,25 +165,28 @@ export async function createApp() {
     const value = '%' + q.replace(/[\\%_]/g, '\\$&') + '%';
     return { pages: all(`SELECT p.id,p.url,p.title,s.name siteName FROM pages p JOIN sites s ON s.id=p.site_id WHERE p.url LIKE ? ESCAPE '\\' OR p.title LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM versions v WHERE v.page_id=p.id AND v.text LIKE ? ESCAPE '\\') LIMIT 100`, value, value, value) };
   });
-  let exporting = false;
   app.get('/api/export', async (_request, reply) => {
     if (exporting) return reply.code(409).send({ error: 'Un’esportazione è già in corso' });
     const destination = join(dataDir, 'tmp', `${id()}.sqlite`);
     exporting = true;
     try {
       checkSpace(Number(get('SELECT page_count * page_size n FROM pragma_page_count(),pragma_page_size()')!.n));
-      // VACUUM INTO is an atomic SQLite snapshot. Object files are immutable and never deleted.
+      // Site deletion is blocked until this snapshot and its immutable files finish streaming.
       db.prepare('VACUUM INTO ?').run(destination);
       const copy = new DatabaseSync(destination);
       let objects: Row[];
-      try { objects = copy.prepare('SELECT path FROM objects').all() as Row[]; copy.exec('DELETE FROM sessions;'); } finally { copy.close(); }
+      try {
+        copy.exec('DELETE FROM sessions; DELETE FROM objects WHERE NOT EXISTS (SELECT 1 FROM versions WHERE html_hash=objects.hash OR screenshot_hash=objects.hash);');
+        objects = copy.prepare('SELECT path FROM objects').all() as Row[];
+      } finally { copy.close(); }
       const zip = new ZipArchive({ zlib: { level: 3 } });
-      const cleanup = () => { exporting = false; rmSync(destination, { force: true }); };
+      let cleaned = false;
+      const cleanup = () => { if (cleaned) return; cleaned = true; exporting = false; rmSync(destination, { force: true }); };
       zip.once('close', cleanup); zip.once('error', cleanup);
       reply.raw.once('close', () => { if (!reply.raw.writableFinished) zip.abort(); cleanup(); });
       zip.file(destination, { name: 'archive.sqlite' });
       for (const object of objects) zip.file(join(dataDir, object.path), { name: object.path });
-      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.1', schema: 1, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
+      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.2', schema: 2, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
       reply.header('Content-Disposition', `attachment; filename="landing-archive-${now().slice(0, 10)}.zip"`).type('application/zip');
       void zip.finalize().catch(error => zip.destroy(error));
       return reply.send(zip);

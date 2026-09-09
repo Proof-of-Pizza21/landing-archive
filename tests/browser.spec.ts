@@ -4,6 +4,8 @@ import { existsSync } from 'node:fs';
 import { chromium } from 'playwright';
 import { metadataScript, readPageMetadata } from '../src/page-metadata.js';
 import { captureLimits, screenshotClip, validateScreenshot } from '../src/capture-limits.js';
+import { capturePage, closeBrowser } from '../src/capture.js';
+import { safeFetch, validatePublicUrl } from '../src/network.js';
 
 test('rendered metadata excludes randomized invisible traps but retains real content and links', async () => {
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -48,4 +50,33 @@ test('rendered metadata excludes randomized invisible traps but retains real con
     assert.ok(bounded.headings.every(value => value.length <= captureLimits.heading));
     assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 200000);
   } finally { await browser.close(); }
+});
+
+test('capture follows redirects through the protected transport and retains the final origin', async () => {
+  const visited: string[] = [];
+  const transport: typeof safeFetch = async (url, options) => safeFetch(url, options, async target => {
+    await validatePublicUrl(target); visited.push(target);
+    if (target === 'https://1.1.1.1/start') return { url: target, status: 301, headers: { location: 'https://8.8.8.8/offers/final/' }, body: Buffer.alloc(0) };
+    if (target.endsWith('/style.css')) return { url: target, status: 302, headers: { location: '/assets/main.css' }, body: Buffer.alloc(0) };
+    const css = target.endsWith('.css');
+    const body = css ? 'body { background: rgb(240, 245, 220); }' : '<!doctype html><html><head><title>Redirect fixture</title><link rel="stylesheet" href="style.css"></head><body><h1>Archived after redirect</h1><a href="next">Next offer</a></body></html>';
+    return { url: target, status: 200, headers: { 'content-type': css ? 'text/css' : 'text/html' }, body: Buffer.from(body) };
+  });
+  try {
+    const result = await capturePage({ url: 'https://1.1.1.1/start', timeoutMs: 30000 }, transport);
+    assert.equal(result.requestedUrl, 'https://1.1.1.1/start');
+    assert.equal(result.finalUrl, 'https://8.8.8.8/offers/final/');
+    assert.equal(result.title, 'Redirect fixture');
+    assert.equal(result.statusCode, 200);
+    assert.ok(result.links.some(link => link.url === 'https://8.8.8.8/offers/final/next'));
+    assert.ok(visited.includes('https://8.8.8.8/offers/final/style.css'));
+    assert.ok(visited.includes('https://8.8.8.8/assets/main.css'));
+    assert.match(result.html, /Archived after redirect/);
+    assert.ok(validateScreenshot(result.screenshot).width > 0);
+    const unsafe: typeof safeFetch = async (url, options) => safeFetch(url, options, async target => {
+      await validatePublicUrl(target);
+      return { url: target, status: 302, headers: { location: 'http://127.0.0.1/private' }, body: Buffer.alloc(0) };
+    });
+    await assert.rejects(capturePage({ url: 'https://1.1.1.1/start' }, unsafe), (error: any) => error.code === 'BLOCKED_URL');
+  } finally { await closeBrowser(); }
 });

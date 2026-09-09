@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { build } from 'esbuild';
 import { chromium, type Browser, type BrowserContext } from 'playwright';
 import type { CaptureInput, CaptureResult } from './types.js';
-import { CaptureError, normalizeUrl, safeFetch, safeRequest, validatePublicUrl, type RequestBudget, type SafeResponse } from './network.js';
+import { CaptureError, normalizeUrl, safeFetch, validatePublicUrl, type RequestBudget, type SafeResponse } from './network.js';
 
 export { CaptureError } from './network.js';
 const require = createRequire(import.meta.url);
@@ -45,7 +45,7 @@ function getSingleFileBundle(): Promise<string> {
 }
 
 /** A successful result is always HTML with a 2xx status, never a CAPTCHA/error page. */
-export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
+export async function capturePage(input: CaptureInput, fetchResource: typeof safeFetch = safeFetch): Promise<CaptureResult> {
   const requestedUrl = normalizeUrl(input.url);
   await validatePublicUrl(requestedUrl);
   input.signal?.throwIfAborted();
@@ -60,6 +60,10 @@ export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
   const resourceCache = new Map<string, SafeResponse>();
   let cacheBytes = 0;
   let navigationError: CaptureError | undefined;
+  let pendingNavigation: SafeResponse | undefined;
+  let cachedNavigation: SafeResponse | undefined;
+  let lastNavigation: SafeResponse | undefined;
+  let phase = 'avvio del browser';
   try {
     const browser = await getBrowser();
     controller.signal.throwIfAborted();
@@ -83,10 +87,22 @@ export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
           return await route.abort('blockedbyclient');
         }
         if (!/^https?:/i.test(request.url())) return await route.abort('blockedbyclient');
-        const response = await safeRequest(request.url(), {
+        const mainNavigation = request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame();
+        const response = mainNavigation && cachedNavigation?.url === normalizeUrl(request.url()) ? cachedNavigation : await fetchResource(request.url(), {
           headers: await request.allHeaders(), method: request.method() as 'GET' | 'HEAD',
           signal: controller.signal, budget, maxBytes: 12 * 1024 * 1024, timeoutMs: 15_000,
         });
+        if (mainNavigation) {
+          cachedNavigation = undefined;
+          if (response.url !== normalizeUrl(request.url())) {
+            // Playwright does not route the later hops of a browser HTTP redirect.
+            // Follow them through the pinned transport, then navigate explicitly to
+            // the final URL so origin and relative links are correct in Chromium.
+            pendingNavigation = response;
+            return await route.abort('aborted');
+          }
+          lastNavigation = response;
+        }
         if (response.status === 200 && cacheBytes + response.body.length <= 50 * 1024 * 1024) {
           const key = normalizeUrl(request.url());
           cacheBytes -= resourceCache.get(key)?.body.length ?? 0;
@@ -106,14 +122,31 @@ export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
     const page = await context.newPage();
     context.on('page', popup => { if (popup !== page) void popup.close().catch(() => {}); });
     page.on('dialog', dialog => { void dialog.dismiss().catch(() => {}); });
-    const response = await page.goto(requestedUrl, { waitUntil: 'domcontentloaded', timeout: Math.min(timeoutMs, 45_000) });
+    phase = 'apertura della pagina';
+    let destination = requestedUrl;
+    for (let navigation = 0; navigation < 6; navigation++) {
+      pendingNavigation = undefined;
+      navigationError = undefined;
+      try { await page.goto(destination, { waitUntil: 'domcontentloaded', timeout: Math.min(timeoutMs, 45_000) }); }
+      catch (error) { if (!pendingNavigation) throw error; }
+      if (!pendingNavigation) {
+        await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => { warnings.add('Il sito mantiene connessioni attive: acquisizione eseguita dopo un’attesa limitata.'); });
+        await page.waitForTimeout(1000);
+      }
+      if (!pendingNavigation) break;
+      if (navigation === 5) throw new CaptureError('Troppi reindirizzamenti durante il caricamento.', 'REDIRECT_LIMIT');
+      cachedNavigation = pendingNavigation;
+      destination = (pendingNavigation as SafeResponse).url;
+    }
+    controller.signal.throwIfAborted();
+    if (navigationError) throw navigationError;
+    const response = lastNavigation as SafeResponse | undefined;
     if (!response) throw new CaptureError('Il sito non ha restituito una pagina.', 'NETWORK_ERROR');
-    const statusCode = response.status();
+    const statusCode = response.status;
     if (statusCode < 200 || statusCode >= 300) throw new CaptureError(`Il sito ha risposto HTTP ${statusCode}.`, 'HTTP_ERROR', statusCode);
-    const contentType = response.headers()['content-type'] ?? '';
+    const contentType = response.headers['content-type'] ?? '';
     if (contentType && !/html|xhtml/i.test(contentType)) throw new CaptureError('L’indirizzo non restituisce una pagina HTML.', 'UNSUPPORTED_CONTENT', statusCode);
-    await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => { warnings.add('Il sito mantiene connessioni attive: acquisizione eseguita dopo un’attesa limitata.'); });
-    await page.waitForTimeout(1000);
+    phase = 'caricamento degli elementi della pagina';
     // Limited scrolling triggers lazy images without clicking buttons or sending forms.
     await page.evaluate(`(async () => {
       const originalX = scrollX, originalY = scrollY;
@@ -128,6 +161,7 @@ export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
     const finalUrl = normalizeUrl(page.url());
     await validatePublicUrl(finalUrl);
     const ignoreSelectors = (input.ignoreSelectors ?? []).filter(selector => typeof selector === 'string' && selector.length <= 500).slice(0, 30);
+    phase = 'lettura del testo e dei collegamenti';
     const metadata = await readPageMetadata(page, ignoreSelectors);
     if (metadata.challenge || /^(just a moment|attention required|verify you are human|checking your browser)/i.test(metadata.title.trim())) {
       throw new CaptureError('Il sito mostra una verifica anti-bot. Nessuna nuova versione è stata archiviata.', 'CAPTCHA', statusCode);
@@ -137,6 +171,7 @@ export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
     const clip = screenshotClip(page.viewportSize()!.width, metadata.height);
     if (metadata.height > clip.height) warnings.add(`Screenshot limitato ai primi ${clip.height} pixel per contenere la memoria; la copia HTML può includere contenuti più in basso.`);
     const masks = ignoreSelectors.filter(selector => !metadata.invalidSelectors.includes(selector)).map(selector => page.locator(selector));
+    phase = 'creazione dello screenshot';
     const screenshot = await page.screenshot({
       type: 'png', animations: 'disabled', caret: 'hide', mask: masks, maskColor: '#e5e7eb',
       // fullPage enables capture below the viewport; the trusted clip always
@@ -147,7 +182,7 @@ export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
     const userAgent = await page.evaluate('navigator.userAgent') as string;
     await page.exposeFunction('__landingFetchResource', async (url: string) => {
       try {
-        const resource = resourceCache.get(normalizeUrl(url)) ?? await safeFetch(url, { headers: { 'user-agent': userAgent }, signal: controller.signal, budget, maxBytes: 10 * 1024 * 1024, timeoutMs: 12_000 });
+        const resource = resourceCache.get(normalizeUrl(url)) ?? await fetchResource(url, { headers: { 'user-agent': userAgent }, signal: controller.signal, budget, maxBytes: 10 * 1024 * 1024, timeoutMs: 12_000 });
         if (resource.status < 200 || resource.status >= 300) warnings.add('Alcune risorse della copia offline non sono disponibili sul sito.');
         // SingleFile needs content type; omitting Set-Cookie also avoids Headers rejecting multiple cookies.
         return { status: resource.status, headers: { 'content-type': resource.headers['content-type'] ?? 'application/octet-stream' }, data: resource.body.toString('base64') };
@@ -159,6 +194,7 @@ export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
         throw error;
       }
     });
+    phase = 'preparazione della copia HTML';
     await page.evaluate(await getSingleFileBundle());
     const html = await page.evaluate(`(async () => {
       __landingSingleFile.init({fetch: async url => {
@@ -197,13 +233,18 @@ export async function capturePage(input: CaptureInput): Promise<CaptureResult> {
       headings: metadata.headings, links: metadata.links, imageUrls: metadata.imageUrls,
       html, screenshot, warnings: [...warnings].slice(0, captureLimits.warnings).map(warning => warning.slice(0, captureLimits.warning)), capturedAt: new Date().toISOString(),
     };
+    phase = 'verifica dei file acquisiti';
     validateCaptureResult(result);
     return result;
   } catch (error) {
-    if (controller.signal.aborted) throw controller.signal.reason instanceof CaptureError ? controller.signal.reason : new CaptureError('Acquisizione annullata.', 'ABORTED');
+    if (controller.signal.aborted) {
+      const reason = controller.signal.reason;
+      throw new CaptureError(`${reason instanceof CaptureError ? reason.message : 'Acquisizione annullata.'} Fase: ${phase}.`, reason instanceof CaptureError ? reason.code : 'ABORTED');
+    }
     if (navigationError) throw navigationError;
     if (error instanceof CaptureError) throw error;
-    const wrapped = new CaptureError(error instanceof Error && error.name === 'TimeoutError' ? 'La pagina non ha terminato il caricamento entro il limite.' : 'Acquisizione non completata. Riprovare o controllare lo stato del sito.', error instanceof Error && error.name === 'TimeoutError' ? 'TIMEOUT' : 'CAPTURE_FAILED');
+    const networkCode = error instanceof Error ? error.message.match(/net::(ERR_[A-Z_]+)/)?.[1] : undefined;
+    const wrapped = new CaptureError(`Acquisizione non completata durante: ${phase}.${networkCode ? ` Errore di rete: ${networkCode}.` : ''}${phase === 'avvio del browser' ? ' Controlla i log del motore in Umbrel: il browser potrebbe non riuscire ad avviarsi.' : ''}`, error instanceof Error && error.name === 'TimeoutError' ? 'TIMEOUT' : 'CAPTURE_FAILED');
     wrapped.cause = error;
     throw wrapped;
   } finally {
