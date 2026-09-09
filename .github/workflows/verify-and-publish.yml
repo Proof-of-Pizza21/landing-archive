@@ -49,6 +49,13 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Exclude the unrelated preinstalled Chrome package source
+        # The runner's Google apt index can be temporarily inconsistent.
+        # Tests use the exact Playwright browser, not the runner's system Chrome.
+        run: |
+          for source in /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources; do
+            if [ -f "$source" ]; then sudo mv "$source" "${source}.disabled"; fi
+          done
       - name: Install the lockfile-pinned browser
         run: ./node_modules/.bin/playwright install --with-deps chromium
       - run: npm run test:browser

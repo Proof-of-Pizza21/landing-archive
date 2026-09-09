@@ -133,6 +133,9 @@ test('archive workflow: authentication, version history, failures, comparison an
       const files = zipEntries(result.rawPayload);
       for (const name of ['src/server.ts', 'web/App.tsx', 'Dockerfile', 'README.md', 'compose.yaml', '.dockerignore', 'LICENSE', 'docs/INSTALL.md', 'umbrel-community-store/proof-of-pizza21-landing-archive/seccomp-profile.json.template', 'umbrel-community-store/proof-of-pizza21-landing-archive/data/.gitkeep']) assert.ok(files.has(name), name);
       assert.equal([...files.keys()].some(name => name.endsWith('.sqlite') || name.endsWith('worker-token')), false);
+      for (const name of ['landing-archive.apparmor.template', 'hooks/pre-start', 'hooks/LICENSE-MOBY']) {
+        assert.ok(files.has(`umbrel-community-store/proof-of-pizza21-landing-archive/${name}`), name);
+      }
     });
     await t.test('worker authenticates requests and rejects private URLs without launching Chrome', async () => {
       const { createWorker } = await import('../src/worker.js');
