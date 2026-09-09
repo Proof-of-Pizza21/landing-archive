@@ -2,7 +2,7 @@ manifestVersion: 1
 id: proof-of-pizza21-landing-archive
 category: Productivity
 name: Landing Archive
-version: "0.1.0"
+version: "0.1.1"
 tagline: La storia dei tuoi siti e delle landing dei competitor
 icon: https://raw.githubusercontent.com/Proof-of-Pizza21/umbrel-community-store/main/proof-of-pizza21-landing-archive/assets/icon.svg
 description: >-
@@ -25,14 +25,19 @@ description: >-
   Le pagine protette da login, CAPTCHA o sistemi anti-bot possono non essere
   acquisibili. Le landing senza collegamenti pubblici vanno aggiunte a mano.
 releaseNotes: >-
-  Prima anteprima 0.1.0 per mini PC Intel/AMD a 64 bit: controlli programmati,
-  scoperta delle pagine pubbliche, screenshot e copie HTML, timeline, confronto
-  delle versioni e backup dell'archivio.
+  Aggiornamento di sicurezza 0.1.1: accesso alle API protetto anche con indirizzi
+  codificati, limiti per immagini e metadati, confronto visivo isolato e regole
+  robots.txt elaborate con un costo limitato.
 
 
-  Collaudo dei container Linux amd64 completato, con sandbox Chromium attiva,
-  acquisizione reale, copie offline, deduplicazione, backup e riavvio.
-  Il collaudo sul dispositivo umbrelOS 1.7.4 resta da eseguire. ARM non incluso.
+  Runtime Node aggiornato e patch Debian disponibili applicate. La procedura
+  di rilascio controlla vulnerabilità e segreti nell'immagine distribuita.
+  Gli archivi esistenti sono conservati, senza migrazioni del database.
+
+
+  Gli screenshot delle pagine molto lunghe possono essere ritagliati con un
+  avviso per contenere la memoria. Destinata a mini PC Intel/AMD a 64 bit;
+  il collaudo del dispositivo umbrelOS 1.7.4 resta a cura dell'utente.
 
 developer: Proof-of-Pizza21
 website: https://github.com/Proof-of-Pizza21/landing-archive

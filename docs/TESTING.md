@@ -1,11 +1,36 @@
-# Collaudo della prima versione
+# Collaudo di Landing Archive
 
 Prove locali del 6 settembre 2026 su macOS con Node.js 24.13.0 e Chromium
 tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
-## Verifiche completate
+## Aggiornamento 0.1.1 — 9 settembre 2026
+
+Il [workflow di release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34314394725)
+ha verificato e pubblicato il commit `984ebaf`, con Node.js 24.20.0 e il browser
+del lockfile. Controlli di tipo, compilazione, **31 test automatici** e regressione
+nel browser sono riusciti, sia localmente sia su Linux. Le nuove prove coprono
+l'accesso alle rotte codificate, i limiti di immagini e metadati, le risposte del
+worker, le regole robots.txt e il recupero dei lavori interrotti.
+
+L'immagine distribuita ha ripetuto tutte le prove Docker elencate sotto, compreso
+il confronto di due immagini da 12 milioni di pixel nel container web con limite
+di 1 GiB, verificandone poi lo stato di salute. La scansione Trivy ha rilevato
+**zero segreti e zero vulnerabilità alte o critiche con correzioni disponibili**.
+Rimangono 390 segnalazioni su pacchetti, corrispondenti a 223 CVE distinte;
+79 segnalazioni sono alte o critiche senza una correzione disponibile secondo lo
+scanner. Questo risultato non equivale all'assenza di vulnerabilità: le librerie
+native richiedono ancora valutazione e aggiornamenti quando disponibili.
+
+Il download anonimo dei manifest, dei metadati e la disponibilità di tutti i 21
+strati dell'immagine sono stati verificati il 9 settembre. Architettura, versione,
+revisione sorgente e identità pubblica corrispondono alla release. Il pacchetto
+0.1.1 usa `sha256:a411e0cd6407bccaffd35f406c4198acf9ed14a49bffc0cca7692f89b8272779`.
+Il collaudo di installazione e aggiornamento sul dispositivo Umbrel resta da
+completare. I [limiti introdotti](SECURITY-0.1.1.md) sono documentati separatamente.
+
+## Verifiche della prima versione
 
 - Compilazione TypeScript e interfaccia di produzione riuscite.
 - 23 verifiche automatiche: accesso, protezione da richieste esterne, indirizzi
@@ -56,7 +81,7 @@ I controlli leggono nuovamente la pagina per rilevare differenze; è il salvatag
 di nuove versioni a essere evitato quando la pagina è invariata. Non è un sistema
 che evita tutti i download di rete su pagine immutate.
 
-## Container Linux amd64: prove completate
+## Container Linux amd64: prima versione
 
 Il [workflow 34147293202](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34147293202) è riuscito sul commit `f74053e`.
 Il runner Ubuntu 22.04 ha eseguito controlli di tipo, test automatici,
@@ -100,7 +125,7 @@ di questa anteprima. Consumi e tempi del runner non sono stime del mini PC.
 La [release 0.1.0](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34149224656) ha ripetuto con successo tutte le prove e pubblicato l'immagine
 del commit `4cbc8e6`. Il download anonimo dal registro, l'architettura amd64,
 i metadati pubblici e il digest sono stati verificati il 7 settembre 2026.
-Il pacchetto dello store usa `sha256:beb2bfd0c0c79bf632457f753fe8ee05a6bfbbc33c93719483db73e055cd3cd7`.
+Il pacchetto 0.1.0 usava `sha256:beb2bfd0c0c79bf632457f753fe8ee05a6bfbbc33c93719483db73e055cd3cd7`.
 
 ## Ripetere le prove di sviluppo
 
