@@ -5,7 +5,7 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
-## Aggiornamento 0.1.2 — verifiche locali del 9 settembre 2026
+## Aggiornamento 0.1.2 — 9 settembre 2026
 
 Con Node.js 24.20.0: **39 test automatici** riusciti, compilazione completata e
 **3 prove nel browser** riuscite. I nuovi casi verificano priorità manuale,
@@ -21,8 +21,26 @@ conferma di eliminazione e l'assenza di scorrimento orizzontale della pagina.
 Un'acquisizione pubblica riproduceva `ERR_PROXY_CONNECTION_FAILED` prima della
 correzione. La stessa pagina ha poi prodotto HTML e screenshot con HTTP 200
 in circa 7 secondi sul computer locale. Indirizzo e copie rimangono esclusi dal
-repository. Il collaudo dell'immagine Linux e la pubblicazione della 0.1.2
-vengono registrati solo dopo il completamento del workflow.
+repository. Anche altri due siti pubblici di prova hanno prodotto HTML e
+screenshot con HTTP 200; le relative copie rimangono locali.
+
+Il [workflow di release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34382062197)
+ha ripetuto con successo controlli di tipo, 39 test, 3 prove browser e build
+sul commit `fec5177`, quindi ha provato e pubblicato l’immagine Linux amd64.
+I container hanno superato le prove di sandbox, autenticazione, reti private,
+acquisizione reale, controllo manuale durante la pausa, deduplicazione, backup,
+riavvio e cancellazione confermata.
+
+La scansione dell’immagine ha rilevato zero segreti e zero vulnerabilità alte
+o critiche con correzioni disponibili. Rimangono 390 segnalazioni su pacchetti,
+223 CVE distinte, di cui 79 segnalazioni alte o critiche senza correzione
+disponibile secondo lo scanner: non equivale ad assenza di vulnerabilità.
+
+Sono stati verificati il download anonimo, manifest, metadati e disponibilità
+di tutti i 21 strati dell’immagine. L’inventario delle vulnerabilità corrisponde
+alla configurazione pubblicata; versione, sorgente e identità sono corretti.
+Lo store 0.1.2 usa `sha256:3fda9f79f7aabe03241c4b523fdef870636f839ffcaf77cd3ec87050d0823f9b`.
+Il collaudo direttamente sul dispositivo Umbrel resta da completare.
 
 ## Aggiornamento 0.1.1 — 9 settembre 2026
 

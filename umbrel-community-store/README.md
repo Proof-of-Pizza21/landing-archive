@@ -2,17 +2,17 @@
 
 Questa directory è la radice del community app store di
 [Proof-of-Pizza21](https://github.com/Proof-of-Pizza21/umbrel-community-store).
-Landing Archive 0.1.1 è un'anteprima per mini PC Intel/AMD a 64 bit (`linux/amd64`),
+Landing Archive 0.1.2 è un'anteprima per mini PC Intel/AMD a 64 bit (`linux/amd64`),
 destinata al collaudo su umbrelOS 1.7.4. ARM non è incluso nella prima anteprima.
 
-Il [collaudo dei container Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34314394725) è riuscito: avvio con sandbox
-Chromium attiva, acquisizione, copia offline, controllo invariato, backup e
-persistenza dopo riavvio. Il collaudo sul dispositivo Umbrel non è ancora stato
-eseguito.
+Il [collaudo dei container Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34382062197) è riuscito: avvio con sandbox
+Chromium attiva, acquisizione, copia offline, controllo manuale in pausa,
+deduplicazione, backup, persistenza dopo riavvio e cancellazione confermata.
+Il collaudo sul dispositivo Umbrel non è ancora stato eseguito.
 
 ## Installazione
 
-La versione 0.1.1 usa un’immagine pubblica e verificata:
+La versione 0.1.2 usa un’immagine pubblica e verificata:
 
 1. Apri l'App Store Umbrel e la gestione dei community app store.
 2. Aggiungi [https://github.com/Proof-of-Pizza21/umbrel-community-store](https://github.com/Proof-of-Pizza21/umbrel-community-store).
@@ -22,17 +22,22 @@ La versione 0.1.1 usa un’immagine pubblica e verificata:
 5. Aggiungi il primo dominio o una pagina, scegli l'intervallo dei controlli e
    apri la timeline dopo l'acquisizione.
 
-La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.1`.
+La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.2`.
 Il pacchetto la blocca al digest verificato:
-`sha256:a411e0cd6407bccaffd35f406c4198acf9ed14a49bffc0cca7692f89b8272779`. Non serve un account GitHub per scaricarla.
+`sha256:3fda9f79f7aabe03241c4b523fdef870636f839ffcaf77cd3ec87050d0823f9b`. Non serve un account GitHub per scaricarla.
 
-## Aggiornamento 0.1.1
+## Aggiornamento 0.1.2
 
-Aggiorna l’app dallo store mantenendo l’installazione esistente. Account e archivio
-usano lo stesso volume e formato del database. L’aggiornamento corregge l’accesso
-alle API, limita immagini e metadati, protegge l’elaborazione di robots.txt e
-aggiorna i componenti. Gli screenshot molto lunghi possono essere ritagliati con
-un avviso. Vedi [correzioni e limiti](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/SECURITY-0.1.1.md).
+Esporta un backup e aggiorna l’app dallo store mantenendo l’installazione
+esistente. Account e archivio rimangono nello stesso volume; l’app aggiunge
+automaticamente alla coda il campo per i controlli manuali.
+
+La 0.1.2 corregge i download delle pagine con reindirizzamenti e aggiunge
+**Controlla e scarica ora**, **Riavvia controllo** ed **Elimina sito**.
+Il controllo manuale funziona anche in pausa; l’eliminazione richiede conferma
+e rimuove definitivamente le copie del sito, conservando i file condivisi.
+Riapri l’app dopo l’aggiornamento e verifica la versione nella barra laterale.
+Vedi [funzioni e aggiornamento](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/RELEASE-0.1.2.md).
 
 ## Struttura del pacchetto
 

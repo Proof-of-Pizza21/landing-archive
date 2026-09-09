@@ -1,14 +1,14 @@
 # Installazione
 
-Landing Archive 0.1.1 è un'anteprima per mini PC Intel/AMD a 64 bit
+Landing Archive 0.1.2 è un'anteprima per mini PC Intel/AMD a 64 bit
 (`linux/amd64`), con umbrelOS 1.7.4 come ambiente di destinazione. Le prove
-Docker su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34314394725), comprese acquisizione reale,
+Docker su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34382062197), comprese acquisizione reale,
 consultazione offline, backup e riavvio. Il collaudo sul dispositivo Umbrel resta
 da eseguire; ARM non è incluso in questa anteprima.
 
 ## Installazione su Umbrel
 
-L'immagine pubblica `ghcr.io/proof-of-pizza21/landing-archive:0.1.1` è stata
+L'immagine pubblica `ghcr.io/proof-of-pizza21/landing-archive:0.1.2` è stata
 verificata e il pacchetto dello store la identifica con il digest pubblicato.
 
 1. Apri l'App Store Umbrel e la gestione dei community app store.
@@ -27,13 +27,21 @@ sia leggibile prima di aggiungere gli altri.
 Il codice è nel repository [Landing Archive](https://github.com/Proof-of-Pizza21/landing-archive).
 Per backup, spazio e gestione continuativa consulta [Gestione dell'archivio](OPERATIONS.md).
 
-## Aggiornamento da 0.1.0
+## Aggiornamento da 0.1.0 o 0.1.1
 
-Aggiorna Landing Archive dal community store Umbrel. La versione 0.1.1 conserva
-lo stesso volume e lo schema del database: account e acquisizioni rimangono
-disponibili. Non occorre disinstallare l’app. Gli screenshot molto lunghi possono
-essere ritagliati con un avviso; i limiti sono descritti in
-[Sicurezza della versione 0.1.1](SECURITY-0.1.1.md).
+Esporta un backup, poi aggiorna Landing Archive dal community store Umbrel
+mantenendo l’installazione esistente. La versione 0.1.2 conserva lo stesso
+volume, account e acquisizioni; aggiunge automaticamente alla coda un campo
+per i controlli manuali, passando allo schema 2. Non occorre disinstallare l’app.
+
+Riapri l’interfaccia e verifica che nella barra laterale compaia **0.1.2**.
+Apri un sito e premi **Controlla e scarica ora**; se un tentativo è già attivo,
+il comando diventa **Riavvia controllo**. Funziona anche con il sito in pausa.
+Per rimuovere un sito usa **Elimina sito** e conferma: la cancellazione è
+definitiva. Vedi [funzioni e aggiornamento](RELEASE-0.1.2.md).
+
+I limiti per gli screenshot molto lunghi e le altre protezioni della
+[versione 0.1.1](SECURITY-0.1.1.md) rimangono attivi.
 
 ## Prova locale con Docker
 
@@ -83,7 +91,7 @@ quindi distrugge i dati. Non usarlo come procedura di aggiornamento.
 
 ## Sviluppo senza container
 
-Per il codice 0.1.1 sono necessari Node.js 24.20.0 o successivo della linea 24, npm e le dipendenze
+Per il codice 0.1.2 sono necessari Node.js 24.20.0 o successivo della linea 24, npm e le dipendenze
 di sistema di Chromium. Installazione e compilazione:
 
 ```sh
@@ -137,9 +145,9 @@ Il file non contiene variabili e la sostituzione non ne cambia il contenuto.
 Il Compose locale legge direttamente il template, che è già JSON valido.
 Questo evita di lasciare un vecchio profilo installato dopo un aggiornamento.
 
-La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.1`,
+La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.2`,
 per `linux/amd64`. Entrambi i servizi del Compose usano il digest verificato:
-`sha256:a411e0cd6407bccaffd35f406c4198acf9ed14a49bffc0cca7692f89b8272779`. Il download anonimo dal registro è stato verificato.
+`sha256:3fda9f79f7aabe03241c4b523fdef870636f839ffcaf77cd3ec87050d0823f9b`. Il download anonimo dal registro è stato verificato.
 
 La porta esterna prevista è `4310`; va controllata sul dispositivo e rispetto
 alle app installate. Il manifest include le destinazioni del repository, del
@@ -173,7 +181,7 @@ supporto e dell'icona, da verificare dopo la pubblicazione. L'icona SVG original
 7. Completare gli URL reali nel manifest, pubblicare la radice dello store e
    provare l'installazione aggiungendone l'URL nell'interfaccia Umbrel.
 
-Le prove automatiche e Docker Linux amd64 sono completate. L'immagine 0.1.1 è
+Le prove automatiche e Docker Linux amd64 sono completate. L'immagine 0.1.2 è
 pubblica e il digest dello store è verificato. Il [resoconto di collaudo](TESTING.md)
 distingue le verifiche già eseguite da quelle ancora necessarie sul dispositivo.
 
@@ -189,10 +197,11 @@ Chromium corrispondente al Playwright del file di lock.
 
 Sono state verificate la sintassi YAML di Compose e manifest, la struttura JSON
 del profilo seccomp e la coerenza di porte, endpoint di salute e utenti.
-Il [collaudo Docker Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34314394725) ha poi avviato i due container con
+Il [collaudo Docker Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34382062197) ha poi avviato i due container con
 le restrizioni distribuite: filesystem in sola lettura, utente non amministratore,
 volume del worker in sola lettura e sandbox Chromium attiva. Ha verificato
-acquisizione reale, copia offline, deduplicazione, backup e persistenza al riavvio.
+acquisizione reale, copia offline, controllo forzato durante la pausa,
+deduplicazione, backup, persistenza al riavvio ed eliminazione confermata.
 
 Il collaudo del runner usa Compose locale e un volume Docker dedicato; non
 riproduce l'installazione attraverso Umbrel. Restano da verificare sul dispositivo
