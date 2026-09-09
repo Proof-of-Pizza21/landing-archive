@@ -222,9 +222,12 @@ try {
   await api('/api/auth/logout', { method: 'POST', body: {} });
   await api('/api/dashboard', { expected: 401 });
   cookie = '';
-  await api('/api/auth/login', { method: 'POST', body: { username: 'smoke-test', password }, authenticated: false });
+  const login = await api('/api/auth/login', { method: 'POST', body: { username: 'smoke-test', password }, authenticated: false });
+  cookie = login.headers.get('set-cookie')?.split(';')[0] || '';
+  assert.ok(cookie, 'Login must provide a new session after logout');
+  assert.equal((await json('/api/auth/status')).authenticated, true);
   check('Archive, checks and login survive a service restart; logout revokes its session');
-  await api(`/api/sites/${siteId}`, { method: 'DELETE', body: {} , expected: 400 });
+  await api(`/api/sites/${siteId}`, { method: 'DELETE', body: {}, expected: 400 });
   await api(`/api/sites/${siteId}`, { method: 'DELETE', body: { confirmSiteId: siteId } });
   await api(`/api/pages/${pageId}`, { expected: 404 });
   await api(`/api/versions/${versionId}/html`, { expected: 404 });
