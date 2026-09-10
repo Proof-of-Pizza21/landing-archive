@@ -5,14 +5,26 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
-## Aggiornamento 0.1.3 — verifiche locali del 9 settembre 2026
+## Aggiornamento 0.1.3 — 9–10 settembre 2026
 
 Controlli di tipo, compilazione e **41 test automatici** riusciti. I nuovi casi
 riproducono un errore di avvio sandbox, verificano il nuovo tentativo e accertano
 che argomenti, URL e segreti non entrino nei messaggi o nei log di diagnostica.
 La nuova prova Docker richiede AppArmor 4, nega `userns` in un profilo temporaneo
 e verifica poi il funzionamento del profilo dedicato. Gli esiti Linux vengono
-registrati dopo il completamento del workflow.
+registrati nel [workflow riuscito](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34440663040).
+
+Sono riuscite anche le 3 prove browser, la riproduzione del blocco AppArmor,
+il caricamento ripetuto del profilo dedicato e tutte le prove dei container:
+acquisizione reale, copia offline, controlli manuali, backup, riavvio ed eliminazione.
+Il worker effettivo usa `landing-archive-worker` con sandbox Chromium attiva.
+
+Immagine pubblica `sha256:e8cab2dd89b4f74ad251793f4328fbac98a9a7ad534e82ea185799ce76a9dfdf` verificata senza credenziali,
+compresi metadati, disponibilità di 22 strati e corrispondenza dell’inventario.
+La scansione ha rilevato zero segreti e zero vulnerabilità alte o critiche
+correggibili. Restano 392 segnalazioni, 225 CVE distinte e 79 segnalazioni alte o critiche senza correzione disponibile secondo lo scanner.
+Il collaudo dell’aggiornamento direttamente sul dispositivo Umbrel resta da
+completare; il blocco iniziale era stato confermato dai log del dispositivo.
 
 ## Aggiornamento 0.1.2 — 9 settembre 2026
 

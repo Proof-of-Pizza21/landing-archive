@@ -4,11 +4,11 @@ Archivio locale per seguire l'evoluzione dei propri siti e delle landing dei
 competitor: nuove pagine, cambiamenti nel messaggio e versioni che scompaiono.
 Interfaccia in italiano, dati sul proprio disco, nessun account cloud richiesto.
 
-**Stato: anteprima 0.1.2 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
+**Stato: anteprima 0.1.3 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
 umbrelOS 1.7.4 come primo ambiente di collaudo.** Il repository contiene il codice,
 la configurazione Docker e il pacchetto community store. Le prove dei container
-su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34382062197); il collaudo sul mini PC
-resta da eseguire. Questa anteprima non include il supporto ARM. L'immagine 0.1.2 è pubblica,
+su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34440663040); il collaudo sul mini PC
+resta da eseguire. Questa anteprima non include il supporto ARM. L'immagine 0.1.3 è pubblica,
 verificata nei container e bloccata al suo digest nel pacchetto dello store.
 
 Le correzioni di sicurezza della versione 0.1.1 sono descritte in
@@ -47,7 +47,7 @@ poi aggiungi il primo dominio o una pagina precisa. Scegli l'intervallo dei
 controlli e consulta le acquisizioni nella timeline. Non ci sono credenziali
 predefinite. Il login dell'archivio si aggiunge alla protezione del proxy Umbrel.
 
-La correzione del codice 0.1.3 per il blocco AppArmor è descritta in
+La correzione della versione 0.1.3 per il blocco AppArmor è descritta in
 [Avvio del browser su Umbrel](docs/RELEASE-0.1.3.md).
 
 ## Prova locale con Docker
