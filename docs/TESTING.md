@@ -5,6 +5,16 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
+## Aggiornamento 0.1.4 — vista offline
+
+Controlli di tipo, compilazione, **43 test automatici e 4 prove browser** riusciti
+localmente. La nuova prova apre documenti archiviati con contenuti ostili,
+verifica il blocco di script e traffico live, naviga fra copie con date diverse,
+controlla ancore, link mancanti, ritorno indietro e interfaccia mobile.
+Sono verificati anche autenticazione, intestazioni di sicurezza e limiti di
+complessità. Il test dei container include la vista offline autenticata.
+Gli esiti Linux della pubblicazione vengono aggiunti al termine del workflow.
+
 ## Aggiornamento 0.1.3 — 9–10 settembre 2026
 
 Controlli di tipo, compilazione e **41 test automatici** riusciti. I nuovi casi

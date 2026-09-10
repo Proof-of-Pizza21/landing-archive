@@ -1,0 +1,93 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { existsSync, mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { chromium } from 'playwright';
+import { PNG } from 'pngjs';
+
+test('offline browser navigation preserves dates, blocks live traffic and keeps the archive private', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'landing-offline-'));
+  process.env.DATA_DIR = directory; process.env.MIN_FREE_GIB = '0'; process.env.SCHEDULER_ENABLED = 'false';
+  const { createApp } = await import('../src/server.js');
+  const { db, get, addPage } = await import('../src/db.js');
+  const { recordCapture } = await import('../src/history.js');
+  const app = await createApp();
+  await app.listen({ host: '127.0.0.1', port: 0 });
+  const origin = `http://127.0.0.1:${(app.server.address() as { port: number }).port}`;
+  const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'offline-test', password: 'temporary-test-password' } });
+  const cookie = String(setup.headers['set-cookie']).split(';')[0];
+  const call = (url: string) => app.inject({ method: 'GET', url, headers: { cookie } });
+  const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { cookie }, payload: { name: 'Offline fixture', url: 'https://1.1.1.1/', maxPages: 1, paused: true } })).json().site;
+  const row = get('SELECT * FROM sites WHERE id=?', site.id)!;
+  const png = new PNG({ width: 12, height: 12 }); png.data.fill(255);
+  const save = async (url: string, title: string, day: number, html: string) => {
+    const page = addPage(site.id, url).page;
+    const result = await recordCapture(page, row, { requestedUrl: url, finalUrl: url, title, text: title, statusCode: 200, html, screenshot: PNG.sync.write(png), headings: [], links: [], imageUrls: [], warnings: [], capturedAt: `2026-09-0${day}T12:00:00.000Z` });
+    return { page, version: result.versionId };
+  };
+  const main = await save('https://1.1.1.1/', 'Main archive', 3, `<!doctype html><html><head><title>Main archive</title><style>body{font-family:sans-serif;background:#eaf3e3}h1{color:rgb(20,90,40)}@import url('${origin}/tripwire-css');</style><meta http-equiv="refresh" content="0;url=${origin}/tripwire-refresh"></head><body><h1>Archived home</h1><a href="/offer/#price" target="_top">Offer</a><p><a href="/new/">New landing</a></p><a href="https://outside.example/" ping="${origin}/tripwire-ping">Live destination</a><p><a href="#footer">Footer</a></p><script>parent.document.body.dataset.compromised='yes';fetch('${origin}/tripwire-script')</script><img src="${origin}/tripwire-image" onerror="parent.document.body.dataset.compromised='yes'"><iframe src="${origin}/tripwire-frame"></iframe><form action="${origin}/tripwire-form"><button>Send</button></form><div style="height:900px"></div><h2 id="footer">Archived footer</h2></body></html>`);
+  const old = await save('https://1.1.1.1/offer/', 'Old offer', 2, '<html><body><h1>Offer at the selected date</h1><h2 id="price">Archived price</h2><a href="/">Home</a></body></html>');
+  await save('https://1.1.1.1/offer/', 'New offer', 5, '<h1>Future offer must not replace the old one</h1>');
+  const future = await save('https://1.1.1.1/new/', 'New landing', 4, '<h1>First later copy</h1>');
+  const meta = (await call(`/api/versions/${main.version}/offline`)).json();
+  assert.equal(meta.targets.find((v: any) => v.url.endsWith('/offer/')).id, old.version);
+  assert.equal(meta.targets.find((v: any) => v.id === future.version).later, true);
+  assert.equal((await app.inject({ url: meta.previewUrl })).statusCode, 401);
+  assert.equal((await call(`/api/versions/${main.version}/offline?at=invalid`)).statusCode, 400);
+  const rendered = await call(meta.previewUrl);
+  assert.match(String(rendered.headers['content-security-policy']), /script-src 'none'/);
+  assert.equal(rendered.headers['x-frame-options'], 'SAMEORIGIN');
+  assert.equal(rendered.headers['cache-control'], 'no-store');
+  assert.match(String((await call(`/api/versions/${main.version}/html`)).headers['content-disposition']), /^attachment/);
+  const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  const browser = await chromium.launch({ headless: true, chromiumSandbox: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined) });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+  await context.addCookies([{ url: origin, name: cookie.split('=')[0], value: cookie.slice(cookie.indexOf('=') + 1), httpOnly: true, sameSite: 'Strict' }]);
+  const escaped: string[] = [];
+  await context.route('**/*', route => {
+    const url = route.request().url();
+    if (!url.startsWith(origin + '/') || url.includes('/tripwire')) { escaped.push(url); return route.abort(); }
+    return route.continue();
+  });
+  const page = await context.newPage();
+  try {
+    await page.goto(`${origin}/#/page/${main.page.id}`);
+    const frame = page.frameLocator('iframe[title="Pagina archiviata offline"]');
+    await frame.getByRole('heading', { name: 'Archived home' }).waitFor();
+    assert.equal(await frame.locator('h1').evaluate(node => getComputedStyle(node).color), 'rgb(20, 90, 40)');
+    assert.equal(await page.locator('iframe').getAttribute('sandbox'), 'allow-same-origin');
+    assert.equal(await page.evaluate(() => document.body.dataset.compromised), undefined);
+    await frame.getByRole('link', { name: 'Offer', exact: true }).click();
+    await frame.getByRole('heading', { name: 'Offer at the selected date' }).waitFor();
+    assert.match(await page.locator('.offline-address time').innerText(), /02 set/);
+    await page.getByRole('button', { name: 'Indietro', exact: true }).click();
+    await frame.getByRole('heading', { name: 'Archived home' }).waitFor();
+    await frame.getByRole('link', { name: 'New landing', exact: true }).click();
+    await frame.getByRole('heading', { name: 'First later copy' }).waitFor();
+    await page.getByText(/esiste soltanto una copia successiva/).waitFor();
+    assert.match(await page.locator('.offline-address time').innerText(), /04 set/);
+    await page.getByRole('button', { name: 'Indietro', exact: true }).click();
+    await frame.getByRole('link', { name: 'Live destination' }).click();
+    await page.getByText(/non ha una copia nell’archivio/).waitFor();
+    await frame.getByRole('link', { name: 'Footer', exact: true }).click();
+    assert.ok(await frame.locator('body').evaluate(() => scrollY > 0));
+    assert.equal(await page.evaluate(() => document.body.dataset.compromised), undefined);
+    assert.deepEqual(escaped, []);
+    const screenshots = process.env.UI_SCREENSHOT_DIR;
+    if (screenshots) { mkdirSync(screenshots, { recursive: true }); await page.screenshot({ path: join(screenshots, 'offline-desktop.png'), fullPage: true }); }
+    await page.getByRole('button', { name: 'Screenshot', exact: true }).click();
+    await page.locator('.screenshot-view img').waitFor();
+    await page.getByRole('button', { name: 'Pagina offline', exact: true }).click();
+    await frame.getByRole('heading', { name: 'Archived home' }).waitFor();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => document.getAnimations().forEach(animation => animation.finish()));
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+    const offlineButton = await page.getByRole('button', { name: 'Pagina offline', exact: true }).boundingBox();
+    const screenshotButton = await page.getByRole('button', { name: 'Screenshot', exact: true }).boundingBox();
+    assert.ok(offlineButton && screenshotButton && screenshotButton.x + screenshotButton.width <= 390);
+    if (screenshots) await page.screenshot({ path: join(screenshots, 'offline-phone.png'), fullPage: true });
+    assert.equal(get('SELECT COUNT(*) n FROM versions')!.n, 4);
+    assert.deepEqual(escaped, []);
+  } finally { await browser.close(); await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }); }
+});

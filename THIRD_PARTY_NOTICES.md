@@ -18,6 +18,7 @@ licenze e attribuzioni nei pacchetti distribuiti.
 | diff | BSD-3-Clause | https://github.com/kpdecker/jsdiff |
 | pixelmatch | ISC | https://github.com/mapbox/pixelmatch |
 | pngjs | MIT | https://github.com/pngjs/pngjs |
+| parse5 8.0.1 | MIT | https://github.com/inikulin/parse5 |
 | fast-xml-parser | MIT | https://github.com/NaturalIntelligence/fast-xml-parser |
 | archiver | MIT | https://github.com/archiverjs/node-archiver |
 

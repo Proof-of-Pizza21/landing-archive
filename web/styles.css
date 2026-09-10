@@ -461,3 +461,25 @@ input:disabled { opacity: .7; }
   .site-card-actions .button { flex: 1; }
   .acquisition-status { padding: 15px; }
 }
+
+/* The archived document is confined to its own scrolling, script-free frame. */
+.capture-toolbar { flex-wrap: wrap; gap: 12px; }
+.capture-toolbar > .capture-view-tabs { flex: 0 0 auto; gap: 4px; max-width: 100%; }
+.offline-toolbar { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.offline-address { flex: 1; min-width: 0; display: grid; gap: 5px; font-size: 12px; }
+.offline-address strong { display: flex; align-items: center; gap: 6px; }
+.offline-address span { overflow-wrap: anywhere; color: var(--muted); }
+.offline-address time { font-weight: 600; }
+.offline-view iframe { display: block; width: 100%; height: 660px; border: 0; background: white; }
+.offline-view.expanded iframe { height: 85vh; }
+.offline-view .notice { margin: 12px 16px; }
+.offline-note { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 16px 18px; border-top: 1px solid var(--border); font-size: 12px; line-height: 1.6; color: var(--muted); }
+.offline-note > span { flex: 1 1 250px; }
+.offline-note a { flex-shrink: 0; }
+@media (max-width: 600px) {
+  .offline-toolbar { padding: 12px; gap: 8px; }
+  .offline-toolbar .button { padding: 8px; }
+  .capture-toolbar > .capture-view-tabs { width: 100%; flex-basis: 100%; }
+  .capture-view-tabs button { flex: 1; }
+  .offline-view iframe { height: 560px; }
+}

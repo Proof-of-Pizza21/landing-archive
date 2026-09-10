@@ -50,6 +50,9 @@ predefinite. Il login dell'archivio si aggiunge alla protezione del proxy Umbrel
 La correzione della versione 0.1.3 per il blocco AppArmor è descritta in
 [Avvio del browser su Umbrel](docs/RELEASE-0.1.3.md).
 
+La vista **Pagina offline** della 0.1.4 permette di consultare le copie e seguire
+i collegamenti archiviati direttamente nell’app. [Funzioni e limiti](docs/RELEASE-0.1.4.md).
+
 ## Prova locale con Docker
 
 Per provare il progetto su un computer che dispone già di Docker con Compose:

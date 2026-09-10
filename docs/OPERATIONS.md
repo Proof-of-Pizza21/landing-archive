@@ -20,6 +20,11 @@ oppure essere stata sostituita da una nuova campagna.
 
 ## Cosa contiene una versione
 
+Dalla 0.1.4 la scheda **Pagina offline** apre l’HTML direttamente nell’app.
+I collegamenti portano alle copie dello stesso sito, con indirizzo e data visibili;
+i link senza copia mostrano un avviso. La data della timeline rimane il riferimento:
+una copia successiva viene indicata esplicitamente. [Dettagli e limiti](RELEASE-0.1.4.md).
+
 Lo screenshot registra l'aspetto osservato dal browser desktop. La copia HTML
 conserva le risorse che SingleFile è riuscito a incorporare. Il testo permette
 di confrontare messaggi, offerte e intestazioni. Immagini, font o contenuti

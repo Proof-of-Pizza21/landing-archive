@@ -5,7 +5,7 @@ import serveStatic from '@fastify/static';
 import { ZipArchive } from 'archiver';
 import { diffWordsWithSpace } from 'diff';
 import { DatabaseSync } from 'node:sqlite';
-import { createReadStream, existsSync, rmSync } from 'node:fs';
+import { createReadStream, existsSync, rmSync, readFileSync, statSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { dataDir, host, port } from './config.js';
@@ -14,6 +14,7 @@ import { registerAuth } from './auth.js';
 import { normalizeUrl, validatePublicUrl, CaptureError } from './network.js';
 import { objectPath, storageStatus, checkSpace, removeUnusedObjects } from './storage.js';
 import { startJobs, stopJobs, workerState, cancelSiteJobs, requestManualScan } from './jobs.js';
+import { offlineDocument, offlineMaxBytes, offlinePolicy, type OfflineTarget } from './offline.js';
 
 const fail = (message: string, statusCode = 400): never => { throw Object.assign(new Error(message), { statusCode }); };
 const required = (table: 'sites' | 'pages' | 'versions', value: unknown) => {
@@ -55,7 +56,7 @@ export async function createApp() {
   });
   app.get('/api/health', { config: { publicAccess: true } }, async () => ({ ok: true }));
   app.get('/api/dashboard', async () => ({
-    version: '0.1.3',
+    version: '0.1.4',
     stats: {
       sites: get('SELECT COUNT(*) n FROM sites')!.n, pages: get('SELECT COUNT(*) n FROM pages')!.n,
       versions: get('SELECT COUNT(*) n FROM versions')!.n, bytes: get('SELECT COALESCE(SUM(bytes),0) n FROM objects')!.n,
@@ -144,6 +145,25 @@ export async function createApp() {
     return requestManualScan(page.site_id, { pageId: page.id, restart: body.force === true });
   });
   app.get<{ Params: { id: string } }>('/api/versions/:id', async request => ({ version: serializeVersion(required('versions', request.params.id), true) }));
+  for (const document of [false, true]) app.get<{ Params: { id: string }; Querystring: { at?: string } }>(`/api/versions/:id/offline${document ? '/html' : ''}`, async (request, reply) => {
+    const version = required('versions', request.params.id), page = required('pages', version.page_id);
+    const at = request.query.at ?? version.captured_at;
+    if (typeof at !== 'string' || at.length > 30 || !Number.isFinite(Date.parse(at)) || new Date(at).toISOString() !== at) fail('Data di consultazione non valida');
+    const rows = all(`SELECT p.url,v.id,v.final_url,v.title,v.captured_at FROM pages p JOIN versions v ON v.id=COALESCE(
+      (SELECT id FROM versions WHERE page_id=p.id AND captured_at<=? ORDER BY captured_at DESC,id DESC LIMIT 1),
+      (SELECT id FROM versions WHERE page_id=p.id ORDER BY captured_at ASC,id ASC LIMIT 1))
+      WHERE p.site_id=? ORDER BY p.first_seen_at,p.id LIMIT 1000`, at, page.site_id);
+    const targets: OfflineTarget[] = rows.map(row => ({ id: row.id, url: row.url, finalUrl: row.final_url, title: row.title, capturedAt: row.captured_at, later: row.captured_at > at }));
+    const previewUrl = `/api/versions/${encodeURIComponent(version.id)}/offline/html?at=${encodeURIComponent(at)}`;
+    if (!document) return { version: serializeVersion(version), at, targets, previewUrl };
+    const path = objectPath(version.html_hash);
+    if (statSync(path).size > offlineMaxBytes) fail('Questa copia supera il limite della vista offline. Puoi scaricare l’HTML dal pulsante in alto.', 413);
+    const html = offlineDocument(readFileSync(path, 'utf8'), version.final_url, targets);
+    reply.type('text/html; charset=utf-8').header('Content-Security-Policy', offlinePolicy)
+      .header('X-Frame-Options', 'SAMEORIGIN').header('Referrer-Policy', 'no-referrer')
+      .header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
+    return reply.send(html);
+  });
   for (const kind of ['screenshot', 'html'] as const) app.get<{ Params: { id: string } }>(`/api/versions/:id/${kind}`, async (request, reply) => {
     const v = required('versions', request.params.id), isHtml = kind === 'html';
     reply.type(isHtml ? 'text/html; charset=utf-8' : 'image/png');
@@ -186,7 +206,7 @@ export async function createApp() {
       reply.raw.once('close', () => { if (!reply.raw.writableFinished) zip.abort(); cleanup(); });
       zip.file(destination, { name: 'archive.sqlite' });
       for (const object of objects) zip.file(join(dataDir, object.path), { name: object.path });
-      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.3', schema: 2, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
+      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.4', schema: 2, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
       reply.header('Content-Disposition', `attachment; filename="landing-archive-${now().slice(0, 10)}.zip"`).type('application/zip');
       void zip.finalize().catch(error => zip.destroy(error));
       return reply.send(zip);

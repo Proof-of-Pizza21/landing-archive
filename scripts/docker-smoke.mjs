@@ -183,6 +183,15 @@ try {
   const captured = await waitForCheck(pageId, 1);
   assert.equal(captured.versions.length, 1);
   const versionId = captured.versions[0].id;
+  const replay = await json(`/api/versions/${versionId}/offline`);
+  assert.equal(replay.version.id, versionId);
+  const replayResponse = await api(replay.previewUrl);
+  assert.equal(replayResponse.headers.get('x-frame-options'), 'SAMEORIGIN');
+  assert.match(replayResponse.headers.get('content-security-policy') || '', /script-src 'none'/);
+  const replayHtml = await replayResponse.text();
+  assert.match(replayHtml, /Example Domain/i);
+  assert.doesNotMatch(replayHtml, /<(?:script|iframe|base|meta)(?:\s|>)/i);
+  check('Authenticated offline view renders the archived page with script and network restrictions');
   const screenshot = Buffer.from(await (await api(`/api/versions/${versionId}/screenshot`)).arrayBuffer());
   assert.equal(screenshot.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
   const htmlResponse = await api(`/api/versions/${versionId}/html`);
