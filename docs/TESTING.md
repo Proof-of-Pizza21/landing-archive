@@ -20,7 +20,16 @@ verifica il blocco di script e traffico live, naviga fra copie con date diverse,
 controlla ancore, link mancanti, ritorno indietro e interfaccia mobile.
 Sono verificati anche autenticazione, intestazioni di sicurezza e limiti di
 complessità. Il test dei container include la vista offline autenticata.
-Gli esiti Linux della pubblicazione vengono aggiunti al termine del workflow.
+Il [collaudo Linux della release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34747984632) è riuscito il 13 settembre 2026:
+44 test automatici, 4 prove browser, riproduzione del blocco AppArmor e prove
+complete dei container, compresa la nuova vista offline autenticata.
+
+Immagine pubblica `sha256:0236c013c031198f74089db38f9a80b9473b9d782683d4ba1b1010afadd9f359` verificata senza credenziali,
+compresi metadati, disponibilità di 23 strati e corrispondenza dell’inventario.
+La scansione ha rilevato zero segreti e zero vulnerabilità alte o critiche
+correggibili. L’inventario contiene 396 segnalazioni e 228 CVE distinte; non equivale
+all’assenza di vulnerabilità. Il collaudo dell’aggiornamento sul dispositivo
+Umbrel resta distinto dalle prove automatiche.
 
 ## Aggiornamento 0.1.3 — 9–10 settembre 2026
 

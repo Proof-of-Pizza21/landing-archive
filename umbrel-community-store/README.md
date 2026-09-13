@@ -2,17 +2,17 @@
 
 Questa directory è la radice del community app store di
 [Proof-of-Pizza21](https://github.com/Proof-of-Pizza21/umbrel-community-store).
-Landing Archive 0.1.3 è un'anteprima per mini PC Intel/AMD a 64 bit (`linux/amd64`),
+Landing Archive 0.1.6 è un'anteprima per mini PC Intel/AMD a 64 bit (`linux/amd64`),
 destinata al collaudo su umbrelOS 1.7.4. ARM non è incluso nella prima anteprima.
 
-Il [collaudo dei container Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34440663040) è riuscito: avvio con sandbox
+Il [collaudo dei container Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34747984632) è riuscito: avvio con sandbox
 Chromium attiva, acquisizione, copia offline, controllo manuale in pausa,
 deduplicazione, backup, persistenza dopo riavvio e cancellazione confermata.
 Il collaudo sul dispositivo Umbrel non è ancora stato eseguito.
 
 ## Installazione
 
-La versione 0.1.3 usa un’immagine pubblica e verificata:
+La versione 0.1.6 usa un’immagine pubblica e verificata:
 
 1. Apri l'App Store Umbrel e la gestione dei community app store.
 2. Aggiungi [https://github.com/Proof-of-Pizza21/umbrel-community-store](https://github.com/Proof-of-Pizza21/umbrel-community-store).
@@ -22,22 +22,23 @@ La versione 0.1.3 usa un’immagine pubblica e verificata:
 5. Aggiungi il primo dominio o una pagina, scegli l'intervallo dei controlli e
    apri la timeline dopo l'acquisizione.
 
-La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.3`.
+La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.6`.
 Il pacchetto la blocca al digest verificato:
-`sha256:e8cab2dd89b4f74ad251793f4328fbac98a9a7ad534e82ea185799ce76a9dfdf`. Non serve un account GitHub per scaricarla.
+`sha256:0236c013c031198f74089db38f9a80b9473b9d782683d4ba1b1010afadd9f359`. Non serve un account GitHub per scaricarla.
 
-## Aggiornamento 0.1.3
+## Aggiornamento 0.1.6
 
 Esporta un backup e aggiorna l’app mantenendo l’installazione esistente.
-La 0.1.3 risolve il blocco di avvio Chromium causato dal profilo AppArmor
-predefinito su sistemi recenti. Umbrel carica automaticamente una regola
-dedicata al solo motore, mantenendo la sandbox del browser e le altre protezioni.
-Non vengono modificate le impostazioni globali del sistema.
+La 0.1.6 aggiunge **Pagina offline** accanto allo screenshot: puoi scorrere gli
+HTML già salvati, selezionare testo e seguire i collegamenti alle copie dello
+stesso sito. Indirizzo e data effettiva rimangono visibili; **Indietro** torna
+alla pagina precedente. Le copie successive alla data selezionata sono segnalate.
 
-Account e archivio rimangono conservati. Riapri l’app, verifica **0.1.3** nella
-barra laterale e premi **Controlla e scarica ora**. I comandi di riavvio ed
-eliminazione del sito introdotti nella 0.1.2 rimangono disponibili.
-Vedi [correzione e aggiornamento](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/RELEASE-0.1.3.md).
+I link senza una copia mostrano un avviso. La vista blocca script e richieste
+verso i siti live. Lo screenshot e il download dell’HTML originale restano
+disponibili. Account, archivio, pianificazione e schema sono conservati.
+Riapri l’app, verifica **0.1.6** e apri una versione già acquisita.
+Vedi [funzioni, limiti e aggiornamento](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/RELEASE-0.1.6.md).
 
 ## Struttura del pacchetto
 
