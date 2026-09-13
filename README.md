@@ -53,6 +53,10 @@ La correzione della versione 0.1.3 per il blocco AppArmor è descritta in
 La vista **Pagina offline** della 0.1.6 permette di consultare le copie e seguire
 i collegamenti archiviati direttamente nell’app. [Funzioni e limiti](docs/RELEASE-0.1.6.md).
 
+Il codice 0.1.7 aggiunge **Confronta → Aspetto** con aree modificate evidenziate,
+navigazione fra le zone e riepilogo delle differenze anche quando gli screenshot
+coincidono. [Funzioni e limiti](docs/RELEASE-0.1.7.md).
+
 ## Prova locale con Docker
 
 Per provare il progetto su un computer che dispone già di Docker con Compose:

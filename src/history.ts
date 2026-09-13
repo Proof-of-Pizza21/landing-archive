@@ -4,15 +4,10 @@ export { visualDifference } from './image-compare.js';
 import type { CaptureResult } from './types.js';
 import { addEvent, get, id, later, now, run, transaction, type Row } from './db.js';
 import { hash, putObject, readObject } from './storage.js';
+import { contentFields } from './content-fields.js';
 
-function normalized(value: string) { return value.normalize('NFKC').replace(/\s+/g, ' ').trim(); }
 export function contentSignature(result: CaptureResult) {
-  return hash(JSON.stringify({
-    title: normalized(result.title), text: normalized(result.text),
-    headings: result.headings.map(normalized),
-    links: result.links.map(l => [l.url, normalized(l.text)]).sort((a, b) => a.join('|').localeCompare(b.join('|'))),
-    images: [...new Set(result.imageUrls)].sort(), finalUrl: result.finalUrl,
-  }));
+  return hash(JSON.stringify(contentFields(result)));
 }
 
 export async function recordCapture(page: Row, site: Row, result: CaptureResult, signal?: AbortSignal) {

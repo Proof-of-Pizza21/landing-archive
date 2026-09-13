@@ -125,6 +125,7 @@ try {
     import {existsSync} from 'node:fs';
     import {PNG} from 'pngjs';
     import {visualDifference} from './dist/image-compare.js';
+    import {locateVisualChanges} from './dist/image-regions.js';
     assert.equal(process.versions.node, '24.20.0');
     assert.equal(existsSync('/usr/local/lib/node_modules/npm'), false);
     const make = value => {
@@ -135,6 +136,10 @@ try {
     };
     const left=make(0),right=make(255);
     assert.equal(await visualDifference(left,right),1);
+    const highlighted=await locateVisualChanges(left,right);
+    assert.equal(highlighted.difference,1);
+    assert.ok(highlighted.regions.length>0 && highlighted.regions.length<=100);
+    assert.equal(highlighted.width,1200); assert.equal(highlighted.height,10000);
     const response=await fetch('http://127.0.0.1:4310/api/health');
     assert.equal(response.status,200);
   ` });
@@ -192,6 +197,14 @@ try {
   assert.match(replayHtml, /Example Domain/i);
   assert.doesNotMatch(replayHtml, /<(?:script|iframe|base|meta)(?:\s|>)/i);
   check('Authenticated offline view renders the archived page with script and network restrictions');
+  const comparePath = `/api/compare/visual?left=${versionId}&right=${versionId}`;
+  await api(comparePath, { authenticated: false, expected: 401 });
+  const highlightedResponse = await api(comparePath);
+  assert.equal(highlightedResponse.headers.get('cache-control'), 'no-store');
+  assert.deepEqual((await highlightedResponse.json()).regions, []);
+  assert.deepEqual((await json(`/api/compare?left=${versionId}&right=${versionId}`)).changes, []);
+  check('Authenticated change highlighting and explanations work without adding archive versions');
+
   const screenshot = Buffer.from(await (await api(`/api/versions/${versionId}/screenshot`)).arrayBuffer());
   assert.equal(screenshot.subarray(0, 8).toString('hex'), '89504e470d0a1a0a');
   const htmlResponse = await api(`/api/versions/${versionId}/html`);

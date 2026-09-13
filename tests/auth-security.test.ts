@@ -31,7 +31,7 @@ test('matched routes require a session for every equivalent HTTP request target'
       ['GET', '/pages/fixture'], ['GET', '/versions/fixture'],
       ['GET', '/versions/fixture/html'], ['HEAD', '/versions/fixture/html'],
       ['GET', '/versions/fixture/screenshot'], ['HEAD', '/versions/fixture/screenshot'],
-      ['GET', '/compare?left=a&right=b'], ['GET', '/search?q=test'],
+      ['GET', '/compare?left=a&right=b'], ['GET', '/compare/visual?left=a&right=b'], ['HEAD', '/compare/visual?left=a&right=b'], ['GET', '/search?q=test'],
       ['GET', '/export'], ['GET', '/source'], ['POST', '/sites'],
       ['POST', '/sites/fixture/pages'], ['POST', '/sites/fixture/scan'],
       ['POST', '/pages/fixture/scan'], ['PATCH', '/sites/fixture'], ['PATCH', '/pages/fixture'],

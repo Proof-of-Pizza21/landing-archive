@@ -327,6 +327,36 @@ tr:last-child td { border-bottom: 0; }
 .compare-image { border: 1px solid #dfeacf; border-radius: 5px; overflow-y: auto; height: 590px; background: #f5f8ee; }
 .compare-image a { display: block; }
 .compare-image img { width: 100%; height: auto; display: block; }
+.comparison-summary { padding: 20px 24px; border-bottom: 1px solid #e7eedf; color: #47613b; }
+.comparison-summary > strong { font-size: 14px; }
+.comparison-summary p, .visual-tools p { font-size: 12px; line-height: 1.65; margin: 9px 0 0; }
+.change-chips { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 12px; }
+.change-chips .text-button { border: 1px solid #d8e2c9; border-radius: 7px; padding: 7px 10px; color: #47613b; background: #f8fbf3; }
+.comparison-empty { padding: 40px 24px; font-size: 14px; text-align: center; }
+.visual-tools { padding: 18px 24px; border-bottom: 1px solid #e7eedf; color: #4b623f; }
+.visual-tools .loading { padding: 15px 0; }
+.visual-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
+.visual-controls .checkbox-label { font-size: 13px; margin: 0; color: #35492d; }
+.region-navigation { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.region-navigation > span { font-size: 12px; min-width: 85px; text-align: center; }
+.visual-tools .comparison-limit { color: #6b785f; font-size: 11px; }
+.dimension-change { padding: 9px 12px; background: #fff3da; border-radius: 6px; color: #80521a; }
+.highlighted-comparison { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.highlighted-comparison > div { min-width: 0; }
+.comparison-canvas { position: relative; width: 100%; background: repeating-linear-gradient(45deg, #eef0e9, #eef0e9 7px, #f9faf7 7px, #f9faf7 14px); }
+.comparison-canvas > img { position: absolute; top: 0; left: 0; }
+.difference-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.difference-overlay rect { fill: #ffb64d26; stroke: #b85600; stroke-width: 2; }
+.difference-overlay rect.active { fill: #ff98003b; stroke: #8f3600; stroke-width: 3; }
+.compare-downloads { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.compare-downloads .text-button { font-size: 11px; }
+.comparison-details { padding: 22px 24px; color: #47613b; font-size: 13px; line-height: 1.6; }
+.comparison-details > section + section { margin-top: 22px; border-top: 1px solid #e7eedf; padding-top: 20px; }
+.comparison-details h3 { font-size: 14px; margin-bottom: 10px; }
+.detail-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.detail-pair > div { padding: 14px; background: #f7f9f2; border: 1px solid #e1e8d6; border-radius: 6px; overflow-wrap: anywhere; }
+.detail-pair p { margin: 8px 0 0; white-space: pre-wrap; }
+.comparison-details .link-comparison { padding: 12px 0 0; }
 .visual-comparison > div > .text-button { margin-top: 11px; font-size: 9px; color: #99b181; }
 .text-diff { padding: 25px 30px; max-height: 760px; min-height: 230px; overflow-y: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 12px; line-height: 2.1; color: #7e9d68; }
 .text-diff ins { background: #dff0cc; color: #567f3d; text-decoration: none; }
@@ -482,4 +512,16 @@ input:disabled { opacity: .7; }
   .capture-toolbar > .capture-view-tabs { width: 100%; flex-basis: 100%; }
   .capture-view-tabs button { flex: 1; }
   .offline-view iframe { height: 560px; }
+}
+
+@media (max-width: 680px) {
+  .compare-panel .compare-tabs .tabs { flex-wrap: wrap; justify-content: flex-start; gap: 3px; }
+  .compare-panel .compare-tabs .tabs > button { font-size: 11px; }
+  .comparison-summary, .visual-tools, .comparison-details { padding: 17px; }
+  .highlighted-comparison { grid-template-columns: minmax(0, 1fr); gap: 23px; }
+  .highlighted-comparison .compare-image { height: 430px; }
+  .highlighted-comparison .compare-image-label { flex-direction: row; font-size: 11px; }
+  .highlighted-comparison .compare-image-label span, .highlighted-comparison .compare-image-label strong { font-size: 10px; }
+  .detail-pair { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .region-navigation { gap: 8px; }
 }

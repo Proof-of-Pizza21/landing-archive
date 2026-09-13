@@ -5,6 +5,24 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
+## Aggiornamento 0.1.7 — modifiche evidenziate
+
+Controlli di tipo, compilazione, **49 test automatici e 5 prove browser**
+riusciti localmente con Node.js 24.20.0. I nuovi test localizzano due zone
+separate, verificano allineamento e bordi di un pixel, input corrotti e limiti,
+annullamento, corrispondenza con il rilevatore esistente e compatibilità delle
+firme storiche. Il riepilogo distingue variazioni di testo, metadati e soli
+parametri degli indirizzi.
+
+La prova browser verifica evidenziazione attivabile, navigazione fra zone,
+scorrimento sincronizzato, differenze di testo, metadati senza variazioni
+visive e layout a 390 pixel. L’API richiede autenticazione, rifiuta versioni
+di pagine diverse, limita le elaborazioni contemporanee e non crea oggetti o
+versioni nell’archivio. La prova Docker include il calcolo su screenshot da
+12 milioni di pixel e il nuovo endpoint autenticato.
+
+Gli esiti Linux della pubblicazione vengono aggiunti al termine del workflow.
+
 ## Aggiornamento 0.1.6 — vista offline
 
 La preparazione 0.1.4 è stata fermata dal controllo Linux per un riferimento

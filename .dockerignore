@@ -49,3 +49,5 @@
 !scripts/docker-smoke.mjs
 !scripts/check-image-security.mjs
 !scripts/scan-image.sh
+
+!docs/RELEASE-0.1.7.md

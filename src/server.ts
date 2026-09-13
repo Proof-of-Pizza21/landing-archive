@@ -3,7 +3,6 @@ import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import serveStatic from '@fastify/static';
 import { ZipArchive } from 'archiver';
-import { diffWordsWithSpace } from 'diff';
 import { DatabaseSync } from 'node:sqlite';
 import { createReadStream, existsSync, rmSync, readFileSync, statSync } from 'node:fs';
 import { resolve, join } from 'node:path';
@@ -15,6 +14,9 @@ import { normalizeUrl, validatePublicUrl, CaptureError } from './network.js';
 import { objectPath, storageStatus, checkSpace, removeUnusedObjects } from './storage.js';
 import { startJobs, stopJobs, workerState, cancelSiteJobs, requestManualScan } from './jobs.js';
 import { offlineDocument, offlineMaxBytes, offlinePolicy, type OfflineTarget } from './offline.js';
+import { compareContent } from './comparison.js';
+import { locateVisualChanges, type VisualRegions } from './image-regions.js';
+import { captureLimits } from './capture-limits.js';
 
 const fail = (message: string, statusCode = 400): never => { throw Object.assign(new Error(message), { statusCode }); };
 const required = (table: 'sites' | 'pages' | 'versions', value: unknown) => {
@@ -47,6 +49,9 @@ function siteFields(body: Row, previous?: Row) {
 
 export async function createApp() {
   const app = Fastify({ logger: false, bodyLimit: 128 * 1024, requestTimeout: 30000 });
+  const visualCache = new Map<string, VisualRegions>();
+  let visualJob: AbortController | undefined;
+  app.addHook('onClose', async () => { visualJob?.abort(); visualCache.clear(); });
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
   registerAuth(app);
@@ -56,7 +61,7 @@ export async function createApp() {
   });
   app.get('/api/health', { config: { publicAccess: true } }, async () => ({ ok: true }));
   app.get('/api/dashboard', async () => ({
-    version: '0.1.6',
+    version: '0.1.7',
     stats: {
       sites: get('SELECT COUNT(*) n FROM sites')!.n, pages: get('SELECT COUNT(*) n FROM pages')!.n,
       versions: get('SELECT COUNT(*) n FROM versions')!.n, bytes: get('SELECT COALESCE(SUM(bytes),0) n FROM objects')!.n,
@@ -173,11 +178,33 @@ export async function createApp() {
   app.get<{ Querystring: { left: string; right: string } }>('/api/compare', async request => {
     const left = required('versions', request.query.left), right = required('versions', request.query.right);
     if (left.page_id !== right.page_id) fail('Scegli due versioni della stessa pagina');
-    const l = JSON.parse(left.links), r = JSON.parse(right.links);
-    const key = (link: any) => JSON.stringify([link.url, link.text]);
-    const leftSet = new Set(l.map(key)), rightSet = new Set(r.map(key));
-    const textDiff = diffWordsWithSpace(left.text, right.text, { timeout: 500, maxEditLength: 10000 }) ?? [{ value: left.text, removed: true }, { value: right.text, added: true }];
-    return { left: serializeVersion(left), right: serializeVersion(right), textDiff, changedLinks: { added: r.filter((v: any) => !leftSet.has(key(v))), removed: l.filter((v: any) => !rightSet.has(key(v))) } };
+    return { left: serializeVersion(left), right: serializeVersion(right), ...compareContent(left, right) };
+  });
+  app.get<{ Querystring: { left: string; right: string } }>('/api/compare/visual', { exposeHeadRoute: false, config: { rateLimit: { max: 20, timeWindow: '1 minute' } } }, async (request, reply) => {
+    const left = required('versions', request.query.left), right = required('versions', request.query.right);
+    if (left.page_id !== right.page_id) fail('Scegli due versioni della stessa pagina');
+    const key = `${left.screenshot_hash}:${right.screenshot_hash}`;
+    const cached = visualCache.get(key);
+    if (cached) return cached;
+    if (visualJob) return reply.code(409).send({ error: 'È già in preparazione un’evidenziazione. Attendi qualche secondo e riprova.' });
+    const controller = new AbortController(); visualJob = controller;
+    const closed = () => { if (!reply.raw.writableFinished) controller.abort(); };
+    reply.raw.once('close', closed);
+    try {
+      const readImage = (hash: string) => {
+        const path = objectPath(hash);
+        if (statSync(path).size > captureLimits.screenshotBytes) fail('Questa vecchia copia supera il limite dell’evidenziazione. Puoi consultare lo screenshot originale.', 413);
+        return readFileSync(path);
+      };
+      const result = await locateVisualChanges(readImage(left.screenshot_hash), readImage(right.screenshot_hash), controller.signal);
+      // Only small derived coordinates are cached; no new archive files.
+      visualCache.set(key, result);
+      if (visualCache.size > 8) visualCache.delete(visualCache.keys().next().value!);
+      return result;
+    } finally {
+      reply.raw.removeListener('close', closed);
+      if (visualJob === controller) visualJob = undefined;
+    }
   });
   app.get<{ Querystring: { q?: string } }>('/api/search', async request => {
     const q = textField(request.query.q ?? '', 200);
@@ -206,7 +233,7 @@ export async function createApp() {
       reply.raw.once('close', () => { if (!reply.raw.writableFinished) zip.abort(); cleanup(); });
       zip.file(destination, { name: 'archive.sqlite' });
       for (const object of objects) zip.file(join(dataDir, object.path), { name: object.path });
-      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.6', schema: 2, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
+      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.7', schema: 2, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
       reply.header('Content-Disposition', `attachment; filename="landing-archive-${now().slice(0, 10)}.zip"`).type('application/zip');
       void zip.finalize().catch(error => zip.destroy(error));
       return reply.send(zip);
