@@ -5,14 +5,16 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
-## Aggiornamento 0.1.5 — vista offline
+## Aggiornamento 0.1.6 — vista offline
 
 La preparazione 0.1.4 è stata fermata dal controllo Linux per un riferimento
 errato a una dipendenza; nessuna immagine o aggiornamento dello store è stato
-distribuito per quella versione. La 0.1.5 ripristina la dipendenza corretta ed
-è stata verificata anche con un’installazione pulita dal file di lock.
+distribuito per quella versione. La 0.1.5 ha superato i test Linux, ma il controllo di pubblicazione era ancora
+limitato alla 0.1.3. La 0.1.6 corregge entrambi i riferimenti e verifica il
+rilascio rispetto alla versione del pacchetto, all’identità e al repository.
+L’installazione pulita dal file di lock è stata verificata.
 
-Controlli di tipo, compilazione, **43 test automatici e 4 prove browser** riusciti
+Controlli di tipo, compilazione, **44 test automatici e 4 prove browser** riusciti
 localmente. La nuova prova apre documenti archiviati con contenuti ostili,
 verifica il blocco di script e traffico live, naviga fra copie con date diverse,
 controlla ancore, link mancanti, ritorno indietro e interfaccia mobile.

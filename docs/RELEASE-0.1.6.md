@@ -1,4 +1,4 @@
-# Pagina offline nell’archivio — 0.1.5
+# Pagina offline nell’archivio — 0.1.6
 
 Ogni versione può essere consultata nella nuova scheda **Pagina offline**,
 accanto a **Screenshot**. La vista usa l’HTML già archiviato: funziona anche
@@ -52,7 +52,7 @@ state incorporate durante l’acquisizione non vengono recuperate da Internet.
 
 Esportare un backup e aggiornare l’installazione esistente dal community store.
 Account, archivio, pianificazione e schema del database restano invariati.
-Verificare **0.1.5** nella barra laterale, aprire una pagina e scegliere una
+Verificare **0.1.6** nella barra laterale, aprire una pagina e scegliere una
 versione nella linea del tempo: **Pagina offline** è la vista iniziale.
 
 Il collaudo comprende navigazione reale nel browser, scelta delle date,

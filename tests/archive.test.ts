@@ -131,6 +131,7 @@ test('archive workflow: authentication, version history, failures, comparison an
       const result = await call('GET', '/api/source');
       assert.equal(result.statusCode, 200);
       const files = zipEntries(result.rawPayload);
+      assert.ok(files.has('scripts/release-metadata.mjs'));
       for (const name of ['src/server.ts', 'web/App.tsx', 'Dockerfile', 'README.md', 'compose.yaml', '.dockerignore', 'LICENSE', 'docs/INSTALL.md', 'umbrel-community-store/proof-of-pizza21-landing-archive/seccomp-profile.json.template', 'umbrel-community-store/proof-of-pizza21-landing-archive/data/.gitkeep']) assert.ok(files.has(name), name);
       assert.equal([...files.keys()].some(name => name.endsWith('.sqlite') || name.endsWith('worker-token')), false);
       for (const name of ['landing-archive.apparmor.template', 'hooks/pre-start', 'hooks/LICENSE-MOBY']) {

@@ -38,6 +38,7 @@ COPY LICENSE THIRD_PARTY_NOTICES.md README.md ./
 COPY src ./source/src
 COPY web ./source/web
 COPY tests ./source/tests
+COPY scripts ./source/scripts
 COPY tsconfig.server.json tsconfig.web.json vite.config.ts Dockerfile ./source/
 COPY package.json package-lock.json ./source/
 COPY README.md LICENSE THIRD_PARTY_NOTICES.md compose.yaml .dockerignore ./source/
@@ -48,7 +49,7 @@ COPY umbrel-community-store/proof-of-pizza21-landing-archive/hooks/LICENSE-MOBY 
 LABEL org.opencontainers.image.title="Landing Archive" \
       org.opencontainers.image.description="Archivio locale delle versioni di siti e landing page" \
       org.opencontainers.image.authors="Proof-of-Pizza21" \
-      org.opencontainers.image.version="0.1.5" \
+      org.opencontainers.image.version="0.1.6" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 USER 1000:1000
 EXPOSE 4310

@@ -43,4 +43,9 @@
 !umbrel-community-store/proof-of-pizza21-landing-archive/hooks/pre-start
 !umbrel-community-store/proof-of-pizza21-landing-archive/hooks/LICENSE-MOBY
 
-!docs/RELEASE-0.1.5.md
+!docs/RELEASE-0.1.6.md
+!scripts/
+!scripts/release-metadata.mjs
+!scripts/docker-smoke.mjs
+!scripts/check-image-security.mjs
+!scripts/scan-image.sh
