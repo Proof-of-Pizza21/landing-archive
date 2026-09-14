@@ -21,7 +21,15 @@ di pagine diverse, limita le elaborazioni contemporanee e non crea oggetti o
 versioni nell’archivio. La prova Docker include il calcolo su screenshot da
 12 milioni di pixel e il nuovo endpoint autenticato.
 
-Gli esiti Linux della pubblicazione vengono aggiunti al termine del workflow.
+Il [collaudo Linux della release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34781450322) è riuscito il 2026-09-13:
+49 test automatici, 5 prove browser e prove complete dei container, compreso
+il confronto evidenziato su immagini da 12 milioni di pixel.
+
+Immagine pubblica `sha256:ccf753e8c20d053bd8c48ebb3390955ea00be0d3d2374838cbbe213ac3271ce8` verificata senza credenziali,
+compresi metadati, disponibilità di 23 strati e corrispondenza dell’inventario.
+La scansione ha rilevato zero segreti e zero vulnerabilità alte o critiche
+correggibili. L’inventario contiene 396 segnalazioni e 228 CVE distinte; non equivale
+all’assenza di vulnerabilità. Il collaudo sul dispositivo Umbrel rimane distinto.
 
 ## Aggiornamento 0.1.6 — vista offline
 

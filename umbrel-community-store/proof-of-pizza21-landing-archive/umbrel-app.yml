@@ -2,7 +2,7 @@ manifestVersion: 1
 id: proof-of-pizza21-landing-archive
 category: Productivity
 name: Landing Archive
-version: "0.1.6"
+version: "0.1.7"
 tagline: La storia dei tuoi siti e delle landing dei competitor
 icon: https://raw.githubusercontent.com/Proof-of-Pizza21/umbrel-community-store/main/proof-of-pizza21-landing-archive/assets/icon.svg
 description: >-
@@ -25,20 +25,23 @@ description: >-
   Le pagine protette da login, CAPTCHA o sistemi anti-bot possono non essere
   acquisibili. Le landing senza collegamenti pubblici vanno aggiunte a mano.
 releaseNotes: >-
-  Nuova vista Pagina offline accanto allo screenshot. Consulta gli HTML già
-  archiviati direttamente nell’app, con testo selezionabile e vista espandibile.
+  Ora puoi vedere dove sono cambiate le pagine: apri una versione e premi
+  Confronta. In Aspetto le aree arancioni evidenziano le differenze tra gli
+  screenshot. Le frecce e Vai alla zona portano al punto modificato; lo
+  scorrimento delle copie è sincronizzato.
 
 
-  I collegamenti aprono le copie dello stesso sito; indirizzo e data effettiva
-  restano visibili. Indietro ripercorre le pagine visitate. Le copie successive
-  alla data scelta sono segnalate e i link non archiviati mostrano un avviso.
+  Il riepilogo distingue testo, titolo, intestazioni, collegamenti, indirizzi
+  delle immagini e destinazione finale. Se gli screenshot coincidono e cambia
+  soltanto un indirizzo, viene spiegato senza inventare una modifica visiva.
+  Testo, Collegamenti e Dettagli mostrano i dati prima e dopo.
 
 
-  La vista blocca gli script del sito e le richieste verso Internet. Il download
-  HTML originale resta disponibile. Account e archivio sono conservati: esporta
-  un backup e aggiorna senza disinstallare. Verifica 0.1.6 nella barra laterale
-  e apri una pagina già acquisita. Anteprima per mini PC Intel/AMD a 64 bit,
-  destinata a umbrelOS 1.7.4.
+  Funziona anche sulle copie già archiviate, senza riscaricare i siti o creare
+  altri file. Account e dati sono conservati; le soglie di rilevamento rimangono
+  invariate. Esporta un backup e aggiorna senza disinstallare. Verifica 0.1.7
+  nella barra laterale. Anteprima per mini PC Intel/AMD a 64 bit, destinata a
+  umbrelOS 1.7.4.
 
 developer: Proof-of-Pizza21
 website: https://github.com/Proof-of-Pizza21/landing-archive

@@ -1,4 +1,4 @@
-# Landing Archive 0.1.6: tested Linux amd64 image, pinned to its published digest.
+# Landing Archive 0.1.7: tested Linux amd64 image, pinned to its published digest.
 services:
   app_proxy:
     environment:
@@ -7,7 +7,7 @@ services:
 
   web:
     # Preview for Intel/AMD 64-bit mini PCs.
-    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.6@sha256:0236c013c031198f74089db38f9a80b9473b9d782683d4ba1b1010afadd9f359
+    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.7@sha256:ccf753e8c20d053bd8c48ebb3390955ea00be0d3d2374838cbbe213ac3271ce8
     user: "1000:1000"
     init: true
     restart: on-failure
@@ -37,7 +37,7 @@ services:
       retries: 3
 
   worker:
-    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.6@sha256:0236c013c031198f74089db38f9a80b9473b9d782683d4ba1b1010afadd9f359
+    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.7@sha256:ccf753e8c20d053bd8c48ebb3390955ea00be0d3d2374838cbbe213ac3271ce8
     user: "1000:1000"
     init: true
     restart: on-failure
