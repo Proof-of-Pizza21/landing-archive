@@ -115,7 +115,7 @@ test('archive workflow: authentication, version history, failures, comparison an
       const result = await call('GET', '/api/export');
       assert.equal(result.statusCode, 200, result.body.slice(0, 100));
       const files = zipEntries(result.rawPayload);
-      assert.equal(JSON.parse(files.get('manifest.json')!.toString()).schema, 3);
+      assert.equal(JSON.parse(files.get('manifest.json')!.toString()).schema, 4);
       assert.equal(files.has('worker-token'), false);
       const restoredPath = join(directory, 'restored.sqlite'); writeFileSync(restoredPath, files.get('archive.sqlite')!);
       const restored = new DatabaseSync(restoredPath);

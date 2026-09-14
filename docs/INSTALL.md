@@ -53,6 +53,14 @@ definitiva. Vedi [funzioni e aggiornamento](RELEASE-0.1.2.md).
 I limiti per gli screenshot molto lunghi e le altre protezioni della
 [versione 0.1.1](SECURITY-0.1.1.md) rimangono attivi.
 
+## Backup e ripristino dall’interfaccia
+
+Dalla 0.1.9 apri **Backup e ripristino** per scaricare il backup completo o
+caricarne uno esistente. La verifica non modifica lo storico; la sostituzione
+richiede conferma e password attuale e conserva una copia di sicurezza.
+Il ripristino mantiene il tuo account e mette i siti in pausa.
+[Procedura, limiti e differenza rispetto allo ZIP di consultazione per sito](RELEASE-0.1.9.md).
+
 ## Prova locale con Docker
 
 Richiede Docker Engine o Docker Desktop e il plugin Compose già installati. Non

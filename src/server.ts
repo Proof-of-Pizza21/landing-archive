@@ -3,7 +3,9 @@ import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import serveStatic from '@fastify/static';
 import { ZipArchive } from 'archiver';
-import { DatabaseSync } from 'node:sqlite';
+import { archiveVersion, snapshot, backupZip, portableZip } from './backup.js';
+import { registerRestore, type ArchiveState } from './restore.js';
+import { registerLibrary } from './library.js';
 import { createReadStream, existsSync, rmSync, readFileSync, statSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -70,13 +72,16 @@ export async function createApp() {
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
   registerAuth(app);
+  const archiveState: ArchiveState = { exporting: false, restoring: false };
+  registerRestore(app, archiveState, () => { visualJob?.abort(); visualCache.clear(); });
+  registerLibrary(app);
   app.setErrorHandler((error: any, _request, reply) => {
     const status = error instanceof CaptureError ? 400 : error.statusCode >= 400 && error.statusCode < 500 ? error.statusCode : /UNIQUE constraint/.test(error.message) ? 409 : 500;
     reply.code(status).send({ error: status === 500 ? 'Operazione non completata. Controlla lo spazio disponibile e riprova.' : status === 429 ? 'Troppi tentativi. Attendi un minuto e riprova.' : /UNIQUE constraint/.test(error.message) ? 'Questo indirizzo è già presente nell’archivio' : error.message });
   });
   app.get('/api/health', { config: { publicAccess: true } }, async () => ({ ok: true }));
   app.get('/api/dashboard', async () => ({
-    version: '0.1.8',
+    version: archiveVersion,
     stats: {
       sites: get('SELECT COUNT(*) n FROM sites')!.n, pages: get('SELECT COUNT(*) n FROM pages')!.n,
       versions: get('SELECT COUNT(*) n FROM versions')!.n, bytes: get('SELECT COALESCE(SUM(bytes),0) n FROM objects')!.n,
@@ -125,11 +130,10 @@ export async function createApp() {
     if (body.force !== undefined && typeof body.force !== 'boolean') fail('Opzione di riavvio non valida');
     return requestManualScan(site.id, { restart: body.force === true, discover: body.discover === true });
   });
-  let exporting = false;
   app.delete<{ Params: { id: string } }>('/api/sites/:id', async request => {
     const site = required('sites', request.params.id);
     if (bodyObject(request.body).confirmSiteId !== site.id) fail('Conferma il sito da eliminare');
-    if (exporting) fail('Un backup è in corso. Attendi che termini prima di eliminare il sito.', 409);
+    if (archiveState.exporting) fail('Un backup è in corso. Attendi che termini prima di eliminare il sito.', 409);
     const hashes = all('SELECT v.html_hash,v.screenshot_hash FROM versions v JOIN pages p ON p.id=v.page_id WHERE p.site_id=?', site.id)
       .flatMap(version => [version.html_hash, version.screenshot_hash]);
     transaction(() => {
@@ -239,32 +243,23 @@ export async function createApp() {
     const value = '%' + q.replace(/[\\%_]/g, '\\$&') + '%';
     return { pages: all(`SELECT p.id,p.url,p.title,s.name siteName FROM pages p JOIN sites s ON s.id=p.site_id WHERE p.url LIKE ? ESCAPE '\\' OR p.title LIKE ? ESCAPE '\\' OR EXISTS(SELECT 1 FROM versions v WHERE v.page_id=p.id AND v.text LIKE ? ESCAPE '\\') LIMIT 100`, value, value, value) };
   });
-  app.get('/api/export', async (_request, reply) => {
-    if (exporting) return reply.code(409).send({ error: 'Un’esportazione è già in corso' });
-    const destination = join(dataDir, 'tmp', `${id()}.sqlite`);
-    exporting = true;
+  for (const portable of [false, true]) app.get<{ Params: { id: string } }>(portable ? '/api/sites/:id/export' : '/api/export', { exposeHeadRoute: false }, async (request, reply) => {
+    if (portable) required('sites', request.params.id);
+    if (archiveState.exporting) return reply.code(409).send({ error: 'Un’esportazione è già in corso' });
+    archiveState.exporting = true;
+    let destination: string | undefined;
     try {
-      checkSpace(Number(get('SELECT page_count * page_size n FROM pragma_page_count(),pragma_page_size()')!.n));
-      // Site deletion is blocked until this snapshot and its immutable files finish streaming.
-      db.prepare('VACUUM INTO ?').run(destination);
-      const copy = new DatabaseSync(destination);
-      let objects: Row[];
-      try {
-        copy.exec('DELETE FROM sessions; DELETE FROM objects WHERE NOT EXISTS (SELECT 1 FROM versions WHERE html_hash=objects.hash OR screenshot_hash=objects.hash);');
-        objects = copy.prepare('SELECT path FROM objects').all() as Row[];
-      } finally { copy.close(); }
-      const zip = new ZipArchive({ zlib: { level: 3 } });
+      destination = snapshot();
+      const zip = portable ? portableZip(destination, request.params.id) : backupZip(destination);
       let cleaned = false;
-      const cleanup = () => { if (cleaned) return; cleaned = true; exporting = false; rmSync(destination, { force: true }); };
+      const cleanup = () => { if (cleaned) return; cleaned = true; archiveState.exporting = false; rmSync(destination!, { force: true }); };
       zip.once('close', cleanup); zip.once('error', cleanup);
+      zip.on('warning', error => zip.destroy(error));
       reply.raw.once('close', () => { if (!reply.raw.writableFinished) zip.abort(); cleanup(); });
-      zip.file(destination, { name: 'archive.sqlite' });
-      for (const object of objects) zip.file(join(dataDir, object.path), { name: object.path });
-      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.8', schema: 3, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
-      reply.header('Content-Disposition', `attachment; filename="landing-archive-${now().slice(0, 10)}.zip"`).type('application/zip');
-      void zip.finalize().catch(error => zip.destroy(error));
+      reply.header('Content-Disposition', `attachment; filename="landing-archive-${portable ? 'site-' : ''}${now().slice(0, 10)}.zip"`).type('application/zip');
+      if (!portable) void zip.finalize().catch(error => zip.destroy(error));
       return reply.send(zip);
-    } catch (error) { exporting = false; rmSync(destination, { force: true }); throw error; }
+    } catch (error) { archiveState.exporting = false; if (destination) rmSync(destination, { force: true }); throw error; }
   });
   // Corresponding application source is available to authenticated network users (AGPL).
   app.get('/api/source', async (_request, reply) => {

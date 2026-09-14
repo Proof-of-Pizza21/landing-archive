@@ -237,3 +237,11 @@ export async function stopJobs() {
   const deadline = Date.now() + 10000;
   while (busy && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
 }
+
+export async function suspendJobs() {
+  const wasStopped = stopped, hadTimer = Boolean(tickTimer);
+  const resume = () => { if (hadTimer) startJobs(); else stopped = wasStopped; };
+  await stopJobs();
+  if (busy) { resume(); throw new Error('Il controllo corrente non si è ancora arrestato'); }
+  return resume;
+}

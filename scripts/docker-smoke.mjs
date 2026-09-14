@@ -257,6 +257,24 @@ try {
   } finally { backup.close(); }
   check('Backup ZIP has a consistent database, immutable objects and no live sessions/token');
 
+  await api(`/api/versions/${versionId}/annotation`, { method: 'PUT', body: { note: 'Container restore probe', tags: ['smoke'], favorite: true } });
+  const annotatedBackup = Buffer.from(await (await api('/api/export')).arrayBuffer());
+  const upload = await (await api('/api/restore/uploads', { method: 'POST', body: { bytes: annotatedBackup.length } })).json();
+  for (let offset = 0; offset < annotatedBackup.length; offset += upload.chunkBytes) {
+    const response = await fetch(base + `/api/restore/uploads/${upload.id}?offset=${offset}`, { method: 'PUT', headers: { cookie, 'content-type': 'application/octet-stream' }, body: annotatedBackup.subarray(offset, offset + upload.chunkBytes) });
+    assert.equal(response.status, 200);
+  }
+  const preview = await (await api(`/api/restore/uploads/${upload.id}/verify`, { method: 'POST', body: {} })).json();
+  assert.equal(preview.versions, 1);
+  await api(`/api/restore/uploads/${upload.id}/apply`, { method: 'POST', body: { confirmId: upload.id, password } });
+  assert.equal((await json(`/api/versions/${versionId}/annotation`)).favorite, true);
+  assert.equal((await json('/api/library?tag=smoke')).total, 1);
+  assert.equal((await json(`/api/sites/${siteId}`)).site.paused, true);
+  assert.equal((await json('/api/restore/status')).safetyAvailable, true);
+  const portable = await api(`/api/sites/${siteId}/export`);
+  assert.ok((await portable.arrayBuffer()).byteLength > 100);
+  check('Guided restore validates ZIP in a child process, preserves notes and account, pauses sites and saves rollback ZIP');
+
   await compose(['restart', 'web', 'worker']);
   await compose(['up', '-d', '--no-build', '--pull', 'never', '--wait', '--wait-timeout', '180']);
   const persisted = await json(`/api/pages/${pageId}`);

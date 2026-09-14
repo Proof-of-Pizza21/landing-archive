@@ -5,6 +5,25 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
+## Aggiornamento 0.1.9 — novità, raccolta e ripristino
+
+Il 2026-09-14 sono riusciti localmente controlli di tipo, compilazione,
+**62 test automatici e 8 prove browser** con Node.js 24.20.0. I test verificano
+filtri e lettura eventi senza perdita dello storico, annotazioni sulla copia
+esatta, normalizzazione dei tag, ricerca combinata, navigazione dei risultati,
+layout desktop e telefono e consultazione del sito esportato senza traffico live.
+
+Il ripristino è verificato con backup valido e schema 3, file alterati,
+metadati errati, duplicati, percorsi estranei, viste SQL e riferimenti incoerenti.
+Sono controllati autenticazione, origine, conferma/password, limiti dei blocchi,
+sospensione delle altre operazioni, annullamento e ripristino della transazione
+dopo un errore simulato. La copia di sicurezza conserva i dati sostituiti;
+account corrente, note, tag e stato di lettura sopravvivono al ripristino.
+La migrazione allo schema 4 rimane additiva. I test Docker includono caricamento,
+verifica nel processo separato, sostituzione, copia di sicurezza e riavvio.
+Il collaudo Linux della nuova immagine è ancora da completare prima di
+aggiornare il community store. Il dispositivo Umbrel resta un collaudo distinto.
+
 ## Aggiornamento 0.1.8 — confronto, qualità e vita delle landing
 
 Il 2026-09-14 sono riusciti localmente i controlli di tipo, la compilazione,

@@ -74,7 +74,14 @@ for (const [table, fields] of Object.entries(additions)) {
   const columns = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map(column => column.name));
   for (const [name, declaration] of Object.entries(fields)) if (!columns.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${declaration}`);
 }
-db.exec('PRAGMA user_version=3');
+db.exec(`
+  CREATE TABLE IF NOT EXISTS event_reads (event_id TEXT PRIMARY KEY REFERENCES events(id) ON DELETE CASCADE, read_at TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS version_notes (version_id TEXT PRIMARY KEY REFERENCES versions(id) ON DELETE CASCADE, note TEXT NOT NULL DEFAULT '', favorite INTEGER NOT NULL DEFAULT 0 CHECK(favorite IN (0,1)), updated_at TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS version_tags (version_id TEXT NOT NULL REFERENCES versions(id) ON DELETE CASCADE, tag TEXT NOT NULL, PRIMARY KEY(version_id,tag));
+  CREATE INDEX IF NOT EXISTS version_tags_tag ON version_tags(tag,version_id);
+  CREATE INDEX IF NOT EXISTS events_date ON events(created_at DESC,id DESC);
+  PRAGMA user_version=4;
+`);
 
 export const get = (sql: string, ...params: any[]) => db.prepare(sql).get(...params) as Row | undefined;
 export const all = (sql: string, ...params: any[]) => db.prepare(sql).all(...params) as Row[];

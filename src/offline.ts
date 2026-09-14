@@ -13,7 +13,7 @@ const fail = () => Object.assign(new Error('Questa copia è troppo complessa per
 /** Rebuild the view only; the original archive is never modified. CSP and the
  * iframe independently prohibit scripts. Every navigation is converted to a
  * fragment or an archived version ID handled by the trusted parent application. */
-export function offlineDocument(html: string, base: string, targets: OfflineTarget[]) {
+export function offlineDocument(html: string, base: string, targets: OfflineTarget[], localFiles?: Map<string, string>) {
   if (Buffer.byteLength(html) > offlineMaxBytes) throw fail();
   let tokens = 0;
   for (const _ of html.matchAll(/<[a-z!/?]/gi)) if (++tokens > 50000) throw fail();
@@ -50,7 +50,8 @@ export function offlineDocument(html: string, base: string, targets: OfflineTarg
         node.attrs.push({ name: 'href', value: destination.hash });
       } else {
         const index = destination ? destinations.get(key(destination.href)) : undefined;
-        node.attrs.push({ name: 'href', value: '#' }, { name: 'data-archive-target', value: index === undefined ? 'missing' : targets[index].id });
+        const local = index === undefined ? undefined : localFiles?.get(targets[index].id);
+        node.attrs.push({ name: 'href', value: local && /^[0-9]+\.html$/.test(local) ? local + (destination?.hash || '') : '#' }, { name: 'data-archive-target', value: index === undefined ? 'missing' : targets[index].id });
         if (index !== undefined && destination?.hash) node.attrs.push({ name: 'data-archive-fragment', value: destination.hash.slice(1, 4096) });
         node.attrs = node.attrs.filter(attr => attr.name !== 'title');
         node.attrs.push({ name: 'title', value: index === undefined ? 'Nessuna copia disponibile nell’archivio' : 'Apri la copia archiviata' });

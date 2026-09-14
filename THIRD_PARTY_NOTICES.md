@@ -21,6 +21,7 @@ licenze e attribuzioni nei pacchetti distribuiti.
 | parse5 8.0.1 | MIT | https://github.com/inikulin/parse5 |
 | fast-xml-parser | MIT | https://github.com/NaturalIntelligence/fast-xml-parser |
 | archiver | MIT | https://github.com/archiverjs/node-archiver |
+| yauzl 3.4.0 | MIT | https://github.com/thejoshwolfe/yauzl |
 
 Node.js e Chromium includono inoltre le licenze e attribuzioni dei loro
 componenti. La distribuzione Linux dell'immagine conserva i documenti di

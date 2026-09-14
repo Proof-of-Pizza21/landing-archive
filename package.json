@@ -1,6 +1,6 @@
 {
   "name": "landing-archive",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-or-later",
@@ -31,7 +31,8 @@
     "pngjs": "7.0.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "single-file-core": "1.5.121"
+    "single-file-core": "1.5.121",
+    "yauzl": "3.4.0"
   },
   "devDependencies": {
     "@types/archiver": "8.0.0",
@@ -39,6 +40,7 @@
     "@types/pngjs": "6.0.5",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
+    "@types/yauzl": "3.4.0",
     "@vitejs/plugin-react": "6.1.1",
     "tsx": "4.23.13",
     "typescript": "7.0.2",
