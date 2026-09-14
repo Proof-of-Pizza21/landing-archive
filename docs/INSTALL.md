@@ -55,11 +55,11 @@ I limiti per gli screenshot molto lunghi e le altre protezioni della
 
 ## Backup e ripristino dall’interfaccia
 
-Dalla 0.1.9 apri **Backup e ripristino** per scaricare il backup completo o
+Dalla 0.1.10 apri **Backup e ripristino** per scaricare il backup completo o
 caricarne uno esistente. La verifica non modifica lo storico; la sostituzione
 richiede conferma e password attuale e conserva una copia di sicurezza.
 Il ripristino mantiene il tuo account e mette i siti in pausa.
-[Procedura, limiti e differenza rispetto allo ZIP di consultazione per sito](RELEASE-0.1.9.md).
+[Procedura, limiti e differenza rispetto allo ZIP di consultazione per sito](RELEASE-0.1.10.md).
 
 ## Prova locale con Docker
 

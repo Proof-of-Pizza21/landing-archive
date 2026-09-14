@@ -81,7 +81,8 @@ test('reading inbox, version research, portable export and guarded restore prese
       const files=zipEntries(backup);files.set([...files.keys()].find(n=>n.endsWith('.html'))!,Buffer.from('altered'));
       const extras=zipEntries(backup);extras.set('worker-token',Buffer.from('unexpected'));
       const duplicate = await zipFixture([...zipEntries(backup), ['manifest.json', zipEntries(backup).get('manifest.json')!]]);
-      const malformed=[duplicate, await zipFixture(files),await zipFixture(extras),await mutated(copy=>copy.exec('CREATE VIEW hostile AS SELECT * FROM sites')),await mutated(copy=>copy.exec("UPDATE pages SET last_version_id='unknown'")),await mutated(copy=>copy.exec("UPDATE objects SET path='../outside'")),await mutated(copy=>copy.exec("UPDATE versions SET detection='{}'"))];
+      const computedSetting = await mutated(copy => copy.exec("DROP TABLE settings; CREATE TABLE settings(key TEXT PRIMARY KEY, value TEXT AS ('[]')); INSERT INTO settings(key) VALUES ('inbox_kinds')"));
+      const malformed=[computedSetting, duplicate, await zipFixture(files),await zipFixture(extras),await mutated(copy=>copy.exec('CREATE VIEW hostile AS SELECT * FROM sites')),await mutated(copy=>copy.exec("UPDATE pages SET last_version_id='unknown'")),await mutated(copy=>copy.exec("UPDATE objects SET path='../outside'")),await mutated(copy=>copy.exec("UPDATE versions SET detection='{}'"))];
       for(const zip of malformed){const token=await upload(zip);const verified=await call('POST',`/api/restore/uploads/${token}/verify`);assert.equal(verified.statusCode,422,verified.body);assert.equal(get('SELECT count(*) n FROM versions')!.n,original);assert.equal((await call('GET','/api/restore/status')).json().upload,null);}
     });
     await t.test('maintenance fences concurrent operations and an interrupted database replacement rolls back',async()=> {

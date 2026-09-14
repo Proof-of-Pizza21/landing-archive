@@ -100,12 +100,21 @@ async function validate() {
   const manifest = JSON.parse(readFileSync(join(root, 'extracted/manifest.json'), 'utf8'));
   if (typeof manifest.createdAt !== 'string' || !Number.isFinite(Date.parse(manifest.createdAt))) bad();
   if (manifest.app !== 'Landing Archive' || !Number.isInteger(manifest.schema) || manifest.schema < 1 || manifest.schema > archiveSchema) bad();
+  // Bound SQLite's native allocations as well as the child JavaScript heap.
+  // Set this before opening untrusted database pages or parsing their schema.
+  db.exec('PRAGMA hard_heap_limit=67108864');
   const source = new DatabaseSync(join(root, 'extracted/archive.sqlite'), { readOnly: true, allowExtension: false, enableDoubleQuotedStringLiterals: false });
   try {
     source.exec('PRAGMA trusted_schema=OFF; PRAGMA query_only=ON; PRAGMA mmap_size=0; PRAGMA cache_size=-4096;');
-    const schema = source.prepare('SELECT type,name,sql FROM sqlite_schema').all() as Row[];
+    const schema = source.prepare('SELECT type,name,sql FROM sqlite_schema LIMIT 101').all() as Row[];
     const allowed = new Set([...archiveTables, 'jobs', 'settings', 'users', 'sessions']);
     if (schema.length > 100 || schema.some(row => !['table','index'].includes(row.type) || (row.type === 'table' && (!allowed.has(row.name) || /\b(VIRTUAL|GENERATED|CHECK)\b/i.test(row.sql) && row.name !== 'version_notes')))) bad();
+    // Computed columns may omit the GENERATED keyword. Check every table,
+    // including optional settings, before selecting any of its values.
+    for (const entry of schema.filter(row => row.type === 'table')) {
+      const columns = source.prepare(`PRAGMA table_xinfo(${entry.name})`).all() as Row[];
+      if (columns.length > 40 || columns.some(column => column.hidden)) bad();
+    }
     if (source.prepare('PRAGMA quick_check').get()?.quick_check !== 'ok') bad();
     const counts: Row = {}; let totalRows = 0;
     db.exec('PRAGMA trusted_schema=OFF; BEGIN IMMEDIATE;');

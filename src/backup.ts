@@ -8,7 +8,7 @@ import { dataDir } from './config.js';
 import { checkSpace } from './storage.js';
 import { offlineDocument, offlineMaxBytes, type OfflineTarget } from './offline.js';
 
-export const archiveVersion = '0.1.9';
+export const archiveVersion = '0.1.10';
 export const archiveSchema = 4;
 export const archiveTables = ['sites', 'pages', 'objects', 'versions', 'checks', 'events', 'version_notes', 'version_tags', 'event_reads'] as const;
 export const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!));

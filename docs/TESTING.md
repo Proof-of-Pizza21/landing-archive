@@ -5,7 +5,7 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
-## Aggiornamento 0.1.9 — novità, raccolta e ripristino
+## Aggiornamento 0.1.10 — novità, raccolta e ripristino
 
 Il 2026-09-14 sono riusciti localmente controlli di tipo, compilazione,
 **62 test automatici e 8 prove browser** con Node.js 24.20.0. I test verificano
@@ -14,7 +14,10 @@ esatta, normalizzazione dei tag, ricerca combinata, navigazione dei risultati,
 layout desktop e telefono e consultazione del sito esportato senza traffico live.
 
 Il ripristino è verificato con backup valido e schema 3, file alterati,
-metadati errati, duplicati, percorsi estranei, viste SQL e riferimenti incoerenti.
+metadati errati, duplicati, percorsi estranei, viste SQL, colonne calcolate nelle
+impostazioni e riferimenti incoerenti. SQLite usa un limite nativo di 64 MiB
+nel processo separato. La build preparatoria 0.1.9 non è stata aggiunta al community store;
+lo store passa direttamente dalla 0.1.8 alla 0.1.10.
 Sono controllati autenticazione, origine, conferma/password, limiti dei blocchi,
 sospensione delle altre operazioni, annullamento e ripristino della transazione
 dopo un errore simulato. La copia di sicurezza conserva i dati sostituiti;
