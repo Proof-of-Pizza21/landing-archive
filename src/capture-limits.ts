@@ -69,6 +69,30 @@ export function validateCaptureResult(value: any): asserts value is CaptureResul
   string(value.html, captureLimits.htmlBytes);
   if (!value.html.length || Buffer.byteLength(value.html) > captureLimits.htmlBytes) throw limitError();
   validateScreenshot(value.screenshot);
+  if (value.quality !== undefined) {
+    const quality = value.quality;
+    if (!quality || !['complete','partial'].includes(quality.status) || !Number.isInteger(quality.missingImages) || quality.missingImages < 0 || quality.missingImages > 50000) throw limitError();
+    strings(quality.reasons, 20, 1000);
+  }
+  if (value.detection !== undefined) {
+    const data = value.detection;
+    if (!data || typeof data.rulesKey !== 'string' || !/^[a-f0-9]{64}$/.test(data.rulesKey)) throw limitError();
+    validateMetadata(data.content); validateRectangles(data.ignored, 300);
+    if (!Array.isArray(data.important) || data.important.length > 20) throw limitError();
+    for (const region of data.important) {
+      string(region.selector, 500); string(region.text, 20000);
+      if (!Number.isInteger(region.count) || region.count < 0 || region.count > 100) throw limitError();
+      validateMetadata({ title: '', text: region.text, headings: [], links: region.links, imageUrls: region.imageUrls });
+      validateRectangles(region.rectangles, 100);
+    }
+    if (Buffer.byteLength(JSON.stringify(data)) > captureLimits.metadataBytes) throw limitError();
+  }
+}
+export function validateRectangles(value: any, max: number) {
+  if (!Array.isArray(value) || value.length > max) throw limitError();
+  for (const rect of value) {
+    if (!rect || ['x','y','width','height'].some(key => typeof rect[key] !== 'number' || !Number.isFinite(rect[key]) || rect[key] < 0) || rect.x > 1920 || rect.width > 1920 || rect.y > 20000 || rect.height > 20000) throw limitError();
+  }
 }
 export function decodeCaptureResult(value: any): CaptureResult {
   if (!value || typeof value !== 'object') throw limitError();
@@ -84,6 +108,10 @@ export function validateDiscoveryResult(value: any): asserts value is DiscoveryR
   for (const item of value.urls) {
     if (!item || !['seed', 'sitemap', 'link'].includes(item.source)) throw limitError();
     string(item.url, captureLimits.url);
+  }
+  if (value.sitemap !== undefined) {
+    if (!value.sitemap || typeof value.sitemap.complete !== 'boolean') throw limitError();
+    strings(value.sitemap.urls, 5000, captureLimits.url); strings(value.sitemap.sources, 12, captureLimits.url);
   }
 }
 

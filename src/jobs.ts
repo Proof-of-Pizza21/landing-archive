@@ -5,6 +5,8 @@ import { recordCapture, recordFailure } from './history.js';
 import type { CaptureResult, DiscoveryResult } from './types.js';
 import { decodeCaptureResult, readWorkerJson, validateDiscoveryResult } from './capture-limits.js';
 import { abortable } from './abort.js';
+import { isUrlInScope, normalizeUrl } from './network.js';
+import { matchesDiscoveryPaths } from './discovery.js';
 
 let busy = false;
 let stopped = false;
@@ -33,7 +35,7 @@ async function remote<T>(path: string, body: unknown, signal: AbortSignal): Prom
 }
 
 async function doCapture(page: Row, site: Row, signal: AbortSignal) {
-  const input = { url: page.url, ignoreSelectors: JSON.parse(site.ignore_selectors), timeoutMs: 90000 };
+  const input = { url: page.url, ignoreSelectors: [...JSON.parse(site.ignore_selectors), ...JSON.parse(page.ignore_rules).map((rule: any) => rule.selector)].slice(0, 30), importantSelectors: JSON.parse(page.important_rules).map((rule: any) => rule.selector), timeoutMs: 90000 };
   let result: CaptureResult;
   if (workerUrl) {
     const json: any = await remote('/capture', input, signal);
@@ -51,7 +53,6 @@ async function doCapture(page: Row, site: Row, signal: AbortSignal) {
 
 async function doDiscovery(site: Row, signal: AbortSignal, manual: boolean) {
   // Pass observed browser links through the same scope/robots filters as sitemap URLs.
-  const { isUrlInScope } = await import('./network.js');
   const candidateUrls: string[] = [];
   let candidateBytes = 0;
   for (const row of all('SELECT v.links FROM pages p JOIN versions v ON v.id=p.last_version_id WHERE p.site_id=?', site.id)) {
@@ -61,7 +62,7 @@ async function doDiscovery(site: Row, signal: AbortSignal, manual: boolean) {
       candidateUrls.push(link.url); candidateBytes += link.url.length;
     }
   }
-  const input = { url: site.url, includeSubdomains: Boolean(site.include_subdomains), maxPages: site.max_pages, candidateUrls };
+  const input = { url: site.url, includeSubdomains: Boolean(site.include_subdomains), maxPages: site.max_pages, candidateUrls, includePaths: JSON.parse(site.include_paths), excludePaths: JSON.parse(site.exclude_paths) };
   let result: DiscoveryResult;
   if (workerUrl) result = await remote('/discover', input, signal);
   else {
@@ -69,20 +70,44 @@ async function doDiscovery(site: Row, signal: AbortSignal, manual: boolean) {
     result = await discoverSite({ ...input, signal });
   }
   validateDiscoveryResult(result);
-  const { normalizeUrl } = await import('./network.js');
   signal.throwIfAborted();
+  const current = get('SELECT * FROM sites WHERE id=?', site.id);
+  if (!current || current.include_paths !== site.include_paths || current.exclude_paths !== site.exclude_paths || current.include_subdomains !== site.include_subdomains) throw new Error('Le impostazioni di scoperta sono cambiate: la ricerca sarà ripetuta.');
+  site = current;
+  recordDiscovery(site, result, manual);
+}
+
+export function recordDiscovery(site: Row, result: DiscoveryResult, manual = false) {
+  validateDiscoveryResult(result);
   let count = get('SELECT COUNT(*) n FROM pages WHERE site_id=?', site.id)!.n;
   let addedCount = 0;
   for (const candidate of result.urls) {
-    if (count >= site.max_pages) break;
-    try {
-      const url = normalizeUrl(candidate.url);
-      if (!isUrlInScope(url, site.url, Boolean(site.include_subdomains))) continue;
-      const added = addPage(site.id, url, candidate.source);
-      if (added.added) { count++; addedCount++; enqueue(site.id, added.page.id, 'capture', manual); }
-    } catch {}
+    let url: string;
+    try { url = normalizeUrl(candidate.url); } catch { continue; }
+    if (!isUrlInScope(url, site.url, Boolean(site.include_subdomains))) continue;
+    if (!matchesDiscoveryPaths(url, JSON.parse(site.include_paths), JSON.parse(site.exclude_paths)) && url !== site.url) continue;
+    if (count >= site.max_pages && !get('SELECT id FROM pages WHERE site_id=? AND url=?', site.id, url)) continue;
+    const added = addPage(site.id, url, candidate.source);
+    if (added.added) { count++; addedCount++; enqueue(site.id, added.page.id, 'capture', manual); }
   }
-  run('UPDATE sites SET next_discovery_at=? WHERE id=?', later(24), site.id);
+  const sitemap = result.sitemap;
+  if (sitemap) {
+    const urls = new Set(sitemap.urls);
+    const sources = JSON.stringify([...new Set(sitemap.sources)].sort());
+    const comparable = sitemap.complete && sources === site.sitemap_sources;
+    for (const page of all('SELECT * FROM pages WHERE site_id=?', site.id)) {
+      if (urls.has(page.url)) {
+        if (page.sitemap_state === 'absent') addEvent(site.id, page.id, 'sitemap_returned', 'Indirizzo nuovamente presente nella sitemap');
+        run("UPDATE pages SET sitemap_state='present',sitemap_seen_at=? WHERE id=?", now(), page.id);
+      } else if (comparable && page.sitemap_state === 'present') {
+        run("UPDATE pages SET sitemap_state='absent' WHERE id=?", page.id);
+        addEvent(site.id, page.id, 'sitemap_absent', 'Indirizzo non più presente nella sitemap. La raggiungibilità viene verificata separatamente.');
+      }
+    }
+    if (sitemap.complete) run('UPDATE sites SET sitemap_sources=? WHERE id=?', sources, site.id);
+  }
+  run('UPDATE sites SET next_discovery_at=?,last_discovery_at=? WHERE id=?', later(site.discovery_interval_hours), now(), site.id);
+  if (count >= site.max_pages) result.warnings.push('Limite del sito raggiunto: aumenta il limite per archiviare ulteriori landing.');
   addEvent(site.id, null, 'discovery', `Ricerca completata: ${addedCount} nuove pagine${result.warnings.length ? '. ' + result.warnings.join(' ').slice(0, 1000) : ''}`);
 }
 

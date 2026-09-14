@@ -1,9 +1,15 @@
-import { XMLParser } from 'fast-xml-parser';
+import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import type { DiscoveryInput, DiscoveryResult } from './types.js';
 import { CaptureError, isUrlInScope, normalizeUrl, safeFetch, validatePublicUrl, type RequestBudget } from './network.js';
 
 const NON_PAGE = /\.(?:pdf|jpe?g|png|webp|gif|svg|ico|mp[34]|webm|woff2?|ttf|zip|gz|css|js|json|xml)(?:$|\?)/i;
 const ACTION_PATH = /\/(?:wp-admin|wp-json|logout|log-out|signout|checkout|cart|carrello)(?:\/|$)/i;
+export function matchesDiscoveryPaths(url: string, includes: string[] = [], excludes: string[] = []) {
+  const path = new URL(url).pathname;
+  const matches = (prefix: string) => prefix === '/' || path === prefix.replace(/\/$/, '') || path.startsWith(prefix.replace(/\/$/, '') + '/');
+  return (!includes.length || includes.some(matches)) && !excludes.some(matches);
+}
+
 export function isDiscoverablePage(url: string) { return !NON_PAGE.test(url) && !ACTION_PATH.test(new URL(url).pathname) && !/[?&](?:action|add-to-cart|delete|remove|logout)=/i.test(url); }
 function decodeHtml(value: string): string {
   return value.replace(/&(?:amp|quot|apos|lt|gt);|&#(?:x[0-9a-f]+|[0-9]+);/gi, entity => {
@@ -119,8 +125,10 @@ export function allowedByRobots(url: string, rules: RobotsRule[], budget: Robots
 
 export function parseSitemap(xml: string): { pages: string[]; indexes: string[] } {
   if (/<!DOCTYPE|<!ENTITY/i.test(xml)) throw new CaptureError('Sitemap con dichiarazioni non consentite.', 'INVALID_SITEMAP');
+  if (XMLValidator.validate(xml) !== true) throw new CaptureError('Sitemap non valida.', 'INVALID_SITEMAP');
   const parser = new XMLParser({ ignoreAttributes: true, removeNSPrefix: true, processEntities: false });
   const parsed = parser.parse(xml) as Record<string, unknown>;
+  if (!Object.hasOwn(parsed, 'urlset') && !Object.hasOwn(parsed, 'sitemapindex')) throw new CaptureError('Il documento non è una sitemap.', 'INVALID_SITEMAP');
   const collect = (parent: unknown, key: string): string[] => {
     if (!parent || typeof parent !== 'object') return [];
     const value = (parent as Record<string, unknown>)[key];
@@ -132,7 +140,7 @@ export function parseSitemap(xml: string): { pages: string[]; indexes: string[] 
   return { pages: collect(parsed.urlset, 'url'), indexes: collect(parsed.sitemapindex, 'sitemap') };
 }
 
-export async function discoverSite(input: DiscoveryInput): Promise<DiscoveryResult> {
+export async function discoverSite(input: DiscoveryInput, fetchResource: typeof safeFetch = safeFetch): Promise<DiscoveryResult> {
   const seed = (await validatePublicUrl(input.url)).href;
   const maxPages = Math.max(1, Math.min(input.maxPages ?? 50, 500));
   const urls = new Map<string, 'seed' | 'sitemap' | 'link'>([[seed, 'seed']]);
@@ -143,19 +151,21 @@ export async function discoverSite(input: DiscoveryInput): Promise<DiscoveryResu
   const abort = () => controller.abort(input.signal?.reason);
   input.signal?.addEventListener('abort', abort, { once: true });
   if (input.signal?.aborted) abort();
-  const request = (url: string) => safeFetch(url, { signal: controller.signal, budget, maxBytes: 3 * 1024 * 1024, timeoutMs: 8000 });
+  const request = (url: string) => fetchResource(url, { signal: controller.signal, budget, maxBytes: 3 * 1024 * 1024, timeoutMs: 8000 });
   let robots: ReturnType<typeof parseRobots> = { rules: [], sitemaps: [] };
   const robotsBudget: RobotsBudget = { remaining: 20_000_000 };
   const add = (raw: string, source: 'sitemap' | 'link') => {
     if (urls.size >= maxPages) return;
     try {
       const url = normalizeUrl(raw);
-      if (isUrlInScope(url, seed, input.includeSubdomains) && isDiscoverablePage(url) && allowedByRobots(url, robots.rules, robotsBudget) && !urls.has(url)) urls.set(url, source);
+      if (isUrlInScope(url, seed, input.includeSubdomains) && isDiscoverablePage(url) && matchesDiscoveryPaths(url, input.includePaths, input.excludePaths) && allowedByRobots(url, robots.rules, robotsBudget) && !urls.has(url)) urls.set(url, source);
     } catch (error) { if (error instanceof CaptureError && error.code === 'ROBOTS_LIMIT') throw error; /* Ignore malformed URLs. */ }
   };
+  const sitemapUrls = new Set<string>(), sitemapSources = new Set<string>();
+  let sitemapComplete = true;
   try {
     try {
-      const result = await safeFetch(new URL('/robots.txt', seed).href, { signal: controller.signal, budget, maxBytes: 128 * 1024, timeoutMs: 8000 });
+      const result = await fetchResource(new URL('/robots.txt', seed).href, { signal: controller.signal, budget, maxBytes: 128 * 1024, timeoutMs: 8000 });
       if (result.status === 200) robots = parseRobots(result.body.toString('utf8'));
       else if (result.status >= 500) warnings.add('robots.txt non disponibile; riprovare per verificare le regole del sito.');
     } catch (error) {
@@ -164,21 +174,37 @@ export async function discoverSite(input: DiscoveryInput): Promise<DiscoveryResu
     }
     for (const url of (input.candidateUrls ?? []).slice(0, 200)) add(url, 'link');
     const sitemapQueue = [...robots.sitemaps, new URL('/sitemap.xml', seed).href, new URL('/sitemap_index.xml', seed).href];
+    const requiredSitemaps = new Set(robots.sitemaps);
     const sitemapSeen = new Set<string>();
-    while (sitemapQueue.length && sitemapSeen.size < 12 && urls.size < maxPages && !controller.signal.aborted) {
+    while (sitemapQueue.length && sitemapSeen.size < 12 && !controller.signal.aborted) {
       const raw = sitemapQueue.shift()!;
       let sitemap: string;
-      try { sitemap = normalizeUrl(new URL(raw, seed).href); } catch { continue; }
-      if (sitemapSeen.has(sitemap) || !isUrlInScope(sitemap, seed, input.includeSubdomains)) continue;
+      try { sitemap = normalizeUrl(new URL(raw, seed).href); } catch { sitemapComplete = false; continue; }
+      if (sitemapSeen.has(sitemap)) continue;
+      if (!isUrlInScope(sitemap, seed, input.includeSubdomains)) { sitemapComplete = false; continue; }
       sitemapSeen.add(sitemap);
       try {
         const result = await request(sitemap);
-        if (result.status !== 200 || !isUrlInScope(result.url, seed, input.includeSubdomains)) continue;
+        if (result.status !== 200 || !isUrlInScope(result.url, seed, input.includeSubdomains)) {
+          if (requiredSitemaps.has(raw) || result.status >= 500) sitemapComplete = false;
+          continue;
+        }
         const entries = parseSitemap(result.body.toString('utf8'));
-        for (const url of entries.pages) add(url, 'sitemap');
-        sitemapQueue.push(...entries.indexes.slice(0, 12));
-      } catch (error) { if (error instanceof CaptureError && error.code === 'ROBOTS_LIMIT') throw error; warnings.add('Una sitemap non è stata letta completamente.'); }
+        sitemapSources.add(sitemap);
+        for (const rawUrl of entries.pages) {
+          add(rawUrl, 'sitemap');
+          try {
+            const url = normalizeUrl(rawUrl);
+            if (url.length <= 4096 && isUrlInScope(url, seed, input.includeSubdomains)) {
+              if (sitemapUrls.size < 5000) sitemapUrls.add(url); else if (!sitemapUrls.has(url)) sitemapComplete = false;
+            }
+          } catch { sitemapComplete = false; }
+        }
+        if (entries.indexes.length > 12) sitemapComplete = false;
+        for (const child of entries.indexes.slice(0, 12)) { sitemapQueue.push(child); requiredSitemaps.add(child); }
+      } catch (error) { if (error instanceof CaptureError && error.code === 'ROBOTS_LIMIT') throw error; sitemapComplete = false; warnings.add('Una sitemap non è stata letta completamente.'); }
     }
+    if (sitemapQueue.some(url => !sitemapSeen.has(url))) sitemapComplete = false;
     // A small breadth-first crawl finds landings omitted from the sitemap.
     const pageQueue = [seed];
     const pageSeen = new Set<string>();
@@ -198,7 +224,8 @@ export async function discoverSite(input: DiscoveryInput): Promise<DiscoveryResu
     if (!allowedByRobots(seed, robots.rules, robotsBudget)) warnings.add('La pagina iniziale è esclusa da robots.txt: la scoperta dei suoi collegamenti è stata saltata.');
     if (urls.size >= maxPages) warnings.add(`Raggiunto il limite di ${maxPages} pagine; è possibile aumentarlo nelle impostazioni del sito.`);
     if (controller.signal.aborted) warnings.add('Scoperta interrotta al limite di tempo; i risultati parziali sono conservati.');
-    return { urls: [...urls].map(([url, source]) => ({ url, source })), warnings: [...warnings] };
+    return { urls: [...urls].map(([url, source]) => ({ url, source })), warnings: [...warnings],
+      sitemap: { urls: [...sitemapUrls], sources: [...sitemapSources].sort(), complete: sitemapComplete && sitemapSources.size > 0 && !controller.signal.aborted } };
   } finally {
     clearTimeout(timer);
     input.signal?.removeEventListener('abort', abort);

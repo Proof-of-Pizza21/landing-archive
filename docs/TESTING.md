@@ -5,6 +5,23 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
+## Aggiornamento 0.1.8 — confronto, qualità e vita delle landing
+
+Il 2026-09-14 sono riusciti localmente i controlli di tipo, la compilazione,
+**53 test automatici e 7 prove browser**, con Node.js 24.20.0. Le prove aggiunte
+verificano spostamenti di due pixel, altezza variabile, modifiche visive reali,
+zone importanti piccole, esclusioni, parametri pubblicitari e varianti reali,
+immagini mancanti, tentativi di qualità limitati, prezzi e ritorni A → B → A.
+
+Sono verificate la migrazione additiva allo schema 3, la conservazione delle
+copie, la selezione tramite clic, l’anteprima di due versioni, i controlli di
+accesso alle regole, la cadenza della scoperta e i filtri di percorso. Le letture
+sitemap parziali non fanno scomparire pagine; due risposte 404/410 e un recupero
+aggiornano le categorie mantenendo lo storico. Gli screenshot desktop e telefono
+sono stati ispezionati; le copie nell’editor non eseguono script né richieste esterne.
+
+Il collaudo Docker Linux e la pubblicazione della 0.1.8 sono in preparazione.
+
 ## Aggiornamento 0.1.7 — modifiche evidenziate
 
 Controlli di tipo, compilazione, **49 test automatici e 5 prove browser**

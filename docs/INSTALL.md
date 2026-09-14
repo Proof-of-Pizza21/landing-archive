@@ -29,11 +29,12 @@ Per backup, spazio e gestione continuativa consulta [Gestione dell'archivio](OPE
 
 ## Aggiornamento dalle versioni precedenti
 
-Esporta un backup, poi aggiorna Landing Archive dal community store Umbrel
-mantenendo l’installazione esistente. La versione 0.1.7 conserva lo stesso
-volume, account e acquisizioni. Dalla 0.1.2 lo schema rimane invariato; per
-versioni precedenti viene aggiunto automaticamente il campo dei controlli
-manuali. Il profilo AppArmor del motore viene caricato prima dell’avvio. Non occorre disinstallare l’app.
+Il codice 0.1.8 aggiunge automaticamente campi per regole, qualità e scoperta
+(schema 3). Conserva account, volume, versioni e controlli; non elimina né
+riclassifica le vecchie acquisizioni. Prima dell’aggiornamento esporta un backup.
+Per tornare alla 0.1.7 serve ripristinare un backup precedente alla migrazione.
+Il community store verrà aggiornato dopo il collaudo Linux della nuova immagine.
+Vedi [novità e limiti della 0.1.8](RELEASE-0.1.8.md).
 
 Riapri l’interfaccia e verifica che nella barra laterale compaia **0.1.7**.
 Apri una pagina, scegli una versione e premi **Confronta**. In **Aspetto** puoi

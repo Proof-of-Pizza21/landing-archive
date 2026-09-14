@@ -11,6 +11,11 @@ su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archi
 resta da eseguire. Questa anteprima non include il supporto ARM. L'immagine 0.1.7 è pubblica,
 verificata nei container e bloccata al suo digest nel pacchetto dello store.
 
+Il codice **0.1.8** introduce confronti meno sensibili ai piccoli spostamenti,
+controlli di qualità, selezione visiva delle zone e una vista sulla vita delle
+landing. Il pacchetto dello store resta sulla precedente immagine verificata
+fino al completamento del collaudo Linux. [Funzioni e limiti](docs/RELEASE-0.1.8.md).
+
 Le correzioni di sicurezza della versione 0.1.1 sono descritte in
 [docs/SECURITY-0.1.1.md](docs/SECURITY-0.1.1.md) e rimangono attive.
 

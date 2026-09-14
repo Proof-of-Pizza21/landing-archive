@@ -1,4 +1,5 @@
 import { readPageMetadata } from './page-metadata.js';
+import { monitoringKey } from './detection.js';
 import { captureLimits, screenshotClip, validateCaptureResult } from './capture-limits.js';
 import { browserStartupFailure, logBrowserStartupFailure } from './browser-startup.js';
 import { existsSync } from 'node:fs';
@@ -62,6 +63,7 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
   input.signal?.addEventListener('abort', abort, { once: true });
   let context: BrowserContext | undefined;
   const warnings = new Set<string>();
+  const qualityReasons = new Set<string>();
   const budget: RequestBudget = { bytes: 0, requests: 0, maxBytes: 100 * 1024 * 1024, maxRequests: 600 };
   const resourceCache = new Map<string, SafeResponse>();
   let cacheBytes = 0;
@@ -99,6 +101,7 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
           headers: await request.allHeaders(), method: request.method() as 'GET' | 'HEAD',
           signal: controller.signal, budget, maxBytes: 12 * 1024 * 1024, timeoutMs: 15_000,
         });
+        if (request.resourceType() === 'stylesheet' && response.status >= 400) qualityReasons.add('Un foglio di stile non è stato caricato.');
         if (mainNavigation) {
           cachedNavigation = undefined;
           if (response.url !== normalizeUrl(request.url())) {
@@ -121,6 +124,7 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
         if (request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) {
           navigationError = error instanceof CaptureError ? error : new CaptureError('Impossibile raggiungere la pagina.', 'NETWORK_ERROR');
         } else {
+          if (request.resourceType() === 'stylesheet') qualityReasons.add('Un foglio di stile non è stato caricato.');
           warnings.add(error instanceof CaptureError && error.code === 'BLOCKED_URL' ? 'Una risorsa verso una rete privata è stata bloccata.' : 'Alcune risorse non sono state scaricate (errore di rete o limite di acquisizione).');
         }
         await route.abort('blockedbyclient').catch(() => {});
@@ -165,22 +169,33 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
       await Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 1500))]);
     })()`);
     await page.waitForTimeout(600);
+    // Give lazy images a bounded chance to finish decoding after scrolling.
+    // Failed resources are reported separately, never interpreted as a redesign.
+    await page.evaluate(`(async () => {
+      await Promise.race([
+        Promise.all(Array.from(document.images).slice(0, 500).map(img => img.decode().catch(() => {}))),
+        new Promise(resolve => setTimeout(resolve, 6000))
+      ]);
+    })()`);
     const finalUrl = normalizeUrl(page.url());
     await validatePublicUrl(finalUrl);
     const ignoreSelectors = (input.ignoreSelectors ?? []).filter(selector => typeof selector === 'string' && selector.length <= 500).slice(0, 30);
+    const importantSelectors = (input.importantSelectors ?? []).filter(selector => typeof selector === 'string' && selector.length <= 500).slice(0, 20);
     phase = 'lettura del testo e dei collegamenti';
-    const metadata = await readPageMetadata(page, ignoreSelectors);
+    const metadata = await readPageMetadata(page, ignoreSelectors, importantSelectors);
     if (metadata.challenge || /^(just a moment|attention required|verify you are human|checking your browser)/i.test(metadata.title.trim())) {
       throw new CaptureError('Il sito mostra una verifica anti-bot. Nessuna nuova versione è stata archiviata.', 'CAPTCHA', statusCode);
     }
     if (metadata.cookieBanner) warnings.add('È presente un banner cookie; viene conservato senza esprimere consenso.');
     if (metadata.invalidSelectors.length) warnings.add('Uno o più selettori da ignorare non sono validi.');
+    if (metadata.important.some(item => !item.count)) warnings.add('Una zona importante non è stata trovata: verifica le regole della pagina.');
+    if (metadata.missingImages) qualityReasons.add(`${metadata.missingImages} immagini visibili non sono state caricate completamente.`);
+    if (!metadata.text.trim() && !metadata.imageUrls.length) qualityReasons.add('La pagina non contiene testo o immagini riconoscibili.');
     const clip = screenshotClip(page.viewportSize()!.width, metadata.height);
     if (metadata.height > clip.height) warnings.add(`Screenshot limitato ai primi ${clip.height} pixel per contenere la memoria; la copia HTML può includere contenuti più in basso.`);
-    const masks = ignoreSelectors.filter(selector => !metadata.invalidSelectors.includes(selector)).map(selector => page.locator(selector));
     phase = 'creazione dello screenshot';
     const screenshot = await page.screenshot({
-      type: 'png', animations: 'disabled', caret: 'hide', mask: masks, maskColor: '#e5e7eb',
+      type: 'png', animations: 'disabled', caret: 'hide',
       // fullPage enables capture below the viewport; the trusted clip always
       // bounds BOTH dimensions before Chromium allocates the screenshot.
       fullPage: true, clip,
@@ -239,6 +254,8 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
       requestedUrl, finalUrl, statusCode, title: metadata.title, text: metadata.text,
       headings: metadata.headings, links: metadata.links, imageUrls: metadata.imageUrls,
       html, screenshot, warnings: [...warnings].slice(0, captureLimits.warnings).map(warning => warning.slice(0, captureLimits.warning)), capturedAt: new Date().toISOString(),
+      quality: { status: qualityReasons.size ? 'partial' as const : 'complete' as const, missingImages: metadata.missingImages, reasons: [...qualityReasons] },
+      detection: { rulesKey: monitoringKey(ignoreSelectors, importantSelectors), content: metadata.comparison, ignored: metadata.ignored, important: metadata.important },
     };
     phase = 'verifica dei file acquisiti';
     validateCaptureResult(result);

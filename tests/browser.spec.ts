@@ -27,7 +27,9 @@ test('rendered metadata excludes randomized invisible traps but retains real con
       </body>`);
       return await page.evaluate(`${metadataScript}([".ignore"])`) as any;
     };
-    const a = await render('A'), b = await render('B');
+    const rawA = await render('A'), rawB = await render('B');
+    assert.match(rawA.text, /Ignored A/); assert.match(rawB.text, /Ignored B/);
+    const a = rawA.comparison, b = rawB.comparison;
     assert.equal(a.text.replace(/\s+/g, ' '), b.text.replace(/\s+/g, ' '));
     assert.match(a.text, /Offerta reale/); assert.match(a.text, /Contenuto in fondo/);
     assert.equal(/trap|opacity|offscreen|Ignored/.test(a.text), false);
@@ -48,7 +50,7 @@ test('rendered metadata excludes randomized invisible traps but retains real con
     assert.equal(bounded.title, 'Bounded fixture');
     assert.equal(bounded.headings.length, 100);
     assert.ok(bounded.headings.every(value => value.length <= captureLimits.heading));
-    assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 200000);
+    assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 400000);
   } finally { await browser.close(); }
 });
 

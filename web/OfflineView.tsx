@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, Expand, Globe2, LoaderCircle, Shrink } from 'lucide-react';
 
-type Version = { id: string; capturedAt: string; finalUrl: string; htmlUrl: string; title: string; warnings: string[] };
+type Version = { quality?: { status: string; reasons: string[] } | null; id: string; capturedAt: string; finalUrl: string; htmlUrl: string; title: string; warnings: string[] };
 type Target = { id: string; url: string; capturedAt: string; later: boolean };
 type Replay = { version: Version; at: string; targets: Target[]; previewUrl: string };
 type Visit = { id: string; fragment?: string };
@@ -70,6 +70,7 @@ export default function OfflineView({ version, date }: { version: { id: string; 
       <button className="icon-button" title={expanded ? 'Riduci pagina offline' : 'Espandi pagina offline'} aria-label={expanded ? 'Riduci pagina offline' : 'Espandi pagina offline'} aria-pressed={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? <Shrink size={18} /> : <Expand size={18} />}</button>
     </div>
     {data && data.version.capturedAt > version.capturedAt && <div className="notice amber">Per questo collegamento esiste soltanto una copia successiva alla data scelta: {date(data.version.capturedAt)}.</div>}
+    {data?.version.quality?.status === 'partial' && <div className="notice amber"><strong>Copia parziale.</strong> {data.version.quality.reasons.join(' ')}</div>}
     {!!data?.version.warnings.length && <div className="capture-warnings"><strong>Avvisi di questa copia</strong>{data.version.warnings.map((warning, index) => <p key={index}>{warning}</p>)}</div>}
     {notice && <div className="notice amber" role="status">{notice}</div>}
     {error ? <div className="notice error" role="alert">{error}</div> : <>

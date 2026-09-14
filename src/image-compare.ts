@@ -2,8 +2,10 @@ import { fork } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { validateScreenshot } from './capture-limits.js';
 import { CaptureError } from './network.js';
+import type { Rectangle } from './types.js';
+export type VisualOptions = { ignored?: Rectangle[]; important?: Rectangle[] };
 
-export async function visualDifference(left: Buffer, right: Buffer): Promise<number> {
+export async function visualDifference(left: Buffer, right: Buffer, options: VisualOptions = {}): Promise<number> {
   validateScreenshot(right);
   // Old oversized captures remain downloadable. Establish a new safe baseline
   // rather than decoding an unbounded legacy image or repeatedly retrying it.
@@ -27,6 +29,6 @@ export async function visualDifference(left: Buffer, right: Buffer): Promise<num
     const timer = setTimeout(() => finish(), 5000);
     child.once('message', (message: any) => finish(typeof message?.difference === 'number' && Number.isFinite(message.difference) && message.difference >= 0 && message.difference <= 1 ? message.difference : undefined));
     child.once('error', () => finish()); child.once('exit', () => finish());
-    child.send({ left, right }, error => { if (error) finish(); });
+    child.send({ left, right, options }, error => { if (error) finish(); });
   });
 }

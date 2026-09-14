@@ -31,20 +31,35 @@ function textField(value: unknown, max: number, empty = true) {
   if (typeof value !== 'string' || value.length > max || (!empty && !value.trim())) return fail('Testo non valido o troppo lungo');
   return value.trim();
 }
+function pathFields(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > 20 || value.some(path => typeof path !== 'string' || path.length > 300 || !path.startsWith('/') || /[?#*\\\s]/.test(path) || path.startsWith('//'))) return fail('Inserisci fino a 20 percorsi, per esempio /offerte, senza indirizzi completi o caratteri jolly.');
+  return [...new Set(value)];
+}
+function ruleFields(value: unknown, max: number) {
+  if (!Array.isArray(value) || value.length > max) return fail(`Sono consentite al massimo ${max} zone.`);
+  return value.map(rule => {
+    if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return fail('Zona non valida');
+    return { selector: textField(rule.selector, 500, false), label: textField(rule.label, 120, false) };
+  });
+}
 function siteFields(body: Row, previous?: Row) {
   const name = textField(body.name ?? previous?.name, 120, false);
   const url = normalizeUrl(textField(body.url ?? previous?.url, 4096, false));
   if (previous && previous.url !== url) fail('L’indirizzo iniziale è fisso. Aggiungi una pagina o un nuovo sito per seguire un altro indirizzo.');
   const kind = body.kind ?? previous?.kind ?? 'competitor';
   const interval = body.intervalHours ?? previous?.interval_hours ?? 6;
+  const discoveryInterval = body.discoveryIntervalHours ?? previous?.discovery_interval_hours ?? 24;
+  const includePaths = pathFields(body.includePaths ?? JSON.parse(previous?.include_paths || '[]'));
+  const excludePaths = pathFields(body.excludePaths ?? JSON.parse(previous?.exclude_paths || '[]'));
   const maxPages = body.maxPages ?? previous?.max_pages ?? 30;
   const selectors = body.ignoreSelectors ?? JSON.parse(previous?.ignore_selectors || '[]');
   const subdomains = body.includeSubdomains ?? Boolean(previous?.include_subdomains);
   const paused = body.paused ?? Boolean(previous?.paused);
   const notes = textField(body.notes ?? previous?.notes ?? '', 20000);
   if (!['own', 'competitor'].includes(kind) || typeof interval !== 'number' || !Number.isFinite(interval) || interval < 1 || interval > 8760 || !Number.isInteger(maxPages) || maxPages < 1 || maxPages > 500) fail('Frequenza o limite di pagine non valido');
+  if (typeof discoveryInterval !== 'number' || !Number.isFinite(discoveryInterval) || discoveryInterval < 1 || discoveryInterval > 8760) fail('Frequenza di ricerca delle landing non valida');
   if (typeof subdomains !== 'boolean' || typeof paused !== 'boolean' || !Array.isArray(selectors) || selectors.length > 30 || selectors.some(s => typeof s !== 'string' || !s.trim() || s.length > 500)) fail('Opzioni del sito non valide');
-  return { name, url, kind, interval, maxPages, selectors, subdomains, paused, notes };
+  return { name, url, kind, interval, discoveryInterval, includePaths, excludePaths, maxPages, selectors, subdomains, paused, notes };
 }
 
 export async function createApp() {
@@ -61,7 +76,7 @@ export async function createApp() {
   });
   app.get('/api/health', { config: { publicAccess: true } }, async () => ({ ok: true }));
   app.get('/api/dashboard', async () => ({
-    version: '0.1.7',
+    version: '0.1.8',
     stats: {
       sites: get('SELECT COUNT(*) n FROM sites')!.n, pages: get('SELECT COUNT(*) n FROM pages')!.n,
       versions: get('SELECT COUNT(*) n FROM versions')!.n, bytes: get('SELECT COALESCE(SUM(bytes),0) n FROM objects')!.n,
@@ -76,6 +91,7 @@ export async function createApp() {
     const siteId = id();
     transaction(() => {
       run(`INSERT INTO sites (id,name,url,kind,interval_hours,max_pages,include_subdomains,paused,ignore_selectors,notes,next_discovery_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, siteId, fields.name, fields.url, fields.kind, fields.interval, fields.maxPages, +fields.subdomains, +fields.paused, JSON.stringify(fields.selectors), fields.notes, later(24), now(), now());
+      run('UPDATE sites SET discovery_interval_hours=?,include_paths=?,exclude_paths=?,next_discovery_at=? WHERE id=?', fields.discoveryInterval, JSON.stringify(fields.includePaths), JSON.stringify(fields.excludePaths), later(fields.discoveryInterval), siteId);
       const { page } = addPage(siteId, fields.url, 'seed');
       enqueue(siteId, page.id, 'capture');
       if (fields.maxPages > 1) enqueue(siteId, null, 'discover');
@@ -89,7 +105,11 @@ export async function createApp() {
   app.patch<{ Params: { id: string } }>('/api/sites/:id', async request => {
     const site = required('sites', request.params.id), f = siteFields(bodyObject(request.body), site);
     transaction(() => {
+      for (const page of all('SELECT ignore_rules FROM pages WHERE site_id=?', site.id)) if (JSON.parse(page.ignore_rules).length + f.selectors.length > 30) fail('Le esclusioni del sito e di una pagina superano il limite complessivo di 30. Riduci prima le zone escluse.');
       run('UPDATE sites SET name=?,kind=?,interval_hours=?,max_pages=?,include_subdomains=?,paused=?,ignore_selectors=?,notes=?,updated_at=? WHERE id=?', f.name, f.kind, f.interval, f.maxPages, +f.subdomains, +f.paused, JSON.stringify(f.selectors), f.notes, now(), site.id);
+      const scopeChanged = JSON.stringify(f.includePaths) !== site.include_paths || JSON.stringify(f.excludePaths) !== site.exclude_paths || +f.subdomains !== site.include_subdomains;
+      const nextDiscovery = f.discoveryInterval !== site.discovery_interval_hours ? site.last_discovery_at ? new Date(Date.parse(site.last_discovery_at) + f.discoveryInterval * 3600000).toISOString() : now() : site.next_discovery_at;
+      run('UPDATE sites SET discovery_interval_hours=?,include_paths=?,exclude_paths=?,next_discovery_at=?,sitemap_sources=? WHERE id=?', f.discoveryInterval, JSON.stringify(f.includePaths), JSON.stringify(f.excludePaths), scopeChanged ? now() : nextDiscovery, scopeChanged ? '[]' : site.sitemap_sources, site.id);
       if (f.interval !== site.interval_hours) {
         for (const page of all('SELECT id,last_checked_at FROM pages WHERE site_id=?', site.id)) {
           const next = page.last_checked_at ? new Date(new Date(page.last_checked_at).getTime() + f.interval * 3600000).toISOString() : now();
@@ -137,11 +157,18 @@ export async function createApp() {
     return { page: listPages(site.id).find(p => p.id === page.id), site: serializeSite(site), notes: page.notes,
       versions: all('SELECT * FROM versions WHERE page_id=? ORDER BY captured_at DESC', page.id).map(v => serializeVersion(v)),
       jobs: listJobs(site.id, page.id),
-      checks: all('SELECT id,created_at createdAt,status,message,version_id versionId FROM checks WHERE page_id=? ORDER BY created_at DESC LIMIT 1000', page.id) };
+      checks: all('SELECT id,created_at createdAt,status,message,version_id versionId,quality FROM checks WHERE page_id=? ORDER BY created_at DESC LIMIT 1000', page.id).map(check => ({ ...check, quality: JSON.parse(check.quality) })) };
   });
   app.patch<{ Params: { id: string } }>('/api/pages/:id', async request => {
     const page = required('pages', request.params.id), notes = textField(bodyObject(request.body).notes, 20000);
     run('UPDATE pages SET notes=? WHERE id=?', notes, page.id); return { ok: true };
+  });
+  app.patch<{ Params: { id: string } }>('/api/pages/:id/rules', async request => {
+    const page = required('pages', request.params.id), site = required('sites', page.site_id), body = bodyObject(request.body);
+    const ignore = ruleFields(body.ignoreRules, 30), important = ruleFields(body.importantRules, 20);
+    if (JSON.parse(site.ignore_selectors).length + ignore.length > 30) fail('Le esclusioni della pagina e del sito possono essere al massimo 30 in totale.');
+    run('UPDATE pages SET ignore_rules=?,important_rules=? WHERE id=?', JSON.stringify(ignore), JSON.stringify(important), page.id);
+    return { ok: true };
   });
   app.post<{ Params: { id: string } }>('/api/pages/:id/scan', async request => {
     const page = required('pages', request.params.id);
@@ -233,7 +260,7 @@ export async function createApp() {
       reply.raw.once('close', () => { if (!reply.raw.writableFinished) zip.abort(); cleanup(); });
       zip.file(destination, { name: 'archive.sqlite' });
       for (const object of objects) zip.file(join(dataDir, object.path), { name: object.path });
-      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.7', schema: 2, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
+      zip.append(JSON.stringify({ app: 'Landing Archive', version: '0.1.8', schema: 3, createdAt: now(), restore: 'Arresta i servizi, ripristina archive.sqlite e objects nella directory dati vuota, assegna UID/GID 1000:1000. La password è conservata, le sessioni sono revocate. Il token interno verrà rigenerato.' }, null, 2), { name: 'manifest.json' });
       reply.header('Content-Disposition', `attachment; filename="landing-archive-${now().slice(0, 10)}.zip"`).type('application/zip');
       void zip.finalize().catch(error => zip.destroy(error));
       return reply.send(zip);

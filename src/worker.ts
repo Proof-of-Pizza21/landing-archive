@@ -7,7 +7,7 @@ import { capturePage, closeBrowser, CaptureError } from './capture.js';
 import { discoverSite } from './discovery.js';
 
 export function createWorker() {
-  const app = Fastify({ logger: false, bodyLimit: 32 * 1024, requestTimeout: 200000 });
+  const app = Fastify({ logger: false, bodyLimit: 96 * 1024, requestTimeout: 200000 });
   let busy = false;
   app.get('/api/health', async () => ({ ok: true, busy }));
   app.addHook('onRequest', async (request, reply) => {
@@ -21,6 +21,9 @@ export function createWorker() {
     if (busy) return reply.code(503).send({ error: 'Un’acquisizione è già in corso', code: 'WORKER_BUSY' });
     const body = request.body as any;
     if (!body || typeof body.url !== 'string' || (body.ignoreSelectors !== undefined && (!Array.isArray(body.ignoreSelectors) || body.ignoreSelectors.some((v: unknown) => typeof v !== 'string')))) return reply.code(400).send({ error: 'Parametri non validi', code: 'INVALID_INPUT' });
+    for (const key of ['ignoreSelectors','importantSelectors','candidateUrls','includePaths','excludePaths']) {
+      if (body[key] !== undefined && (!Array.isArray(body[key]) || body[key].length > (key === 'candidateUrls' ? 200 : key === 'ignoreSelectors' ? 30 : 20) || body[key].some((value: unknown) => typeof value !== 'string' || value.length > (key === 'candidateUrls' ? 4096 : 500)))) return reply.code(400).send({ error: 'Opzioni non valide', code: 'INVALID_INPUT' });
+    }
     busy = true;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 180000);

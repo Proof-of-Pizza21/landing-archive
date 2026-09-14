@@ -18,6 +18,14 @@ Un errore temporaneo non dimostra che una pagina sia scomparsa. Una risposta
 anti-bot. I redirect meritano attenzione: la pagina può aver cambiato indirizzo
 oppure essere stata sostituita da una nuova campagna.
 
+Dalla 0.1.8 la frequenza della scoperta è configurabile separatamente nelle
+impostazioni. I percorsi inclusi/esclusi limitano i nuovi indirizzi automatici:
+le pagine già archiviate e quelle aggiunte a mano continuano a essere seguite.
+**Vita delle landing** distingue nuove pagine, modifiche, scomparse confermate,
+ritorni online e assenze dalla sitemap. Quest’ultima indicazione richiede due
+letture complete delle stesse sitemap; errori, troncamenti o cambi di fonti non
+provano una scomparsa.
+
 ## Cosa contiene una versione
 
 Dalla 0.1.6 la scheda **Pagina offline** apre l’HTML direttamente nell’app.
@@ -39,6 +47,29 @@ Animazioni, caroselli, contatori, popup e annunci possono causare rumore. I
 selettori da ignorare aiutano a concentrarsi sulle parti rilevanti. Non ignorare
 prezzi o offerte solo per ridurre le segnalazioni: si perderebbe proprio il
 cambiamento che si vuole osservare.
+
+## Confronto e qualità dalla 0.1.8
+
+**Zone da monitorare**, nel dettaglio della pagina, permette di scegliere con un
+clic elementi da ignorare o considerare importanti. La seconda copia visibile
+serve a verificare che una regola selezioni la zona voluta anche nello storico.
+Le esclusioni restano nella copia HTML e nello screenshot integrale: si applicano
+solo al confronto automatico. Le zone importanti hanno la precedenza.
+Il primo controllo completo dopo un cambio di regole salva un nuovo riferimento,
+indicato come tale e distinto da una modifica del sito.
+
+Un’immagine visibile non caricata o un foglio di stile mancante segnala una copia
+parziale. Le sole differenze visive di una copia parziale non creano versioni;
+un prezzo o altro contenuto cambiato può comunque essere conservato con avviso.
+La prima osservazione di una landing resta conservata anche se incompleta.
+Un calo molto forte del testo richiede una conferma prima di archiviare la modifica.
+Il controllo resta sempre registrato, con un solo nuovo tentativo ravvicinato
+(5 minuti) per una sequenza di copie incomplete; poi si torna alla frequenza del
+sito. In pausa è necessario ripetere manualmente il controllo.
+
+Non vengono cancellate le vecchie copie simili. Le acquisizioni precedenti non
+contengono una misura della qualità e rimangono indicate come non verificate.
+Per criteri, protezioni e limiti vedi [RELEASE-0.1.8.md](RELEASE-0.1.8.md).
 
 ## Spazio e limiti
 

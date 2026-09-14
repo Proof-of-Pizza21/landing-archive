@@ -64,7 +64,17 @@ db.exec(`
 if (!(db.prepare('PRAGMA table_info(jobs)').all() as Row[]).some(column => column.name === 'manual')) {
   db.exec('ALTER TABLE jobs ADD COLUMN manual INTEGER NOT NULL DEFAULT 0');
 }
-db.exec('PRAGMA user_version=2');
+const additions: Record<string, Record<string, string>> = {
+  sites: { discovery_interval_hours: 'REAL NOT NULL DEFAULT 24', include_paths: "TEXT NOT NULL DEFAULT '[]'", exclude_paths: "TEXT NOT NULL DEFAULT '[]'", last_discovery_at: 'TEXT', sitemap_sources: "TEXT NOT NULL DEFAULT '[]'" },
+  pages: { ignore_rules: "TEXT NOT NULL DEFAULT '[]'", important_rules: "TEXT NOT NULL DEFAULT '[]'", quality_retry_count: 'INTEGER NOT NULL DEFAULT 0', sitemap_state: "TEXT NOT NULL DEFAULT 'unknown'", sitemap_seen_at: 'TEXT' },
+  versions: { quality: "TEXT NOT NULL DEFAULT 'null'", detection: "TEXT NOT NULL DEFAULT 'null'" },
+  checks: { quality: "TEXT NOT NULL DEFAULT 'null'" },
+};
+for (const [table, fields] of Object.entries(additions)) {
+  const columns = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map(column => column.name));
+  for (const [name, declaration] of Object.entries(fields)) if (!columns.has(name)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${declaration}`);
+}
+db.exec('PRAGMA user_version=3');
 
 export const get = (sql: string, ...params: any[]) => db.prepare(sql).get(...params) as Row | undefined;
 export const all = (sql: string, ...params: any[]) => db.prepare(sql).all(...params) as Row[];
@@ -107,6 +117,8 @@ export function serializeSite(site: Row) {
   return {
     id: site.id, name: site.name, url: site.url, kind: site.kind,
     intervalHours: site.interval_hours, maxPages: site.max_pages,
+    discoveryIntervalHours: site.discovery_interval_hours, lastDiscoveryAt: site.last_discovery_at,
+    includePaths: JSON.parse(site.include_paths), excludePaths: JSON.parse(site.exclude_paths),
     includeSubdomains: Boolean(site.include_subdomains), paused: Boolean(site.paused),
     ignoreSelectors: JSON.parse(site.ignore_selectors), notes: site.notes,
     nextDiscoveryAt: site.next_discovery_at, ...counts, versionCount,
@@ -118,6 +130,7 @@ export function serializeVersion(v: Row, detailed = false) {
     id: v.id, pageId: v.page_id, capturedAt: v.captured_at, title: v.title,
     finalUrl: v.final_url, statusCode: v.status_code, bytes: v.bytes, reason: v.reason,
     warnings: JSON.parse(v.warnings), screenshotUrl: `/api/versions/${v.id}/screenshot`,
+    quality: JSON.parse(v.quality || 'null'),
     htmlUrl: `/api/versions/${v.id}/html`,
   };
   if (detailed) Object.assign(value, { text: v.text, links: JSON.parse(v.links), headings: JSON.parse(v.headings), imageUrls: JSON.parse(v.images) });
@@ -133,9 +146,15 @@ export function listPages(siteId: string) {
   return all(`SELECT p.*,
       (SELECT COUNT(*) FROM versions v WHERE v.page_id=p.id) versionCount,
       (SELECT id FROM checks c WHERE c.page_id=p.id ORDER BY created_at DESC LIMIT 1) latestCheckId,
+      (SELECT MAX(created_at) FROM checks c WHERE c.page_id=p.id AND c.status IN ('ok','unchanged')) lastSuccessfulAt,
+      (SELECT kind FROM events e WHERE e.page_id=p.id AND e.kind IN ('discovered','captured','changed','returned','recovered') ORDER BY e.rowid DESC LIMIT 1) lifecycle,
       (SELECT MAX(created_at) FROM events e WHERE e.page_id=p.id AND e.kind IN ('changed','captured','returned')) lastChangeAt
       FROM pages p WHERE site_id=? ORDER BY p.first_seen_at ASC`, siteId)
-    .map(p => ({ id: p.id, url: p.url, title: p.title, notes: p.notes, source: p.source, lastCheckedAt: p.last_checked_at, lastStatus: p.last_status, versionCount: p.versionCount, latestVersionId: p.last_version_id, latestCheckId: p.latestCheckId, lastChangeAt: p.lastChangeAt }));
+    .map(p => ({ id: p.id, url: p.url, title: p.title, notes: p.notes, source: p.source, firstSeenAt: p.first_seen_at, lastSuccessfulAt: p.lastSuccessfulAt,
+      sitemapState: p.sitemap_state, sitemapSeenAt: p.sitemap_seen_at,
+      lifecycle: p.last_status === 'missing' ? 'missing' : p.lifecycle === 'recovered' ? 'recovered' : ['changed','returned'].includes(p.lifecycle) ? 'changed' : 'new',
+      ignoreRules: JSON.parse(p.ignore_rules), importantRules: JSON.parse(p.important_rules),
+      lastCheckedAt: p.last_checked_at, lastStatus: p.last_status, versionCount: p.versionCount, latestVersionId: p.last_version_id, latestCheckId: p.latestCheckId, lastChangeAt: p.lastChangeAt }));
 }
 
 export function listJobs(siteId?: string, pageId?: string) {
