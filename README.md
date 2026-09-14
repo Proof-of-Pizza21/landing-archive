@@ -4,17 +4,15 @@ Archivio locale per seguire l'evoluzione dei propri siti e delle landing dei
 competitor: nuove pagine, cambiamenti nel messaggio e versioni che scompaiono.
 Interfaccia in italiano, dati sul proprio disco, nessun account cloud richiesto.
 
-**Stato: anteprima 0.1.7 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
-umbrelOS 1.7.4 come primo ambiente di collaudo.** Il repository contiene il codice,
-la configurazione Docker e il pacchetto community store. Le prove dei container
-su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34781450322); il collaudo sul mini PC
-resta da eseguire. Questa anteprima non include il supporto ARM. L'immagine 0.1.7 è pubblica,
-verificata nei container e bloccata al suo digest nel pacchetto dello store.
+**Stato: anteprima 0.1.8 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
+umbrelOS 1.7.4 come ambiente di destinazione.** I [collaudi Linux](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34835300152)
+sono riusciti. L’immagine è pubblica, verificata senza login e bloccata al digest
+nel community store. Il collaudo dell’aggiornamento sul mini PC rimane distinto;
+questa anteprima non include ARM.
 
-Il codice **0.1.8** introduce confronti meno sensibili ai piccoli spostamenti,
-controlli di qualità, selezione visiva delle zone e una vista sulla vita delle
-landing. Il pacchetto dello store resta sulla precedente immagine verificata
-fino al completamento del collaudo Linux. [Funzioni e limiti](docs/RELEASE-0.1.8.md).
+La **0.1.8** aggiunge confronti meno sensibili ai piccoli spostamenti, controlli di
+qualità delle acquisizioni, scelta visiva delle zone e una vista sulla vita delle
+landing. [Funzioni e limiti](docs/RELEASE-0.1.8.md).
 
 Le correzioni di sicurezza della versione 0.1.1 sono descritte in
 [docs/SECURITY-0.1.1.md](docs/SECURITY-0.1.1.md) e rimangono attive.

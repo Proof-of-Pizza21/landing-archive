@@ -2,7 +2,7 @@ manifestVersion: 1
 id: proof-of-pizza21-landing-archive
 category: Productivity
 name: Landing Archive
-version: "0.1.7"
+version: "0.1.8"
 tagline: La storia dei tuoi siti e delle landing dei competitor
 icon: https://raw.githubusercontent.com/Proof-of-Pizza21/umbrel-community-store/main/proof-of-pizza21-landing-archive/assets/icon.svg
 description: >-
@@ -25,23 +25,27 @@ description: >-
   Le pagine protette da login, CAPTCHA o sistemi anti-bot possono non essere
   acquisibili. Le landing senza collegamenti pubblici vanno aggiunte a mano.
 releaseNotes: >-
-  Ora puoi vedere dove sono cambiate le pagine: apri una versione e premi
-  Confronta. In Aspetto le aree arancioni evidenziano le differenze tra gli
-  screenshot. Le frecce e Vai alla zona portano al punto modificato; lo
-  scorrimento delle copie è sincronizzato.
+  Meno copie superflue: i piccoli spostamenti di pixel e i parametri pubblicitari
+  noti non fanno scattare automaticamente una nuova versione. Le immagini non
+  caricate vengono segnalate come acquisizioni parziali e ricontrollate, senza
+  interpretare le sole differenze visive come modifiche del sito.
 
 
-  Il riepilogo distingue testo, titolo, intestazioni, collegamenti, indirizzi
-  delle immagini e destinazione finale. Se gli screenshot coincidono e cambia
-  soltanto un indirizzo, viene spiegato senza inventare una modifica visiva.
-  Testo, Collegamenti e Dettagli mostrano i dati prima e dopo.
+  In Zone da monitorare puoi scegliere con un clic cosa ignorare e cosa seguire
+  con attenzione. L’anteprima sulla copia precedente aiuta a verificare la
+  selezione. Le nuove copie HTML e gli screenshot restano completi.
 
 
-  Funziona anche sulle copie già archiviate, senza riscaricare i siti o creare
-  altri file. Account e dati sono conservati; le soglie di rilevamento rimangono
-  invariate. Esporta un backup e aggiorna senza disinstallare. Verifica 0.1.7
-  nella barra laterale. Anteprima per mini PC Intel/AMD a 64 bit, destinata a
-  umbrelOS 1.7.4.
+  Vita delle landing distingue nuove pagine, modifiche, scomparse e ritorni
+  online. La presenza nelle sitemap è separata dalla raggiungibilità. Puoi
+  scegliere ogni quanto cercare nuove landing e quali percorsi includere.
+
+
+  Account, note e copie sono conservati. Esporta un backup prima di aggiornare:
+  il database aggiunge nuovi campi e un ritorno alla versione precedente richiede
+  un backup precedente all’aggiornamento. Le vecchie copie simili non vengono
+  eliminate. Verifica 0.1.8 nella barra laterale. Anteprima Intel/AMD a 64 bit,
+  collaudata nei container Linux e destinata a umbrelOS 1.7.4.
 
 developer: Proof-of-Pizza21
 website: https://github.com/Proof-of-Pizza21/landing-archive

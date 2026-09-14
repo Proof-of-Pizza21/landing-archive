@@ -20,7 +20,18 @@ sitemap parziali non fanno scomparire pagine; due risposte 404/410 e un recupero
 aggiornano le categorie mantenendo lo storico. Gli screenshot desktop e telefono
 sono stati ispezionati; le copie nell’editor non eseguono script né richieste esterne.
 
-Il collaudo Docker Linux e la pubblicazione della 0.1.8 sono in preparazione.
+Il [collaudo Linux della release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34835300152)
+è riuscito il 2026-09-14, compresi browser con sandbox, acquisizione reale,
+confronto su 12 milioni di pixel, archivio invariato senza duplicati, backup,
+riavvio, cancellazione e protezioni della rete interna. Verificata anche una
+migrazione con lo schema reale della 0.1.7 e file storici: account, note e copie
+conservati, nessun duplicato per il solo cambio di un parametro pubblicitario.
+
+Immagine pubblica `sha256:cdf09865c06931405eec31c2162f7d42303b8c2975729e6fe651654db3fc2483`: metadati,
+piattaforma e 23 strati scaricabili verificati senza login. L’inventario coincide
+con l’immagine pubblicata: 398 segnalazioni, 229 CVE distinte, zero segreti e zero
+vulnerabilità alte o critiche correggibili. Questo non equivale all’assenza di
+vulnerabilità. Il collaudo sul dispositivo Umbrel rimane distinto.
 
 ## Aggiornamento 0.1.7 — modifiche evidenziate
 

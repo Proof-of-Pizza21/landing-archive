@@ -1,14 +1,14 @@
 # Installazione
 
-Landing Archive 0.1.7 è un'anteprima per mini PC Intel/AMD a 64 bit
+Landing Archive 0.1.8 è un'anteprima per mini PC Intel/AMD a 64 bit
 (`linux/amd64`), con umbrelOS 1.7.4 come ambiente di destinazione. Le prove
-Docker su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34781450322), comprese acquisizione reale,
+Docker su Linux amd64 sono [riuscite](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34835300152), comprese acquisizione reale,
 consultazione offline, backup e riavvio. Il collaudo sul dispositivo Umbrel resta
 da eseguire; ARM non è incluso in questa anteprima.
 
 ## Installazione su Umbrel
 
-L'immagine pubblica `ghcr.io/proof-of-pizza21/landing-archive:0.1.7` è stata
+L'immagine pubblica `ghcr.io/proof-of-pizza21/landing-archive:0.1.8` è stata
 verificata e il pacchetto dello store la identifica con il digest pubblicato.
 
 1. Apri l'App Store Umbrel e la gestione dei community app store.
@@ -33,10 +33,13 @@ Il codice 0.1.8 aggiunge automaticamente campi per regole, qualità e scoperta
 (schema 3). Conserva account, volume, versioni e controlli; non elimina né
 riclassifica le vecchie acquisizioni. Prima dell’aggiornamento esporta un backup.
 Per tornare alla 0.1.7 serve ripristinare un backup precedente alla migrazione.
-Il community store verrà aggiornato dopo il collaudo Linux della nuova immagine.
+Il community store usa l’immagine 0.1.8 collaudata su Linux amd64.
 Vedi [novità e limiti della 0.1.8](RELEASE-0.1.8.md).
 
-Riapri l’interfaccia e verifica che nella barra laterale compaia **0.1.7**.
+Riapri l’interfaccia e verifica che nella barra laterale compaia **0.1.8**.
+Apri **Zone da monitorare** per scegliere le esclusioni e le zone importanti.
+Nel sito trovi **Vita delle landing**; nelle impostazioni puoi scegliere la
+frequenza di scoperta indipendentemente dai controlli delle pagine.
 Apri una pagina, scegli una versione e premi **Confronta**. In **Aspetto** puoi
 vedere le aree cambiate e raggiungerle con le frecce. Il riepilogo distingue
 anche modifiche di soli collegamenti o indirizzi delle immagini.
@@ -105,7 +108,7 @@ quindi distrugge i dati. Non usarlo come procedura di aggiornamento.
 
 ## Sviluppo senza container
 
-Per il codice 0.1.7 sono necessari Node.js 24.20.0 o successivo della linea 24, npm e le dipendenze
+Per il codice 0.1.8 sono necessari Node.js 24.20.0 o successivo della linea 24, npm e le dipendenze
 di sistema di Chromium. Installazione e compilazione:
 
 ```sh
@@ -159,9 +162,9 @@ Il file non contiene variabili e la sostituzione non ne cambia il contenuto.
 Il Compose locale legge direttamente il template, che è già JSON valido.
 Questo evita di lasciare un vecchio profilo installato dopo un aggiornamento.
 
-La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.7`,
+La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.8`,
 per `linux/amd64`. Entrambi i servizi del Compose usano il digest verificato:
-`sha256:ccf753e8c20d053bd8c48ebb3390955ea00be0d3d2374838cbbe213ac3271ce8`. Il download anonimo dal registro è stato verificato.
+`sha256:cdf09865c06931405eec31c2162f7d42303b8c2975729e6fe651654db3fc2483`. Il download anonimo dal registro è stato verificato.
 
 La porta esterna prevista è `4310`; va controllata sul dispositivo e rispetto
 alle app installate. Il manifest include le destinazioni del repository, del
@@ -195,7 +198,7 @@ supporto e dell'icona, da verificare dopo la pubblicazione. L'icona SVG original
 7. Completare gli URL reali nel manifest, pubblicare la radice dello store e
    provare l'installazione aggiungendone l'URL nell'interfaccia Umbrel.
 
-Le prove automatiche e Docker Linux amd64 sono completate. L'immagine 0.1.7 è
+Le prove automatiche e Docker Linux amd64 sono completate. L'immagine 0.1.8 è
 pubblica e il digest dello store è verificato. Il [resoconto di collaudo](TESTING.md)
 distingue le verifiche già eseguite da quelle ancora necessarie sul dispositivo.
 
@@ -211,7 +214,7 @@ Chromium corrispondente al Playwright del file di lock.
 
 Sono state verificate la sintassi YAML di Compose e manifest, la struttura JSON
 del profilo seccomp e la coerenza di porte, endpoint di salute e utenti.
-Il [collaudo Docker Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34781450322) ha poi avviato i due container con
+Il [collaudo Docker Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34835300152) ha poi avviato i due container con
 le restrizioni distribuite: filesystem in sola lettura, utente non amministratore,
 volume del worker in sola lettura e sandbox Chromium attiva. Ha verificato
 acquisizione reale, copia offline, controllo forzato durante la pausa,
