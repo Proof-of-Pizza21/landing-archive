@@ -24,8 +24,15 @@ dopo un errore simulato. La copia di sicurezza conserva i dati sostituiti;
 account corrente, note, tag e stato di lettura sopravvivono al ripristino.
 La migrazione allo schema 4 rimane additiva. I test Docker includono caricamento,
 verifica nel processo separato, sostituzione, copia di sicurezza e riavvio.
-Il collaudo Linux della nuova immagine è ancora da completare prima di
-aggiornare il community store. Il dispositivo Umbrel resta un collaudo distinto.
+Il [collaudo Linux della release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34868831680)
+è riuscito il 2026-09-14: 62 test automatici, 8 prove browser e prove complete
+dei container, incluso un ripristino reale con annotazioni e copia di sicurezza.
+Il 2026-09-15 sono stati verificati senza login metadati e disponibilità dei 23
+strati dell’immagine pubblica, corrispondenti all’inventario di sicurezza.
+Digest: `sha256:97bda6fee9ed1145ddb09d9739de52ee6ac20b63bb8478c3aa854b4bbdc455a7`.
+Inventario della build: 397 segnalazioni, 228 CVE distinte, zero segreti e zero
+vulnerabilità alte o critiche correggibili. Non equivale all’assenza di
+vulnerabilità. Il collaudo dell’aggiornamento sul dispositivo Umbrel resta distinto.
 
 ## Aggiornamento 0.1.8 — confronto, qualità e vita delle landing
 

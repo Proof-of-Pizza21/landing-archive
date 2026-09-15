@@ -2,7 +2,7 @@ manifestVersion: 1
 id: proof-of-pizza21-landing-archive
 category: Productivity
 name: Landing Archive
-version: "0.1.8"
+version: "0.1.10"
 tagline: La storia dei tuoi siti e delle landing dei competitor
 icon: https://raw.githubusercontent.com/Proof-of-Pizza21/umbrel-community-store/main/proof-of-pizza21-landing-archive/assets/icon.svg
 description: >-
@@ -25,27 +25,28 @@ description: >-
   Le pagine protette da login, CAPTCHA o sistemi anti-bot possono non essere
   acquisibili. Le landing senza collegamenti pubblici vanno aggiunte a mano.
 releaseNotes: >-
-  Meno copie superflue: i piccoli spostamenti di pixel e i parametri pubblicitari
-  noti non fanno scattare automaticamente una nuova versione. Le immagini non
-  caricate vengono segnalate come acquisizioni parziali e ricontrollate, senza
-  interpretare le sole differenze visive come modifiche del sito.
+  Novità da leggere raccoglie gli eventi per sito e periodo. Scegli quali tipi
+  seguire, segna ciò che hai letto e apri la copia che documenta ogni modifica.
 
 
-  In Zone da monitorare puoi scegliere con un clic cosa ignorare e cosa seguire
-  con attenzione. L’anteprima sulla copia precedente aiuta a verificare la
-  selezione. Le nuove copie HTML e gli screenshot restano completi.
+  Aggiungi tag, preferiti e appunti alla singola versione. Ritrova gli spunti
+  nella Raccolta, con ricerca e filtri per sito, data e tag.
 
 
-  Vita delle landing distingue nuove pagine, modifiche, scomparse e ritorni
-  online. La presenza nelle sitemap è separata dalla raggiungibilità. Puoi
-  scegliere ogni quanto cercare nuove landing e quali percorsi includere.
+  Esporta sito offline crea uno ZIP con indice cronologico, pagine navigabili
+  e screenshot. Estrai il file e apri index.html anche senza Landing Archive.
 
 
-  Account, note e copie sono conservati. Esporta un backup prima di aggiornare:
-  il database aggiunge nuovi campi e un ritorno alla versione precedente richiede
-  un backup precedente all’aggiornamento. Le vecchie copie simili non vengono
-  eliminate. Verifica 0.1.8 nella barra laterale. Anteprima Intel/AMD a 64 bit,
-  collaudata nei container Linux e destinata a umbrelOS 1.7.4.
+  Backup e ripristino permette di caricare un backup completo, verificarlo e
+  confermare la sostituzione con la tua password attuale. Prima viene salvata
+  una copia di sicurezza. Il tuo accesso resta valido; i siti ripristinati sono
+  in pausa. Lo ZIP di consultazione non sostituisce il backup completo.
+
+
+  Scarica un backup prima di aggiornare e non disinstallare l’app. Account,
+  versioni, controlli e note restano conservati; il database passa allo schema 4.
+  Verifica 0.1.10 nella barra laterale. Anteprima Intel/AMD a 64 bit, verificata
+  nei container Linux e destinata a umbrelOS 1.7.4.
 
 developer: Proof-of-Pizza21
 website: https://github.com/Proof-of-Pizza21/landing-archive
