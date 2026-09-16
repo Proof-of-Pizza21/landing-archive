@@ -1,0 +1,74 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { PNG } from 'pngjs';
+
+test('cleanup previews protect evidence, require a fresh explicit selection and preserve observation dates', async () => {
+  const directory = mkdtempSync(join(tmpdir(), 'landing-review-'));
+  process.env.DATA_DIR = directory; process.env.MIN_FREE_GIB = '0'; process.env.SCHEDULER_ENABLED = 'false';
+  const { createApp } = await import('../src/server.js');
+  const { db, all, get, run, id, now, later, addPage, addEvent } = await import('../src/db.js');
+  const { putObject, objectPath, hash } = await import('../src/storage.js');
+  const app = await createApp();
+  try {
+    const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'review-test', password: 'temporary-test-password' } });
+    const cookie = String(setup.headers['set-cookie']).split(';')[0];
+    const call = (method: any, url: string, payload?: unknown, headers = {}) => app.inject({ method, url, payload, headers: { cookie, ...headers } });
+    const siteId = id();
+    run('INSERT INTO sites(id,name,url,next_discovery_at,created_at,updated_at) VALUES(?,?,?,?,?,?)', siteId, 'Review fixture', 'https://example.com/', later(24), now(), now());
+    const page = addPage(siteId, 'https://example.com/').page;
+    const png = new PNG({ width: 10, height: 10 }); png.data.fill(255);
+    const picture = putObject(PNG.sync.write(png), 'png');
+    let minute = 0;
+    const insert = (text: string, partial = false, state = 'legacy') => {
+      const versionId = id(), date = new Date(Date.UTC(2026,8,15,0,minute++)).toISOString();
+      const html = putObject(`<h1>Offer</h1><p>${text}</p>${partial ? '<img src="missing.png">' : ''}`, 'html');
+      const quality = JSON.stringify({ status: partial ? 'partial' : 'complete', missingImages: partial ? 1 : 0, reasons: partial ? ['Immagine mancante'] : [] });
+      run('INSERT INTO versions(id,page_id,captured_at,title,final_url,status_code,text,signature,html_hash,screenshot_hash,bytes,reason,quality,review_state) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        versionId, page.id, date, 'Offer', page.url, 200, text, hash(text), html.hash, picture.hash, html.bytes + picture.bytes, partial ? 'Copia parziale' : 'Test', quality, state);
+      run('INSERT INTO checks(id,page_id,created_at,status,message,version_id,quality) VALUES(?,?,?,?,?,?,?)', id(), page.id, date, partial ? 'partial' : 'ok', 'Observation', versionId, quality);
+      addEvent(siteId, page.id, 'changed', 'Observation', versionId);
+      return { id: versionId, date, hash: html.hash };
+    };
+    const first = insert('Offer Price 100 Benefits');
+    const partial = insert('Offer Price 100', true);
+    const recovered = insert('Offer Price 100 Benefits');
+    const novel = insert('Offer Price 150', true, 'observed');
+    const annotated = insert('Offer Price 100 Benefits');
+    const latest = insert('Offer Price 100 Benefits', false, 'confirmed');
+    run('UPDATE pages SET last_version_id=?,reference_version_id=? WHERE id=?', latest.id, latest.id, page.id);
+    await call('PUT', `/api/versions/${annotated.id}/annotation`, { note: 'Keep this evidence', favorite: true, tags: ['launch'] });
+    const route = `/api/pages/${page.id}/cleanup`;
+    assert.equal((await app.inject({ method: 'GET', url: route })).statusCode, 401);
+    let preview = (await call('GET', route)).json();
+    assert.ok(preview.candidates.some((row: any) => row.id === partial.id));
+    assert.ok(preview.candidates.some((row: any) => row.id === recovered.id));
+    for (const kept of [first, novel, annotated, latest]) assert.ok(!preview.candidates.some((row: any) => row.id === kept.id));
+    assert.ok(preview.reclaimableBytes > 0);
+    const body = { token: preview.token, confirmPageId: page.id, ids: [partial.id] };
+    assert.equal((await call('POST', route, body, { origin: 'https://outside.example' })).statusCode, 403);
+    assert.equal((await call('POST', route, { ...body, ids: [] })).statusCode, 400);
+    assert.equal((await call('POST', route, { ...body, ids: [first.id] })).statusCode, 409);
+    await call('PUT', `/api/versions/${partial.id}/annotation`, { note: 'Protect after preview', favorite: false, tags: [] });
+    assert.equal((await call('POST', route, body)).statusCode, 409, 'Stale preview cannot delete newly protected evidence');
+    await call('PUT', `/api/versions/${partial.id}/annotation`, { note: '', favorite: false, tags: [] });
+    preview = (await call('GET', route)).json();
+    const path = objectPath(partial.hash), dates = all('SELECT created_at FROM checks ORDER BY created_at');
+    const events = get('SELECT COUNT(*) n FROM events')!.n;
+    const result = await call('POST', route, { token: preview.token, confirmPageId: page.id, ids: [partial.id, recovered.id] });
+    assert.equal(result.statusCode, 200, result.body); assert.ok(result.json().deletedBytes > 0);
+    assert.equal(existsSync(path), false);
+    assert.deepEqual(all('SELECT created_at FROM checks ORDER BY created_at'), dates);
+    assert.equal(get('SELECT COUNT(*) n FROM events')!.n, events);
+    assert.equal(get('SELECT * FROM versions WHERE id=?', partial.id), undefined);
+    assert.ok(get('SELECT * FROM versions WHERE id=?', novel.id));
+    const observation = get('SELECT * FROM checks WHERE created_at=?', partial.date)!;
+    assert.equal(JSON.parse(observation.evidence).originalFilesRemoved, true);
+    assert.equal(observation.version_id, first.id);
+    assert.equal((await call('GET', `/api/pages/${page.id}`)).json().historySummary.checks, dates.length);
+    assert.equal((await call('GET', `/api/pages/${page.id}/checks`)).json().checks.length, dates.length);
+    assert.deepEqual(all('PRAGMA foreign_key_check'), []);
+  } finally { await app.close(); db.close(); rmSync(directory, { recursive: true, force: true }); }
+});

@@ -55,7 +55,7 @@ test('quality checks, changed prices, new rules and lifecycle observations prese
     const site = () => get('SELECT * FROM sites WHERE id=?', siteId)!;
     const page = () => get('SELECT * FROM pages WHERE id=?', pageId)!;
     let clock = Date.now() - 3600000;
-    const make = (options: Partial<CaptureResult> = {}): CaptureResult => ({ requestedUrl: 'https://1.1.1.1/', finalUrl: 'https://1.1.1.1/', statusCode: 200, title: 'Offer', text: 'Price 100', headings: ['Offer'], links: [{ url: 'https://example.com/offer?utm_source=A', text: 'Buy' }], imageUrls: ['https://example.com/hero.png'], html: '<h1>Offer</h1><p>Price 100</p>', screenshot: picture(), warnings: [], capturedAt: new Date(clock += 1000).toISOString(), quality: { status: 'complete', missingImages: 0, reasons: [] }, ...options });
+    const make = (options: Partial<CaptureResult> = {}): CaptureResult => ({ requestedUrl: 'https://1.1.1.1/', finalUrl: 'https://1.1.1.1/', statusCode: 200, title: 'Offer', text: 'Price 100', headings: ['Offer'], links: [{ url: 'https://example.com/offer?utm_source=A', text: 'Buy' }], imageUrls: ['https://example.com/hero.png'], html: '<h1>Offer</h1><p>Price 100</p>', screenshot: picture(), warnings: [], capturedAt: new Date(clock += 1000).toISOString(), quality: { status: 'complete', missingImages: 0, reasons: [], version: 2, stable: true, renderStatus: 'complete', archiveStatus: 'complete' }, ...options });
     const record = (result: CaptureResult) => recordCapture(page(), site(), result);
     const original = await record(make());
     const tracking = await record(make({ links: [{ url: 'https://example.com/offer?utm_source=B', text: 'Buy' }], screenshot: picture(1202, 2) }));
@@ -66,14 +66,16 @@ test('quality checks, changed prices, new rules and lifecycle observations prese
     assert.equal(page().last_status, 'partial');
     assert.ok(Date.parse(page().next_check_at) < Date.now() + 6 * 60000);
     await record(make({ screenshot: picture(1200, 0, 255), quality: missing }));
-    assert.ok(Date.parse(page().next_check_at) > Date.now() + 5 * 3600000, 'At most one short quality retry per incomplete sequence');
+    assert.ok(Date.parse(page().next_check_at) < Date.now() + 6 * 60000);
+    await record(make({ screenshot: picture(1200, 0, 255), quality: missing }));
+    assert.ok(Date.parse(page().next_check_at) > Date.now() + 5 * 3600000, 'At most two short quality retries per incomplete sequence');
     assert.equal((await record(make())).changed, false);
     const price = await record(make({ text: 'Price 120', html: '<p>Price 120</p>' }));
     assert.equal(price.kind, 'changed');
     assert.equal((await record(make())).kind, 'returned');
     const priceWithMissingImage = await record(make({ text: 'Price 150', html: '<p>Price 150</p>', screenshot: picture(1200, 0, 255), quality: missing }));
     assert.equal(priceWithMissingImage.changed, true);
-    assert.equal(priceWithMissingImage.kind, 'partial');
+    assert.equal(priceWithMissingImage.kind, 'observed');
     assert.equal(JSON.parse(get('SELECT quality FROM versions WHERE id=?', priceWithMissingImage.versionId)!.quality).status, 'partial');
     assert.equal((await record(make({ text: 'Price 150', html: '<p>Price 150</p>', screenshot: picture(1200, 0, 255), quality: missing }))).changed, false);
     assert.equal((await record(make({ text: 'Price 150' }))).kind, 'quality_restored');

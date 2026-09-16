@@ -5,6 +5,41 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
+## Aggiornamento 0.1.11 — caricamenti, conferme e storia
+
+Il 2026-09-16 sono passati localmente compilazione, controlli di tipo, **91 test
+automatici e 12 prove browser** con Node.js 24.20.0 e Chrome su macOS.
+Le sequenze simulate coprono copie complete/incomplete/recuperate, immagini
+assenti e corrotte, sfondi CSS, font, testo differito, un prezzo nuovo con
+risorse mancanti, conferme coerenti e distanziate, errori intermedi e testo
+instabile. Sono verificati riferimento affidabile, ritorno A → B → A con riuso
+dei file e mantenimento delle date nell’HTML esportato e nella navigazione offline.
+
+L’azzeramento completo di un sito è verificato con conferma, anteprima scaduta,
+origine/autenticazione, backup in corso, annullamento del worker e rifiuto dei
+suoi risultati tardivi. Restano sito, impostazioni, note delle pagine e date dei
+controlli; le vecchie versioni e le loro annotazioni vengono rimosse, i file
+condivisi con altri siti restano, la nuova copia parte da un riferimento vuoto.
+La UI verifica annullamento e conferma su telefono; il test Docker esegue anche
+la scansione pulita successiva mentre il sito è in pausa.
+
+La qualità dell’HTML viene controllata riaprendolo in un contesto separato senza
+script e senza rete. Gli screenshot dei test UI sono stati ispezionati su desktop
+e telefono. Sono verificati storico paginato oltre 1.000 controlli, varianti,
+selezione inizialmente vuota nella pulizia, conferma, protezioni e anteprima
+scaduta. Diagnostici: quota prima della scrittura, scadenza, limite per pagina,
+file invalidi, accesso autenticato e guasti alla directory senza bloccare i controlli.
+
+Backup e ripristino coprono lo schema 5 e un vero schema 4 privo delle nuove
+colonne, riferimenti fra pagine rifiutati, qualità ed evidenze non valide,
+conservazione del riferimento e azzeramento delle conferme dopo il ripristino.
+Le prove Docker verificano inoltre la versione del motore, il protocollo di
+qualità, la copia offline, la protezione della prima evidenza e il backup schema 5.
+
+Le prove locali non sono un monitoraggio di 48 ore dei siti dell’utente né una
+misura del dispositivo Umbrel. Gli esiti della build Linux e il digest pubblicato
+vengono aggiunti dopo il completamento della pipeline di release.
+
 ## Aggiornamento 0.1.10 — novità, raccolta e ripristino
 
 Il 2026-09-14 sono riusciti localmente controlli di tipo, compilazione,

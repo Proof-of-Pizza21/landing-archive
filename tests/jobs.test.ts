@@ -14,14 +14,14 @@ test('persistent job queue retries, pause, lease recovery and remote worker prot
   run('INSERT INTO sites (id,name,url,max_pages,next_discovery_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?)', siteId, 'Example', 'https://example.com/', 1, later(24), now(), now());
   const { page } = addPage(siteId, 'https://example.com/');
   const png = new PNG({ width: 5, height: 5 }); png.data.fill(255);
-  let fail = false, invalid = false, requests = 0;
+  let fail = false, invalid = false, oldWorker = false, requests = 0;
   const fetchMock = mock.method(globalThis, 'fetch', async (_url: any, options: any) => {
     requests++;
     assert.match(options.headers.Authorization, /^Bearer [a-f0-9]{64}$/);
     const input = JSON.parse(options.body); assert.equal(input.url, 'https://example.com/');
     if (fail) return new Response(JSON.stringify({ error: 'Temporary site outage', code: 'HTTP_ERROR', statusCode: 503 }), { status: 422 });
     if (invalid) return new Response(JSON.stringify({ text: 'Malformed capture' }));
-    return new Response(JSON.stringify({ requestedUrl: input.url, finalUrl: input.url, statusCode: 200, title: 'Test', text: 'Test', links: [], headings: [], imageUrls: [], html: '<html>Test</html>', screenshot: PNG.sync.write(png).toString('base64'), capturedAt: now(), warnings: [] }));
+    return new Response(JSON.stringify({ requestedUrl: input.url, finalUrl: input.url, statusCode: 200, title: 'Test', text: 'Test', links: [], headings: [], imageUrls: [], html: '<html>Test</html>', screenshot: PNG.sync.write(png).toString('base64'), capturedAt: now(), warnings: [], quality: oldWorker ? undefined : { version: 2, status: 'complete', stable: true, renderStatus: 'complete', archiveStatus: 'complete', missingImages: 0, reasons: [] } }));
   });
   try {
     await t.test('due pages queue once, and a remote capture commits before completion', async () => {
@@ -51,6 +51,16 @@ test('persistent job queue retries, pause, lease recovery and remote worker prot
       invalid = false;
       const good = enqueue(siteId, page.id, 'capture')!; await processNextJob();
       assert.equal(get('SELECT status FROM jobs WHERE id=?', good)!.status, 'done');
+    });
+    await t.test('old worker quality protocol cannot silently bypass new capture checks', async () => {
+      const count = get('SELECT COUNT(*) n FROM versions')!.n;
+      oldWorker = true;
+      const job = enqueue(siteId, page.id, 'capture')!;
+      await processNextJob();
+      assert.equal(get('SELECT status FROM jobs WHERE id=?', job)!.status, 'error');
+      assert.match(get('SELECT error FROM jobs WHERE id=?', job)!.error, /controlli di qualità precedenti/);
+      assert.equal(get('SELECT COUNT(*) n FROM versions')!.n, count);
+      oldWorker = false;
     });
     await t.test('three interrupted attempts pause the site instead of restarting a crash loop', () => {
       const crashed = enqueue(siteId, page.id, 'capture')!;

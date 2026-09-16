@@ -2,6 +2,9 @@ import { readPageMetadata } from './page-metadata.js';
 import { monitoringKey } from './detection.js';
 import { captureLimits, screenshotClip, validateCaptureResult } from './capture-limits.js';
 import { browserStartupFailure, logBrowserStartupFailure } from './browser-startup.js';
+import { isCriticalResource, observedAssets, packagingResourceRelevant, readinessSignature, renderProblems, type ResourceObservation } from './capture-readiness.js';
+import { normalized } from './content-fields.js';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { build } from 'esbuild';
@@ -62,10 +65,15 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
   const abort = () => controller.abort(input.signal?.reason ?? new CaptureError('Acquisizione annullata.', 'ABORTED'));
   input.signal?.addEventListener('abort', abort, { once: true });
   let context: BrowserContext | undefined;
+  let replayContext: BrowserContext | undefined;
   const warnings = new Set<string>();
   const qualityReasons = new Set<string>();
+  const archiveReasons = new Set<string>();
   const budget: RequestBudget = { bytes: 0, requests: 0, maxBytes: 100 * 1024 * 1024, maxRequests: 600 };
   const resourceCache = new Map<string, SafeResponse>();
+  const resourceObservations = new Map<string, ResourceObservation>();
+  const activeCriticalRequests = new Set<string>();
+  const failedCriticalResources = new Map<string, string>();
   let cacheBytes = 0;
   let navigationError: CaptureError | undefined;
   let pendingNavigation: SafeResponse | undefined;
@@ -82,13 +90,18 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
       serviceWorkers: 'block', acceptDownloads: false, bypassCSP: true,
       reducedMotion: 'reduce', colorScheme: 'light',
     });
-    controller.signal.addEventListener('abort', () => { void context?.close().catch(() => {}); }, { once: true });
+    controller.signal.addEventListener('abort', () => { void context?.close().catch(() => {}); void replayContext?.close().catch(() => {}); }, { once: true });
     await context.routeWebSocket('**/*', socket => socket.close());
     await context.route('**/*', async route => {
       const request = route.request();
+      const kind = request.resourceType(), resourceUrl = request.url();
+      const critical = isCriticalResource(resourceUrl, kind, lastNavigation?.url ?? requestedUrl, request.method());
+      if (critical && activeCriticalRequests.size < budget.maxRequests) activeCriticalRequests.add(resourceUrl);
+      const failed = () => { if (critical && failedCriticalResources.size < budget.maxRequests) failedCriticalResources.set(resourceUrl, kind); };
       try {
         if (!['GET', 'HEAD'].includes(request.method())) {
           warnings.add('Richieste di invio dati bloccate: alcune funzioni interattive potrebbero non comparire.');
+          failed();
           return await route.abort('blockedbyclient');
         }
         if (request.resourceType() === 'media') {
@@ -101,7 +114,16 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
           headers: await request.allHeaders(), method: request.method() as 'GET' | 'HEAD',
           signal: controller.signal, budget, maxBytes: 12 * 1024 * 1024, timeoutMs: 15_000,
         });
-        if (request.resourceType() === 'stylesheet' && response.status >= 400) qualityReasons.add('Un foglio di stile non è stato caricato.');
+        const observation = { status: response.status, kind, ...(response.status >= 200 && response.status < 300 ? { hash: createHash('sha256').update(response.body).digest('hex') } : {}) };
+        // The transport request budget bounds this map; retain only digests, not another copy of each body.
+        if (resourceObservations.size < budget.maxRequests || resourceObservations.has(resourceUrl)) {
+          resourceObservations.set(resourceUrl, observation);
+          if (response.url !== resourceUrl && resourceObservations.size < budget.maxRequests) resourceObservations.set(response.url, observation);
+        }
+        if (critical) {
+          if (response.status >= 400) failed();
+          else failedCriticalResources.delete(resourceUrl);
+        }
         if (mainNavigation) {
           cachedNavigation = undefined;
           if (response.url !== normalizeUrl(request.url())) {
@@ -124,10 +146,13 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
         if (request.isNavigationRequest() && request.frame() === request.frame().page().mainFrame()) {
           navigationError = error instanceof CaptureError ? error : new CaptureError('Impossibile raggiungere la pagina.', 'NETWORK_ERROR');
         } else {
-          if (request.resourceType() === 'stylesheet') qualityReasons.add('Un foglio di stile non è stato caricato.');
+          failed();
+          if (resourceObservations.size < budget.maxRequests) resourceObservations.set(resourceUrl, { status: 0, kind });
           warnings.add(error instanceof CaptureError && error.code === 'BLOCKED_URL' ? 'Una risorsa verso una rete privata è stata bloccata.' : 'Alcune risorse non sono state scaricate (errore di rete o limite di acquisizione).');
         }
         await route.abort('blockedbyclient').catch(() => {});
+      } finally {
+        activeCriticalRequests.delete(resourceUrl);
       }
     });
     const page = await context.newPage();
@@ -158,12 +183,17 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
     const contentType = response.headers['content-type'] ?? '';
     if (contentType && !/html|xhtml/i.test(contentType)) throw new CaptureError('L’indirizzo non restituisce una pagina HTML.', 'UNSUPPORTED_CONTENT', statusCode);
     phase = 'caricamento degli elementi della pagina';
-    // Limited scrolling triggers lazy images without clicking buttons or sending forms.
+    // Re-read the height: deferred sections can extend the document after the first scroll.
+    // Both the elapsed time and number of steps bound infinite-scroll pages.
     await page.evaluate(`(async () => {
       const originalX = scrollX, originalY = scrollY;
-      const limit = Math.min(document.documentElement.scrollHeight, 20000);
-      for (let y = 0; y < limit; y += Math.max(700, innerHeight)) {
-        scrollTo(0, y); await new Promise(resolve => setTimeout(resolve, 120));
+      const end = performance.now() + 6000; let y = 0, bottomPasses = 0;
+      for (let step = 0; step < 32 && performance.now() < end; step++) {
+        const limit = Math.min(document.documentElement.scrollHeight, 20000);
+        scrollTo(0, Math.min(y, limit)); await new Promise(resolve => setTimeout(resolve, 160));
+        const nextLimit = Math.min(document.documentElement.scrollHeight, 20000);
+        if (y + innerHeight >= nextLimit) { if (++bottomPasses >= 2) break; }
+        else { bottomPasses = 0; y += Math.max(700, innerHeight); }
       }
       scrollTo(originalX, originalY);
       await Promise.race([document.fonts.ready, new Promise(resolve => setTimeout(resolve, 1500))]);
@@ -182,15 +212,31 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
     const ignoreSelectors = (input.ignoreSelectors ?? []).filter(selector => typeof selector === 'string' && selector.length <= 500).slice(0, 30);
     const importantSelectors = (input.importantSelectors ?? []).filter(selector => typeof selector === 'string' && selector.length <= 500).slice(0, 20);
     phase = 'lettura del testo e dei collegamenti';
-    const metadata = await readPageMetadata(page, ignoreSelectors, importantSelectors);
+    let metadata = await readPageMetadata(page, ignoreSelectors, importantSelectors);
+    metadata.assets = observedAssets(metadata.assets, resourceObservations);
+    let signature = readinessSignature(metadata), equalSamples = 0, stable = false;
+    // Three matching observations over at least 1.5 seconds prevent a single early
+    // DOM read from becoming the archive baseline. This is bounded, not networkidle.
+    for (let sample = 0; sample < 8; sample++) {
+      await page.waitForTimeout(750);
+      const next = await readPageMetadata(page, ignoreSelectors, importantSelectors);
+      next.assets = observedAssets(next.assets, resourceObservations);
+      const nextSignature = readinessSignature(next);
+      equalSamples = signature === nextSignature ? equalSamples + 1 : 0;
+      metadata = next; signature = nextSignature;
+      if (equalSamples >= 2 && !metadata.fontsPending && !activeCriticalRequests.size && !metadata.assets.some(asset => asset.status === 'pending') && !metadata.important.some(region => !region.count)) { stable = true; break; }
+    }
     if (metadata.challenge || /^(just a moment|attention required|verify you are human|checking your browser)/i.test(metadata.title.trim())) {
       throw new CaptureError('Il sito mostra una verifica anti-bot. Nessuna nuova versione è stata archiviata.', 'CAPTCHA', statusCode);
     }
     if (metadata.cookieBanner) warnings.add('È presente un banner cookie; viene conservato senza esprimere consenso.');
     if (metadata.invalidSelectors.length) warnings.add('Uno o più selettori da ignorare non sono validi.');
-    if (metadata.important.some(item => !item.count)) warnings.add('Una zona importante non è stata trovata: verifica le regole della pagina.');
-    if (metadata.missingImages) qualityReasons.add(`${metadata.missingImages} immagini visibili non sono state caricate completamente.`);
-    if (!metadata.text.trim() && !metadata.imageUrls.length) qualityReasons.add('La pagina non contiene testo o immagini riconoscibili.');
+    for (const reason of renderProblems(metadata, stable)) qualityReasons.add(reason);
+    const failedKinds = new Set(failedCriticalResources.values());
+    if (failedKinds.has('stylesheet')) qualityReasons.add('Un foglio di stile non è stato caricato.');
+    if (failedKinds.has('font')) qualityReasons.add('Una risorsa necessaria ai caratteri della pagina non è stata caricata.');
+    if (failedKinds.has('script')) qualityReasons.add('Uno script della pagina non è stato caricato: alcune sezioni potrebbero mancare.');
+    if (failedKinds.has('xhr') || failedKinds.has('fetch')) qualityReasons.add('Una richiesta di contenuto non è riuscita o è stata bloccata: alcune sezioni potrebbero mancare.');
     const clip = screenshotClip(page.viewportSize()!.width, metadata.height);
     if (metadata.height > clip.height) warnings.add(`Screenshot limitato ai primi ${clip.height} pixel per contenere la memoria; la copia HTML può includere contenuti più in basso.`);
     phase = 'creazione dello screenshot';
@@ -202,10 +248,16 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
       timeout: 15_000,
     });
     const userAgent = await page.evaluate('navigator.userAgent') as string;
+    const visibleAssetUrls = new Set(metadata.assets.map(asset => asset.url));
+    const stylesheetUrls = new Set(await page.locator('link[rel="stylesheet"]').evaluateAll(nodes => nodes.slice(0, 500).map(node => (node as HTMLLinkElement).href)));
+    const packagingRelevant = (url: string) => packagingResourceRelevant(url, resourceObservations, visibleAssetUrls, stylesheetUrls);
     await page.exposeFunction('__landingFetchResource', async (url: string) => {
       try {
         const resource = resourceCache.get(normalizeUrl(url)) ?? await fetchResource(url, { headers: { 'user-agent': userAgent }, signal: controller.signal, budget, maxBytes: 10 * 1024 * 1024, timeoutMs: 12_000 });
-        if (resource.status < 200 || resource.status >= 300) warnings.add('Alcune risorse della copia offline non sono disponibili sul sito.');
+        if (resource.status < 200 || resource.status >= 300) {
+          warnings.add('Alcune risorse della copia offline non sono disponibili sul sito.');
+          if (packagingRelevant(url)) archiveReasons.add('Alcune risorse non sono state incorporate nella copia offline.');
+        }
         // SingleFile needs content type; omitting Set-Cookie also avoids Headers rejecting multiple cookies.
         return { status: resource.status, headers: { 'content-type': resource.headers['content-type'] ?? 'application/octet-stream' }, data: resource.body.toString('base64') };
       } catch (error) {
@@ -213,12 +265,13 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
         let host = 'risorsa';
         try { host = new URL(url).hostname; } catch { /* Keep a neutral label for malformed resource URLs. */ }
         warnings.add(`Copia offline: alcune risorse di ${host} non sono state incorporate (${reason}).`);
+        if (packagingRelevant(url)) archiveReasons.add('Alcune risorse non sono state incorporate nella copia offline.');
         throw error;
       }
     });
     phase = 'preparazione della copia HTML';
     await page.evaluate(await getSingleFileBundle());
-    const html = await page.evaluate(`(async () => {
+    const packaged = await page.evaluate(`(async () => {
       __landingSingleFile.init({fetch: async url => {
         const value = await window.__landingFetchResource(String(url));
         const bytes = Uint8Array.from(atob(value.data), char => char.charCodeAt(0));
@@ -248,14 +301,51 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
       const csp = doc.createElement('meta'); csp.httpEquiv = 'Content-Security-Policy';
       csp.content = "default-src 'none'; img-src data: blob:; style-src 'unsafe-inline' data:; font-src data:; media-src data:; script-src 'none'; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'";
       doc.head.prepend(csp);
-      return '<!DOCTYPE html>\\n' + doc.documentElement.outerHTML;
-    })()`) as string;
+      // Inspect the inert result before returning it. External styles and image
+      // references cannot render under the archive CSP and indicate missing packaging.
+      const externalImages = Array.from(doc.querySelectorAll('img')).filter(img => /^(https?:)?\\/\\//i.test(img.getAttribute('src') || '')).length;
+      const externalStyles = Array.from(doc.querySelectorAll('link[rel="stylesheet"]')).filter(link => /^(https?:)?\\/\\//i.test(link.getAttribute('href') || '')).length;
+      const externalCss = Array.from(doc.querySelectorAll('style,[style]')).some(node => /url\\(\\s*["']?(?:https?:)?\\/\\//i.test(node.localName === 'style' ? node.textContent || '' : node.getAttribute('style') || ''));
+      return { html: '<!DOCTYPE html>\\n' + doc.documentElement.outerHTML, incomplete: externalImages > 0 || externalStyles > 0 || externalCss };
+    })()`) as { html: string; incomplete: boolean };
+    if (packaged.incomplete) archiveReasons.add('La copia offline contiene riferimenti a risorse che non sono state incorporate.');
+    // SingleFile can trigger layout changes or a site can update while packaging.
+    // Preserve what was captured but never call these mismatched observations complete.
+    const afterPackaging = await readPageMetadata(page, ignoreSelectors, importantSelectors);
+    afterPackaging.assets = observedAssets(afterPackaging.assets, resourceObservations);
+    if (readinessSignature(afterPackaging) !== signature) {
+      stable = false;
+      qualityReasons.add('Il contenuto è cambiato durante la creazione dei file: screenshot e copia offline richiedono verifica.');
+    }
+    phase = 'verifica della copia offline';
+    // A fresh, script-disabled context checks the actual serialized artifact. It has
+    // no cookies and no network access, including requests to the captured site.
+    // Keep this a single bounded rendering pass, not a second website capture.
+    try {
+      replayContext = await browser.newContext({ viewport: page.viewportSize()!, deviceScaleFactor: 1, locale: 'it-IT', timezoneId: 'Europe/Rome', serviceWorkers: 'block', javaScriptEnabled: false, acceptDownloads: false, reducedMotion: 'reduce', colorScheme: 'light' });
+      await replayContext.route('**/*', route => route.abort('blockedbyclient'));
+      await replayContext.routeWebSocket('**/*', socket => socket.close());
+      const replay = await replayContext.newPage();
+      await replay.setContent(packaged.html, { waitUntil: 'domcontentloaded', timeout: 7000 });
+      await replay.evaluate(`(async () => { await Promise.race([Promise.all([document.fonts.ready, ...Array.from(document.images).slice(0, 500).map(img => img.decode().catch(() => {}))]), new Promise(resolve => setTimeout(resolve, 3000))]); })()`);
+      const offlineMetadata = await readPageMetadata(replay, ignoreSelectors, importantSelectors);
+      if (offlineMetadata.missingImages > metadata.missingImages) archiveReasons.add('La riproduzione offline perde una o più immagini visibili.');
+      if (offlineMetadata.fontsPending || offlineMetadata.fontsFailed) archiveReasons.add('La riproduzione offline non riesce a caricare tutti i caratteri.');
+      if (normalized(offlineMetadata.comparison.text) !== normalized(metadata.comparison.text)) archiveReasons.add('Il testo visibile nella copia offline non coincide con quello acquisito.');
+      if (offlineMetadata.important.some((region, index) => region.count < (metadata.important[index]?.count ?? 0))) archiveReasons.add('Una zona importante non viene riprodotta nella copia offline.');
+    } catch (error) {
+      if (controller.signal.aborted) throw error;
+      archiveReasons.add('Non è stato possibile verificare completamente la riproduzione offline.');
+    } finally { await replayContext?.close().catch(() => {}); replayContext = undefined; }
+    const renderStatus = qualityReasons.size ? 'partial' as const : 'complete' as const;
+    const archiveStatus = archiveReasons.size ? 'partial' as const : 'complete' as const;
+    for (const reason of archiveReasons) qualityReasons.add(reason);
     const result = {
       requestedUrl, finalUrl, statusCode, title: metadata.title, text: metadata.text,
       headings: metadata.headings, links: metadata.links, imageUrls: metadata.imageUrls,
-      html, screenshot, warnings: [...warnings].slice(0, captureLimits.warnings).map(warning => warning.slice(0, captureLimits.warning)), capturedAt: new Date().toISOString(),
-      quality: { status: qualityReasons.size ? 'partial' as const : 'complete' as const, missingImages: metadata.missingImages, reasons: [...qualityReasons] },
-      detection: { rulesKey: monitoringKey(ignoreSelectors, importantSelectors), content: metadata.comparison, ignored: metadata.ignored, important: metadata.important },
+      html: packaged.html, screenshot, warnings: [...warnings].slice(0, captureLimits.warnings).map(warning => warning.slice(0, captureLimits.warning)), capturedAt: new Date().toISOString(),
+      quality: { version: 2, stable, renderStatus, archiveStatus, status: qualityReasons.size ? 'partial' as const : 'complete' as const, missingImages: metadata.missingImages, reasons: [...qualityReasons].slice(0, 20).map(reason => reason.slice(0, 1000)) },
+      detection: { rulesKey: monitoringKey(ignoreSelectors, importantSelectors), content: metadata.comparison, ignored: metadata.ignored, important: metadata.important, assets: metadata.assets, blocks: metadata.blocks },
     };
     phase = 'verifica dei file acquisiti';
     validateCaptureResult(result);
@@ -275,5 +365,6 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
     clearTimeout(timeout);
     input.signal?.removeEventListener('abort', abort);
     await context?.close().catch(() => {});
+    await replayContext?.close().catch(() => {});
   }
 }

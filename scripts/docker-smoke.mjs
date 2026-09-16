@@ -10,6 +10,7 @@ import { DatabaseSync } from 'node:sqlite';
 // Only public example.com is fetched. All account credentials and downloaded
 // artifacts exist solely in a fresh temporary project and are never logged.
 const image = process.env.PREVIEW_IMAGE || 'landing-archive:ci';
+const expectedVersion = JSON.parse(await readFile('package.json', 'utf8')).version;
 const project = `landing-archive-ci-${randomBytes(5).toString('hex')}`;
 const temporary = await mkdtemp(join(tmpdir(), 'landing-archive-ci-'));
 const composeFile = join(temporary, 'compose.json');
@@ -188,6 +189,18 @@ try {
   const captured = await waitForCheck(pageId, 1);
   assert.equal(captured.versions.length, 1);
   const versionId = captured.versions[0].id;
+  assert.equal(captured.versions[0].quality.version, 2);
+  assert.equal(captured.versions[0].quality.stable, true);
+  assert.equal(captured.versions[0].quality.renderStatus, 'complete');
+  assert.equal(captured.versions[0].quality.archiveStatus, 'complete');
+  assert.equal(captured.referenceVersionId, versionId);
+  assert.equal(captured.versions[0].reviewState, 'confirmed');
+  const engine = (await json('/api/dashboard')).worker;
+  assert.equal(engine.version, expectedVersion);
+  assert.equal(engine.compatible, true);
+  await api(`/api/pages/${pageId}/cleanup`, { authenticated: false, expected: 401 });
+  assert.equal((await json(`/api/pages/${pageId}/cleanup`)).candidates.length, 0);
+  check('Version-matched worker verifies live and offline quality; first evidence is protected');
   const replay = await json(`/api/versions/${versionId}/offline`);
   assert.equal(replay.version.id, versionId);
   const replayResponse = await api(replay.previewUrl);
@@ -248,6 +261,8 @@ try {
   await command('unzip', ['-q', zipPath, '-d', restored], { quiet: true });
   const backup = new DatabaseSync(join(restored, 'archive.sqlite'), { readOnly: true });
   try {
+    assert.equal(backup.prepare('PRAGMA user_version').get().user_version, 5);
+    assert.equal(backup.prepare('SELECT reference_version_id FROM pages').get().reference_version_id, versionId);
     assert.equal(backup.prepare('SELECT COUNT(*) count FROM sessions').get().count, 0);
     assert.equal(backup.prepare('SELECT COUNT(*) count FROM versions').get().count, 1);
     for (const object of backup.prepare('SELECT hash,path FROM objects').all()) {
@@ -290,6 +305,18 @@ try {
   assert.ok(cookie, 'Login must provide a new session after logout');
   assert.equal((await json('/api/auth/status')).authenticated, true);
   check('Archive, checks and login survive a service restart; logout revokes its session');
+  const resetPreview = await json(`/api/sites/${siteId}/reset`);
+  assert.equal(resetPreview.versions, 1); assert.equal(resetPreview.annotatedVersions, 1);
+  await api(`/api/sites/${siteId}/reset`, { method: 'POST', body: {}, expected: 400 });
+  await api(`/api/sites/${siteId}/reset`, { method: 'POST', body: { token: resetPreview.token, confirmSiteId: siteId } });
+  await api(`/api/versions/${versionId}/html`, { expected: 404 });
+  const fresh = await waitForCheck(pageId, 3);
+  assert.equal(fresh.versions.length, 1); assert.notEqual(fresh.versions[0].id, versionId);
+  assert.equal(fresh.referenceVersionId, fresh.versions[0].id);
+  assert.equal(fresh.versions[0].reason, 'Prima versione archiviata');
+  assert.equal((await json(`/api/sites/${siteId}`)).site.paused, true);
+  assert.equal((await json('/api/library?tag=smoke')).total, 0);
+  check('Explicit site reset removes old copies and annotations, preserves check dates, and completes a fresh scan while paused');
   await api(`/api/sites/${siteId}`, { method: 'DELETE', body: {}, expected: 400 });
   await api(`/api/sites/${siteId}`, { method: 'DELETE', body: { confirmSiteId: siteId } });
   await api(`/api/pages/${pageId}`, { expected: 404 });

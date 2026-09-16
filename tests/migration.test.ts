@@ -18,6 +18,6 @@ test('opening a previous archive preserves pending jobs while adding manual sche
     const job = get('SELECT * FROM jobs WHERE id=?', 'pending')!;
     assert.equal(job.status, 'queued'); assert.equal(job.attempts, 2);
     assert.equal(job.error, 'Earlier error'); assert.equal(job.available_at, '2026-09-02');
-    assert.equal(job.manual, 0); assert.ok(db.prepare('PRAGMA table_info(versions)').all().some(column => column.name === 'quality')); assert.ok(db.prepare('PRAGMA table_info(pages)').all().some(column => column.name === 'ignore_rules'));  assert.equal(get('PRAGMA user_version')!.user_version, 4);
+    assert.equal(job.manual, 0); assert.ok(db.prepare('PRAGMA table_info(versions)').all().some(column => column.name === 'quality')); assert.ok(db.prepare('PRAGMA table_info(pages)').all().some(column => column.name === 'ignore_rules'));  assert.equal(get('PRAGMA user_version')!.user_version, 5);
   } finally { db.close(); rmSync(directory, { recursive: true, force: true }); }
 });

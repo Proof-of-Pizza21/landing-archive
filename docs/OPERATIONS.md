@@ -58,18 +58,50 @@ solo al confronto automatico. Le zone importanti hanno la precedenza.
 Il primo controllo completo dopo un cambio di regole salva un nuovo riferimento,
 indicato come tale e distinto da una modifica del sito.
 
-Un’immagine visibile non caricata o un foglio di stile mancante segnala una copia
-parziale. Le sole differenze visive di una copia parziale non creano versioni;
-un prezzo o altro contenuto cambiato può comunque essere conservato con avviso.
-La prima osservazione di una landing resta conservata anche se incompleta.
-Un calo molto forte del testo richiede una conferma prima di archiviare la modifica.
-Il controllo resta sempre registrato, con un solo nuovo tentativo ravvicinato
-(5 minuti) per una sequenza di copie incomplete; poi si torna alla frequenza del
-sito. In pausa è necessario ripetere manualmente il controllo.
+Dalla **0.1.11**, un’immagine visibile, uno sfondo, un carattere o una risorsa
+necessaria non caricati segnalano una copia parziale. Il motore verifica più
+letture della pagina e riapre l’HTML senza rete per controllarne la riproduzione.
+Il riferimento del confronto proviene da una copia completa; copie dubbie non
+lo sostituiscono. Un errore non elimina le acquisizioni precedenti.
 
-Non vengono cancellate le vecchie copie simili. Le acquisizioni precedenti non
-contengono una misura della qualità e rimangono indicate come non verificate.
-Per criteri, protezioni e limiti vedi [RELEASE-0.1.8.md](RELEASE-0.1.8.md).
+La sola assenza di contenuto o una differenza solo visiva richiedono due visite
+verificate coerenti, distanziate almeno 30 secondi. Un errore intermedio interrompe
+la conferma; errori diversi non si confermano fra loro. Sono previsti al massimo
+due tentativi ravvicinati, dopo 1 e 5 minuti, poi si torna alla frequenza del sito.
+In pausa o con pianificazione disattivata si ripete manualmente il controllo.
+
+La prima osservazione resta conservata anche se incompleta. Un contenuto nuovo
+stabile, per esempio un prezzo diverso con un’immagine assente, può essere
+conservato come evidenza da verificare. Un testo ancora instabile o una pagina
+incompleta che ha perso gran parte del contenuto rimane invece un’anomalia da
+ricontrollare. Una successiva copia completa può migliorare quella evidenza.
+
+I tentativi ordinari non aggiungono versioni: conservano il registro del controllo
+e al massimo 3 screenshot temporanei per pagina, per 48 ore, entro 512 campioni
+e 1 GiB complessivo. Questi campioni sono esclusi dal backup permanente.
+Il ritorno a una variante precedente conserva la nuova data e riutilizza i file.
+
+**Versioni utili**, **Per variante** e **Tutte le osservazioni** consentono di
+consultare lo storico senza mescolare ogni tentativo alle modifiche. Le copie
+precedenti ai nuovi controlli restano disponibili in **Archivio precedente**.
+**Anteprima pulizia** propone solo candidati limitati: nessuno è selezionato in
+partenza. Prime copie, riferimento, ultima copia, evidenze nuove, preferiti, note
+e tag sono protetti. La conferma elimina i file non condivisi delle copie scelte,
+conservando date e risultati dei controlli. Per recuperare i file eliminati occorre
+un backup precedente. Vedi [RELEASE-0.1.11.md](RELEASE-0.1.11.md).
+
+## Azzerare tutte le copie di un sito
+
+Apri il sito e scegli **Azzera copie e riscarica**. L’anteprima conta tutte le
+copie e quelle con note, tag o preferiti; nessuna viene eliminata senza conferma.
+Il comando conserva sito, pagine, impostazioni e note delle pagine, azzera tutti
+i riferimenti e avvia nuove visite manuali. Anche un sito in pausa può essere
+riscaricato così, mantenendo la pausa per i controlli automatici successivi.
+
+Sono cancellati screenshot, HTML e annotazioni delle versioni; le date dei
+controlli rimangono senza i file precedenti. Scarica il backup proposto se vuoi
+poter recuperare lo storico. Una pagina non più online potrebbe non essere
+recuperabile dopo l’azzeramento. Le copie degli altri siti restano disponibili.
 
 ## Spazio e limiti
 

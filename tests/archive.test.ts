@@ -65,18 +65,18 @@ test('archive workflow: authentication, version history, failures, comparison an
     function capture(value: string): CaptureResult {
       const png = new PNG({ width: 12, height: 12 });
       for (let n = 0; n < png.data.length; n += 4) { png.data[n] = value === 'A' ? 255 : 0; png.data[n + 1] = value === 'B' ? 255 : 0; png.data[n + 3] = 255; }
-      return { requestedUrl: 'https://1.1.1.1/', finalUrl: 'https://1.1.1.1/', statusCode: 200, title: 'Landing', text: `Offerta ${value}`, links: [{ url: `https://1.1.1.1/${value}`, text: value }], headings: ['Landing'], imageUrls: [], html: `<html><body>Offerta ${value}</body></html>`, screenshot: PNG.sync.write(png), capturedAt: new Date(instant += 1000).toISOString(), warnings: [] };
+      return { requestedUrl: 'https://1.1.1.1/', finalUrl: 'https://1.1.1.1/', statusCode: 200, title: 'Landing', text: `Offerta ${value}`, links: [{ url: `https://1.1.1.1/${value}`, text: value }], headings: ['Landing'], imageUrls: [], html: `<html><body>Offerta ${value}</body></html>`, screenshot: PNG.sync.write(png), capturedAt: new Date(instant += 1000).toISOString(), warnings: [], quality: { status: 'complete', missingImages: 0, reasons: [], version: 2, stable: true, renderStatus: 'complete', archiveStatus: 'complete' } };
     }
     const record = (result: CaptureResult) => recordCapture(get('SELECT * FROM pages WHERE id=?', pageId)!, get('SELECT * FROM sites WHERE id=?', siteId)!, result);
-    await t.test('A → A → B → A keeps three versions, four checks and reuses files', async () => {
+    await t.test('A → A → B → A keeps two variants, four checks and reuses files', async () => {
       const a = await record(capture('A')); first = a.versionId;
       assert.equal(a.kind, 'captured');
       const unchanged = await record(capture('A'));
       assert.equal(unchanged.changed, false); assert.equal(unchanged.versionId, first);
       second = (await record(capture('B'))).versionId;
       const returned = await record(capture('A'));
-      assert.equal(returned.kind, 'returned'); assert.notEqual(returned.versionId, first);
-      assert.equal(get('SELECT COUNT(*) n FROM versions')!.n, 3);
+      assert.equal(returned.kind, 'returned'); assert.equal(returned.versionId, first);
+      assert.equal(get('SELECT COUNT(*) n FROM versions')!.n, 2);
       assert.equal(get('SELECT COUNT(*) n FROM checks')!.n, 4);
       assert.equal(get('SELECT COUNT(*) n FROM objects')!.n, 4);
       assert.equal(get('SELECT html_hash FROM versions WHERE id=?', first)!.html_hash, get('SELECT html_hash FROM versions WHERE id=?', returned.versionId)!.html_hash);
@@ -85,7 +85,7 @@ test('archive workflow: authentication, version history, failures, comparison an
       const failed = () => recordFailure(get('SELECT * FROM pages WHERE id=?', pageId)!, get('SELECT * FROM sites WHERE id=?', siteId)!, { statusCode: 404, message: 'HTTP 404' });
       failed(); assert.equal(get('SELECT last_status FROM pages WHERE id=?', pageId)!.last_status, 'unavailable');
       failed(); assert.equal(get('SELECT last_status FROM pages WHERE id=?', pageId)!.last_status, 'missing');
-      assert.equal(get('SELECT COUNT(*) n FROM versions')!.n, 3);
+      assert.equal(get('SELECT COUNT(*) n FROM versions')!.n, 2);
       for (const v of all('SELECT * FROM versions')) { assert.ok(readObject(v.html_hash).length); assert.ok(readObject(v.screenshot_hash).length); }
       await record(capture('A'));
       assert.equal(get("SELECT COUNT(*) n FROM events WHERE kind='recovered'")!.n, 1);
@@ -115,13 +115,13 @@ test('archive workflow: authentication, version history, failures, comparison an
       const result = await call('GET', '/api/export');
       assert.equal(result.statusCode, 200, result.body.slice(0, 100));
       const files = zipEntries(result.rawPayload);
-      assert.equal(JSON.parse(files.get('manifest.json')!.toString()).schema, 4);
+      assert.equal(JSON.parse(files.get('manifest.json')!.toString()).schema, 5);
       assert.equal(files.has('worker-token'), false);
       const restoredPath = join(directory, 'restored.sqlite'); writeFileSync(restoredPath, files.get('archive.sqlite')!);
       const restored = new DatabaseSync(restoredPath);
       try {
         assert.equal(restored.prepare('PRAGMA integrity_check').get()!.integrity_check, 'ok');
-        assert.equal(restored.prepare('SELECT COUNT(*) n FROM versions').get()!.n, 3);
+        assert.equal(restored.prepare('SELECT COUNT(*) n FROM versions').get()!.n, 2);
         assert.equal(restored.prepare('SELECT COUNT(*) n FROM checks').get()!.n, 7);
         assert.equal(restored.prepare('SELECT COUNT(*) n FROM sessions').get()!.n, 0);
         for (const object of restored.prepare('SELECT path,bytes FROM objects').all()) assert.equal(files.get(String(object.path))!.length, object.bytes);

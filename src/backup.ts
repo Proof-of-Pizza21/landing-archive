@@ -8,8 +8,9 @@ import { dataDir } from './config.js';
 import { checkSpace } from './storage.js';
 import { offlineDocument, offlineMaxBytes, type OfflineTarget } from './offline.js';
 
-export const archiveVersion = '0.1.10';
-export const archiveSchema = 4;
+export { appVersion as archiveVersion } from './version.js';
+import { appVersion as archiveVersion } from './version.js';
+export const archiveSchema = 5;
 export const archiveTables = ['sites', 'pages', 'objects', 'versions', 'checks', 'events', 'version_notes', 'version_tags', 'event_reads'] as const;
 export const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[character]!));
 export const portablePolicy = "default-src 'none'; script-src 'none'; style-src 'unsafe-inline' data:; img-src data:; font-src data:; connect-src 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'";
@@ -51,13 +52,19 @@ export function portableZip(path: string, siteId: string) {
   const dispose = () => { closeIndex(); copy.close(); rmSync(indexPath, { force: true }); };
   try {
     const site = copy.prepare('SELECT * FROM sites WHERE id=?').get(siteId) as Row;
-    const versions = copy.prepare(`SELECT v.id,v.page_id,v.captured_at,v.title,v.final_url,v.html_hash,v.screenshot_hash,v.reason,p.url FROM versions v JOIN pages p ON p.id=v.page_id WHERE p.site_id=? ORDER BY v.captured_at,v.id LIMIT 20001`).all(siteId) as Row[];
+    const versions = copy.prepare(`SELECT v.id,v.id entry_id,v.page_id,v.captured_at,v.captured_at archived_at,v.title,v.final_url,v.html_hash,v.screenshot_hash,v.reason,p.url
+      FROM versions v JOIN pages p ON p.id=v.page_id WHERE p.site_id=?
+      UNION ALL
+      SELECT v.id,c.id entry_id,v.page_id,c.created_at captured_at,v.captured_at archived_at,v.title,v.final_url,v.html_hash,v.screenshot_hash,c.message reason,p.url
+      FROM checks c JOIN versions v ON v.id=c.version_id JOIN pages p ON p.id=c.page_id
+      WHERE p.site_id=? AND c.created_at<>v.captured_at AND json_extract(c.evidence,'$.kind')='returned'
+      ORDER BY captured_at,entry_id LIMIT 20001`).all(siteId, siteId) as Row[];
     if (versions.length > 20000) throw Object.assign(new Error('Questo sito supera 20.000 versioni: usa il backup completo.'), { statusCode: 413 });
-    const files = new Map(versions.map((v, index) => [v.id, `${index + 1}.html`]));
+    const files = new Map(versions.map((v, index) => [v.entry_id, `${index + 1}.html`]));
     const pages = new Map<string, Row[]>();
     for (const v of versions) { const history = pages.get(v.page_id) || []; history.push(v); pages.set(v.page_id, history); }
     indexFd = openSync(indexPath, 'wx', 0o600);
-    writeSync(indexFd, `<!doctype html><html lang="it"><head>${head}<title>${escapeHtml(site.name)} · Archivio</title><style>body{font:16px system-ui;max-width:1000px;margin:40px auto;padding:20px}li{margin:24px 0}small{display:block}a{color:#12624a}p{white-space:pre-wrap}</style></head><body><h1>${escapeHtml(site.name)}</h1><p>${escapeHtml(site.url)}</p><p>${escapeHtml(site.notes)}</p><p>${versions.length} versioni, in ordine cronologico. Apri le copie dal browser. I collegamenti portano alla versione più recente disponibile entro la data della pagina, oppure alla prima copia successiva: controlla la data nella barra in alto. I link senza copia restano inattivi. Moduli e script sono disattivati. Questo archivio di consultazione non sostituisce il backup completo.</p><ol>`);
+    writeSync(indexFd, `<!doctype html><html lang="it"><head>${head}<title>${escapeHtml(site.name)} · Archivio</title><style>body{font:16px system-ui;max-width:1000px;margin:40px auto;padding:20px}li{margin:24px 0}small{display:block}a{color:#12624a}p{white-space:pre-wrap}</style></head><body><h1>${escapeHtml(site.name)}</h1><p>${escapeHtml(site.url)}</p><p>${escapeHtml(site.notes)}</p><p>${versions.length} versioni e ricorrenze, in ordine cronologico. Apri le copie dal browser. I collegamenti portano alla versione più recente disponibile entro la data della pagina, oppure alla prima copia successiva: controlla la data nella barra in alto. I link senza copia restano inattivi. Moduli e script sono disattivati. Questo archivio di consultazione non sostituisce il backup completo.</p><ol>`);
     // Produce one sanitized copy at a time as archiver consumes the prior entry.
     // This keeps export memory proportional to a page, not the entire site.
     let cursor = 0, writing = false;
@@ -70,8 +77,8 @@ export function portableZip(path: string, siteId: string) {
         void zip.finalize().catch(error => zip.destroy(error)); return;
       }
       writing = true;
-      const v = versions[cursor++], name = files.get(v.id)!, picture = name.replace('.html', '.png');
-      const targets: OfflineTarget[] = [...pages.values()].map(history => { const target = history.findLast(row => row.captured_at <= v.captured_at) || history[0]; return { id: target.id, url: target.url, finalUrl: target.final_url, title: target.title, capturedAt: target.captured_at, later: target.captured_at > v.captured_at }; });
+      const v = versions[cursor++], name = files.get(v.entry_id)!, picture = name.replace('.html', '.png');
+      const targets: OfflineTarget[] = [...pages.values()].map(history => { const target = history.findLast(row => row.captured_at <= v.captured_at) || history[0]; return { id: target.entry_id, url: target.url, finalUrl: target.final_url, title: target.title, capturedAt: target.captured_at, later: target.captured_at > v.captured_at }; });
       const tags = (copy.prepare('SELECT tag FROM version_tags WHERE version_id=? ORDER BY tag').all(v.id) as Row[]).map(row => row.tag).join(', ');
       const note = (copy.prepare('SELECT note,favorite FROM version_notes WHERE version_id=?').get(v.id) || {}) as Row;
       let html: string;
@@ -82,7 +89,7 @@ export function portableZip(path: string, siteId: string) {
         if (statSync(source).size > offlineMaxBytes) throw new Error('limit');
         html = offlineDocument(readFileSync(source, 'utf8'), v.final_url, targets, files);
       } catch { fallback = true; html = '<html><head></head><body><p>Copia troppo complessa o non disponibile. Consulta lo screenshot conservato.</p></body></html>'; }
-      const bar = `<aside style="all:initial;display:block;background:#fff4cc;color:#172a23;padding:16px;font:16px system-ui;position:relative;z-index:2147483647"><a href="../index.html">Indice dell’archivio</a> · Copia del ${escapeHtml(v.captured_at)} · <a href="../screenshots/${picture}">Screenshot</a></aside>`;
+      const bar = `<aside style="all:initial;display:block;background:#fff4cc;color:#172a23;padding:16px;font:16px system-ui;position:relative;z-index:2147483647"><a href="../index.html">Indice dell’archivio</a> · Osservazione del ${escapeHtml(v.captured_at)}${v.archived_at !== v.captured_at ? ` · Variante già acquisita il ${escapeHtml(v.archived_at)}` : ''} · <a href="../screenshots/${picture}">Screenshot</a></aside>`;
       html = html.replace(/<head(?:\s[^>]*)?>/i, `<head>${head}`).replace(/<body([^>]*)>/, `<body$1>${bar}`);
       checkSpace(Buffer.byteLength(html) + 128 * 1024);
       writeSync(indexFd!, `<li><a href="versions/${name}">${escapeHtml(v.title || v.url)}</a> ${note.favorite ? '★' : ''}<small>${escapeHtml(v.captured_at)} · ${escapeHtml(v.url)} · ${escapeHtml(v.reason)}${fallback ? ' · Solo screenshot' : ''}</small><small>${escapeHtml(tags)}</small><p>${escapeHtml(note.note)}</p><a href="screenshots/${picture}">Screenshot</a></li>`);

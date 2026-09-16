@@ -2,10 +2,14 @@ export type Link = { url: string; text: string };
 export type Rectangle = { x: number; y: number; width: number; height: number };
 export type MonitoringRule = { selector: string; label: string };
 export type PageContent = { title: string; text: string; headings: string[]; links: Link[]; imageUrls: string[] };
-export type CaptureQuality = { status: 'complete' | 'partial'; missingImages: number; reasons: string[] };
+export type CaptureQuality = { status: 'complete' | 'partial'; missingImages: number; reasons: string[]; version?: number; stable?: boolean; renderStatus?: 'complete' | 'partial'; archiveStatus?: 'complete' | 'partial' };
+export type CaptureAsset = { url: string; kind: 'image' | 'background'; status: 'loaded' | 'failed' | 'pending'; hash?: string; rectangles: Rectangle[] };
+export type CaptureBlock = { key: string; text: string; rectangles: Rectangle[] };
 export type DetectionData = {
   rulesKey: string; content: PageContent; ignored: Rectangle[];
   important: { selector: string; count: number; text: string; links: Link[]; imageUrls: string[]; rectangles: Rectangle[] }[];
+  assets?: CaptureAsset[];
+  blocks?: CaptureBlock[];
 };
 export type CaptureInput = {
   url: string;

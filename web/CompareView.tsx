@@ -9,6 +9,8 @@ type Comparison = {
   textDiff: { value: string; added?: boolean; removed?: boolean }[];
   changedLinks: { added: Link[]; removed: Link[] };
   changedImages: { added: string[]; removed: string[] };
+  resourceChanges?: { replaced: string[]; unavailable: string[]; recovered: string[]; relocated: { before: string; after: string }[] };
+  regions?: { kind: 'text' | 'position'; before: string; after: string }[];
   details: { label: string; before: string[]; after: string[] }[];
 };
 type Region = { x: number; y: number; width: number; height: number };
@@ -27,11 +29,12 @@ function Loading({ label }: { label: string }) { return <div className="loading"
 
 export default function CompareView({ versions, selectedId, date }: { versions: Version[]; selectedId?: string; date: DateLabel }) {
   const index = Math.max(0, versions.findIndex(v => v.id === selectedId));
-  const [left, setLeft] = useState(versions[Math.min(index + 1, versions.length - 1)]?.id || '');
-  const [right, setRight] = useState(versions[index < versions.length - 1 ? index : Math.max(0, index - 1)]?.id || '');
+  const [left, setLeft] = useState((versions[index + 1] || versions.find(version => version.id !== versions[index]?.id))?.id || '');
+  const [right, setRight] = useState(versions[index]?.id || '');
   const [tab, setTab] = useState<'visual' | 'text' | 'links' | 'details'>('visual');
   const [data, setData] = useState<Comparison | null>(null);
   const [error, setError] = useState('');
+  const resourceChangeCount = data?.resourceChanges ? Object.values(data.resourceChanges).reduce((sum, values) => sum + values.length, 0) : 0;
   useEffect(() => {
     setData(null); setError('');
     if (!left || !right || left === right) return;
@@ -50,8 +53,12 @@ export default function CompareView({ versions, selectedId, date }: { versions: 
     </div>{tab === 'text' && <div className="diff-legend"><span className="removed">Rimosso</span><span className="added">Aggiunto</span></div>}</div>
     {left === right ? <div className="comparison-empty">Scegli due versioni diverse per osservare cosa è cambiato.</div> : error ? <div className="notice error">{error}</div> : !data ? <Loading label="Preparazione del confronto" /> : tab === 'visual' ? <VisualComparison key={`${left}:${right}`} data={data} date={date} /> : tab === 'text' ? <div className="text-diff">{data.textDiff.some(part => part.added || part.removed) ? data.textDiff.map((part, index) => part.added ? <ins key={index}>{part.value}</ins> : part.removed ? <del key={index}>{part.value}</del> : <span key={index}>{part.value}</span>) : <div className="diff-unchanged"><Check size={21} /><strong>Nessuna differenza nel testo confrontato.</strong><p>Controlla anche Collegamenti e Dettagli: possono cambiare senza modificare lo screenshot.</p></div>}</div> : tab === 'links' ? <LinkChanges links={data.changedLinks} /> : <div className="comparison-details">
       {data.details.map(detail => <section key={detail.label}><h3>{detail.label}</h3><div className="detail-pair"><div><strong>Prima</strong>{detail.before.map((value, i) => <p key={i}>{value || 'Vuoto'}</p>)}</div><div><strong>Dopo</strong>{detail.after.map((value, i) => <p key={i}>{value || 'Vuoto'}</p>)}</div></div></section>)}
+      {!!data.resourceChanges?.replaced.length && <section><h3>Immagini sostituite sullo stesso indirizzo</h3><p>I file scaricati sono diversi, anche se il loro indirizzo è rimasto uguale.</p>{data.resourceChanges.replaced.map(url => <p key={url}>{url}</p>)}</section>}
+      {!!data.resourceChanges && (data.resourceChanges.unavailable.length > 0 || data.resourceChanges.recovered.length > 0) && <section><h3>Differenze di caricamento</h3><p>Queste risorse erano presenti ma non sono state caricate in una delle copie. Da sole non provano una modifica del sito.</p><LinkChanges links={{ removed: data.resourceChanges.unavailable.map(url => ({ url, text: 'Non caricata nella seconda copia' })), added: data.resourceChanges.recovered.map(url => ({ url, text: 'Caricata nuovamente' })) }} /></section>}
+      {!!data.resourceChanges?.relocated.length && <section><h3>Stessa immagine, indirizzo diverso</h3><p>I file acquisiti coincidono: il cambio dell’indirizzo non rappresenta una nuova immagine.</p>{data.resourceChanges.relocated.map(value => <div key={value.after}><p>Prima: {value.before}</p><p>Dopo: {value.after}</p></div>)}</section>}
+      {!!data.regions?.length && <section><h3>Testo e posizione delle sezioni</h3><p>Prime {data.regions.length} differenze fra elementi riconosciuti nelle due copie. Una sezione spostata può contenere lo stesso testo.</p>{data.regions.map((region, index) => <details key={index}><summary>{region.kind === 'position' ? 'Stesso testo in una posizione diversa' : 'Testo diverso nella stessa sezione'}</summary><p>Prima: {region.before}</p>{region.kind === 'text' && <p>Dopo: {region.after}</p>}</details>)}</section>}
       {(data.changedImages.added.length > 0 || data.changedImages.removed.length > 0) && <section><h3>Indirizzi delle immagini</h3><p>Un indirizzo diverso non prova che l’immagine sia cambiata: può variare soltanto un parametro. Le risorse online non vengono aperte.</p><LinkChanges links={{ added: data.changedImages.added.map(url => ({ url, text: '' })), removed: data.changedImages.removed.map(url => ({ url, text: '' })) }} /></section>}
-      {!data.details.length && !data.changedImages.added.length && !data.changedImages.removed.length && <p>Nessuna differenza nel titolo, nelle intestazioni, nella destinazione o negli indirizzi delle immagini.</p>}
+      {!data.details.length && !data.changedImages.added.length && !data.changedImages.removed.length && !resourceChangeCount && !data.regions?.length && <p>Nessuna differenza nel titolo, nelle intestazioni, nella destinazione o negli indirizzi delle immagini.</p>}
     </div>}
   </section>;
 }

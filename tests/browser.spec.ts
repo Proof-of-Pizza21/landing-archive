@@ -50,7 +50,7 @@ test('rendered metadata excludes randomized invisible traps but retains real con
     assert.equal(bounded.title, 'Bounded fixture');
     assert.equal(bounded.headings.length, 100);
     assert.ok(bounded.headings.every(value => value.length <= captureLimits.heading));
-    assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 400000);
+    assert.ok(Buffer.byteLength(JSON.stringify(bounded)) < 900000);
   } finally { await browser.close(); }
 });
 

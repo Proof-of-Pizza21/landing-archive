@@ -18,7 +18,7 @@ test('manual controls and deletion preserve queue, archive and backup integrity'
   const app = await createApp();
   const png = new PNG({ width: 8, height: 8 }); png.data.fill(255);
   const image = PNG.sync.write(png);
-  const capture = (url: string, text = 'Shared'): CaptureResult => ({ requestedUrl: url, finalUrl: url, statusCode: 200, title: text, text, html: `<html>${text}</html>`, screenshot: image, links: [], headings: [], imageUrls: [], warnings: [], capturedAt: now() });
+  const capture = (url: string, text = 'Shared'): CaptureResult => ({ requestedUrl: url, finalUrl: url, statusCode: 200, title: text, text, html: `<html>${text}</html>`, screenshot: image, links: [], headings: [], imageUrls: [], warnings: [], capturedAt: now(), quality: { version: 2, status: 'complete', stable: true, renderStatus: 'complete', archiveStatus: 'complete', missingImages: 0, reasons: [] } });
   const response = (url: string, text?: string) => new Response(JSON.stringify({ ...capture(url, text), screenshot: image.toString('base64') }));
   let blocked: ((value: Response) => void) | undefined;
   let stall = false;
@@ -84,6 +84,52 @@ test('manual controls and deletion preserve queue, archive and backup integrity'
       assert.ok(get('SELECT id FROM sites WHERE id=?', a.id));
     });
 
+    await t.test('clean rescan requires a current preview, clears every site copy and rejects late worker results', async () => {
+      run("UPDATE sites SET notes='Keep site notes',interval_hours=12 WHERE id=?", a.id);
+      run("UPDATE pages SET notes='Keep page notes',candidate_fingerprint=?,candidate_count=4,candidate_clean_count=1,candidate_retry_count=2 WHERE id=?", 'a'.repeat(64), pageA.id);
+      const previous = get('SELECT * FROM versions WHERE page_id=?', pageA.id)!;
+      await call('PUT', `/api/versions/${previous.id}/annotation`, { note: 'An old annotation', tags: ['old'], favorite: true });
+      const stale = (await call('GET', `/api/sites/${a.id}/reset`)).json();
+      const uniqueCapture = await recordCapture(get('SELECT * FROM pages WHERE id=?', pageA.id)!, get('SELECT * FROM sites WHERE id=?', a.id)!, capture(a.url, 'Old unique copy'));
+      const unique = get('SELECT * FROM versions WHERE id=?', uniqueCapture.versionId)!;
+      assert.equal((await call('POST', `/api/sites/${a.id}/reset`, { token: stale.token, confirmSiteId: a.id })).statusCode, 409);
+      await call('POST', `/api/pages/${pageA.id}/scan`, { force: true }); stall = true;
+      const active = processNextJob(); await spinUntil(() => !!blocked);
+      const preview = (await call('GET', `/api/sites/${a.id}/reset`)).json();
+      assert.equal(preview.annotatedVersions, 1); assert.equal(preview.versions, 2); assert.ok(preview.reclaimableBytes > 0);
+      const body = { token: preview.token, confirmSiteId: a.id };
+      assert.equal((await call('POST', `/api/sites/${a.id}/reset`, body, { cookie: '' })).statusCode, 401);
+      assert.equal((await call('POST', `/api/sites/${a.id}/reset`, body, { origin: 'https://outside.example' })).statusCode, 403);
+      assert.equal((await call('POST', `/api/sites/${a.id}/reset`, { ...body, confirmSiteId: b.id })).statusCode, 400);
+      assert.equal((await call('POST', `/api/sites/${a.id}/reset`, {})).statusCode, 400);
+      const checks = get('SELECT count(*) n FROM checks WHERE page_id=?', pageA.id)!.n;
+      const reset = await call('POST', `/api/sites/${a.id}/reset`, body);
+      assert.equal(reset.statusCode, 200, reset.body); assert.equal(reset.json().deletedVersions, 2); await active;
+      assert.equal(existsSync(objectPath(unique.screenshot_hash)), true, 'Shared screenshot survives');
+      assert.equal(get('SELECT * FROM objects WHERE hash=?', unique.html_hash), undefined);
+      assert.equal(get('SELECT count(*) n FROM versions WHERE page_id=?', pageA.id)!.n, 0);
+      assert.equal(get('SELECT count(*) n FROM versions WHERE page_id=?', pageB.id)!.n, 1);
+      assert.equal(get('SELECT count(*) n FROM version_notes WHERE version_id=?', previous.id)!.n, 0);
+      assert.equal(get('SELECT count(*) n FROM checks WHERE page_id=?', pageA.id)!.n, checks + 1);
+      const resetPage = get('SELECT * FROM pages WHERE id=?', pageA.id)!;
+      assert.equal(resetPage.reference_version_id, null); assert.equal(resetPage.last_version_id, null);
+      assert.equal(resetPage.candidate_fingerprint, null); assert.equal(resetPage.candidate_retry_count, 0); assert.equal(resetPage.notes, 'Keep page notes');
+      assert.equal(get('SELECT paused FROM sites WHERE id=?', a.id)!.paused, 1);
+      assert.equal(get('SELECT notes FROM sites WHERE id=?', a.id)!.notes, 'Keep site notes');
+      assert.equal(get('SELECT interval_hours FROM sites WHERE id=?', a.id)!.interval_hours, 12);
+      assert.equal(get("SELECT count(*) n FROM jobs WHERE site_id=? AND status='queued' AND manual=1", a.id)!.n, 1);
+      assert.ok(all('SELECT evidence FROM checks WHERE page_id=?', pageA.id).some(check => JSON.parse(check.evidence).originalFilesRemoved));
+      assert.equal((await call('POST', `/api/sites/${a.id}/reset`, body)).statusCode, 409);
+      stall = false; blocked!(response(a.url, 'Late obsolete copy')); blocked = undefined;
+      await new Promise(resolve => setTimeout(resolve, 20));
+      assert.equal(get('SELECT count(*) n FROM versions WHERE page_id=?', pageA.id)!.n, 0);
+      await processNextJob();
+      const fresh = get('SELECT * FROM versions WHERE page_id=?', pageA.id)!;
+      assert.notEqual(fresh.id, previous.id); assert.equal(fresh.reason, 'Prima versione archiviata');
+      assert.equal(get('SELECT reference_version_id FROM pages WHERE id=?', pageA.id)!.reference_version_id, fresh.id);
+      assert.deepEqual(all('PRAGMA foreign_key_check'), []);
+    });
+
     await t.test('deletion waits for an active backup without altering its source files', async () => {
       const finalize = ZipArchive.prototype.finalize;
       let archive: ZipArchive | undefined, release: (() => void) | undefined;
@@ -97,6 +143,8 @@ test('manual controls and deletion preserve queue, archive and backup integrity'
         await spinUntil(() => !!archive);
         const deletion = await call('DELETE', `/api/sites/${a.id}`, { confirmSiteId: a.id });
         assert.equal(deletion.statusCode, 409); assert.match(deletion.json().error, /backup/);
+        const preview = (await call('GET', `/api/sites/${a.id}/reset`)).json();
+        assert.equal((await call('POST', `/api/sites/${a.id}/reset`, { token: preview.token, confirmSiteId: a.id })).statusCode, 409);
         assert.ok(get('SELECT id FROM sites WHERE id=?', a.id));
         await finalize.call(archive!); release!();
         assert.equal((await result).statusCode, 200);

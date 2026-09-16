@@ -9,6 +9,7 @@ import { checkSpace, storageStatus } from './storage.js';
 import { archiveTables, saveSafetyBackup } from './backup.js';
 import { passwordMatches, sessionUser } from './auth.js';
 import { suspendJobs } from './jobs.js';
+import { removePageDiagnostics } from './diagnostics.js';
 
 export type ArchiveState = { exporting: boolean; restoring: boolean };
 const maxUpload = 32 * 1024 ** 3, chunkBytes = 1024 ** 2;
@@ -99,6 +100,7 @@ export function registerRestore(app: FastifyInstance, state: ArchiveState, clear
       if (activeWrites) fail('Un’altra operazione è ancora in corso. Attendi e riprova.', 409);
       resume = await suspendJobs();
       const oldObjects = all('SELECT hash,path FROM objects');
+      const oldPages = all('SELECT id FROM pages');
       const oldBytes = get('SELECT COALESCE(SUM(bytes),0) n FROM objects')!.n;
       checkSpace(oldBytes * 1.02 + item.preview!.bytes + item.preview!.databaseBytes * 3 + statSync(join(dataDir, 'archive.sqlite')).size * 3 + 16 * 1024 ** 2);
       mkdirSync(dirname(safety), { recursive: true, mode: 0o700 });
@@ -127,6 +129,7 @@ export function registerRestore(app: FastifyInstance, state: ArchiveState, clear
         clearCache();
       } finally { db.exec('DETACH DATABASE restored'); }
       for (const object of oldObjects) if (!get('SELECT hash FROM objects WHERE hash=?', object.hash)) { try { rmSync(join(dataDir, object.path), { force: true }); } catch { /* The safety ZIP already preserves these files. */ } }
+      for (const page of oldPages) removePageDiagnostics(page.id);
       item.busy = false; cleanup();
       return { ok: true, safetyAvailable: true, message: 'Archivio ripristinato. Il tuo accesso è invariato. Tutti i siti sono in pausa: riattivali dalle loro impostazioni quando vuoi.' };
     } finally { state.restoring = false; item.busy = false; resume?.(); rmSync(safetyTemp, { force: true }); }

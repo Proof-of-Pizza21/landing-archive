@@ -7,6 +7,7 @@ export const captureLimits = Object.freeze({
   metadataBytes: 8 * 1024 * 1024, workerBytes: 64 * 1024 * 1024,
   text: 1_500_000, headings: 100, heading: 500, links: 2000,
   url: 4096, linkText: 200, images: 500, warnings: 100, warning: 1000,
+  assets: 700, blocks: 250, blockText: 4000,
 });
 export const limitError = () => new CaptureError('La pagina supera i limiti di acquisizione. Le copie precedenti sono conservate.', 'SIZE_LIMIT');
 export function screenshotClip(width: number, height: number) {
@@ -69,13 +70,19 @@ export function validateCaptureResult(value: any): asserts value is CaptureResul
   string(value.html, captureLimits.htmlBytes);
   if (!value.html.length || Buffer.byteLength(value.html) > captureLimits.htmlBytes) throw limitError();
   validateScreenshot(value.screenshot);
-  if (value.quality !== undefined) {
-    const quality = value.quality;
+  if (value.quality !== undefined) validateQuality(value.quality);
+  if (value.detection !== undefined) validateDetection(value.detection);
+}
+export function validateQuality(quality: any) {
     if (!quality || !['complete','partial'].includes(quality.status) || !Number.isInteger(quality.missingImages) || quality.missingImages < 0 || quality.missingImages > 50000) throw limitError();
     strings(quality.reasons, 20, 1000);
-  }
-  if (value.detection !== undefined) {
-    const data = value.detection;
+    if (quality.version !== undefined && quality.version !== 2) throw limitError();
+    if (quality.stable !== undefined && typeof quality.stable !== 'boolean') throw limitError();
+    for (const key of ['renderStatus', 'archiveStatus']) if (quality[key] !== undefined && !['complete', 'partial'].includes(quality[key])) throw limitError();
+    if (quality.status === 'complete' && (quality.missingImages > 0 || quality.stable === false || quality.renderStatus === 'partial' || quality.archiveStatus === 'partial')) throw limitError();
+    if (quality.version === 2 && (typeof quality.stable !== 'boolean' || !quality.renderStatus || !quality.archiveStatus || (quality.status === 'complete' && (!quality.stable || quality.renderStatus !== 'complete' || quality.archiveStatus !== 'complete')))) throw limitError();
+}
+export function validateDetection(data: any) {
     if (!data || typeof data.rulesKey !== 'string' || !/^[a-f0-9]{64}$/.test(data.rulesKey)) throw limitError();
     validateMetadata(data.content); validateRectangles(data.ignored, 300);
     if (!Array.isArray(data.important) || data.important.length > 20) throw limitError();
@@ -85,7 +92,26 @@ export function validateCaptureResult(value: any): asserts value is CaptureResul
       validateMetadata({ title: '', text: region.text, headings: [], links: region.links, imageUrls: region.imageUrls });
       validateRectangles(region.rectangles, 100);
     }
+    validateCaptureSignals(data);
     if (Buffer.byteLength(JSON.stringify(data)) > captureLimits.metadataBytes) throw limitError();
+}
+export function validateCaptureSignals(data: any) {
+  if (data.assets !== undefined) {
+    if (!Array.isArray(data.assets) || data.assets.length > captureLimits.assets) throw limitError();
+    for (const asset of data.assets) {
+      if (!asset || !['image', 'background'].includes(asset.kind) || !['loaded', 'failed', 'pending'].includes(asset.status)) throw limitError();
+      string(asset.url, captureLimits.url);
+      if (!/^https?:\/\//i.test(asset.url)) throw limitError();
+      if (asset.hash !== undefined && (asset.status !== 'loaded' || typeof asset.hash !== 'string' || !/^[a-f0-9]{64}$/.test(asset.hash))) throw limitError();
+      validateRectangles(asset.rectangles, 20);
+    }
+  }
+  if (data.blocks !== undefined) {
+    if (!Array.isArray(data.blocks) || data.blocks.length > captureLimits.blocks) throw limitError();
+    for (const block of data.blocks) {
+      if (!block) throw limitError();
+      string(block.key, 500); string(block.text, captureLimits.blockText); validateRectangles(block.rectangles, 20);
+    }
   }
 }
 export function validateRectangles(value: any, max: number) {

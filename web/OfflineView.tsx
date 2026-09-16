@@ -6,7 +6,7 @@ type Target = { id: string; url: string; capturedAt: string; later: boolean };
 type Replay = { version: Version; at: string; targets: Target[]; previewUrl: string };
 type Visit = { id: string; fragment?: string };
 
-export default function OfflineView({ version, date }: { version: { id: string; capturedAt: string }; date: (value?: string) => string }) {
+export default function OfflineView({ version, date, at = version.capturedAt }: { version: { id: string; capturedAt: string }; date: (value?: string) => string; at?: string }) {
   const [visits, setVisits] = useState<Visit[]>([{ id: version.id }]);
   const [data, setData] = useState<Replay | null>(null);
   const [error, setError] = useState('');
@@ -18,7 +18,7 @@ export default function OfflineView({ version, date }: { version: { id: string; 
   useEffect(() => {
     const abort = new AbortController();
     setData(null); setError(''); setNotice(''); setReady(false);
-    fetch(`/api/versions/${encodeURIComponent(visit.id)}/offline?at=${encodeURIComponent(version.capturedAt)}`, { credentials: 'same-origin', signal: abort.signal })
+    fetch(`/api/versions/${encodeURIComponent(visit.id)}/offline?at=${encodeURIComponent(at)}`, { credentials: 'same-origin', signal: abort.signal })
       .then(async response => {
         const value = await response.json();
         if (!response.ok) {
@@ -28,7 +28,7 @@ export default function OfflineView({ version, date }: { version: { id: string; 
         if (!abort.signal.aborted) setData(value);
       }).catch(error => { if (!abort.signal.aborted) setError(error.message); });
     return () => abort.abort();
-  }, [visit.id, version.capturedAt]);
+  }, [visit.id, at]);
 
   function loaded() {
     try {
@@ -69,7 +69,7 @@ export default function OfflineView({ version, date }: { version: { id: string; 
       <div className="offline-address"><strong><Globe2 size={15} /> Copia sul tuo archivio</strong><span>{data?.version.finalUrl || 'Apertura della pagina…'}</span><time>Acquisita: {date(data?.version.capturedAt)}</time></div>
       <button className="icon-button" title={expanded ? 'Riduci pagina offline' : 'Espandi pagina offline'} aria-label={expanded ? 'Riduci pagina offline' : 'Espandi pagina offline'} aria-pressed={expanded} onClick={() => setExpanded(value => !value)}>{expanded ? <Shrink size={18} /> : <Expand size={18} />}</button>
     </div>
-    {data && data.version.capturedAt > version.capturedAt && <div className="notice amber">Per questo collegamento esiste soltanto una copia successiva alla data scelta: {date(data.version.capturedAt)}.</div>}
+    {data && data.version.capturedAt > at && <div className="notice amber">Per questo collegamento esiste soltanto una copia successiva alla data scelta: {date(data.version.capturedAt)}.</div>}
     {data?.version.quality?.status === 'partial' && <div className="notice amber"><strong>Copia parziale.</strong> {data.version.quality.reasons.join(' ')}</div>}
     {!!data?.version.warnings.length && <div className="capture-warnings"><strong>Avvisi di questa copia</strong>{data.version.warnings.map((warning, index) => <p key={index}>{warning}</p>)}</div>}
     {notice && <div className="notice amber" role="status">{notice}</div>}
@@ -77,6 +77,6 @@ export default function OfflineView({ version, date }: { version: { id: string; 
       {!ready && <div className="loading" role="status"><LoaderCircle className="spin" size={20} /> Apertura della copia offline…</div>}
       {data && <iframe key={data.previewUrl} ref={frame} title="Pagina archiviata offline" src={data.previewUrl} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={loaded} />}
     </>}
-    <div className="offline-note"><span>I link aprono le copie dello stesso sito. Data di riferimento: {date(version.capturedAt)}. Moduli e funzioni che richiedono servizi online non sono attivi.</span>{data && <a className="text-button" href={data.version.htmlUrl} download><ArrowDownToLine size={15} /> Scarica questa pagina</a>}</div>
+    <div className="offline-note"><span>I link aprono le copie dello stesso sito. Data di riferimento: {date(at)}. Moduli e funzioni che richiedono servizi online non sono attivi.</span>{data && <a className="text-button" href={data.version.htmlUrl} download><ArrowDownToLine size={15} /> Scarica questa pagina</a>}</div>
   </div>;
 }

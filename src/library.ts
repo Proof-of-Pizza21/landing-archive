@@ -5,8 +5,9 @@ export const eventKinds: Record<string, string> = {
   discovered: 'Nuove pagine', captured: 'Prime copie', changed: 'Modifiche', returned: 'Versioni ritornate',
   missing: 'Pagine non raggiungibili', recovered: 'Pagine tornate online', sitemap_absent: 'Uscite dalla sitemap',
   sitemap_returned: 'Rientri nella sitemap', error: 'Errori', partial: 'Copie parziali', quality_restored: 'Copie completate',
+  observed: 'Nuovi contenuti da verificare',
 };
-const defaults = ['discovered', 'changed', 'returned', 'missing', 'recovered'];
+const defaults = ['discovered', 'changed', 'returned', 'missing', 'recovered', 'observed'];
 const fail = (message = 'Filtri o annotazioni non validi'): never => { throw Object.assign(new Error(message), { statusCode: 400 }); };
 function field(value: unknown, max: number) { if (typeof value !== 'string' || value.length > max) return fail(); return value.trim(); }
 function dateBound(value: unknown, end = false) {

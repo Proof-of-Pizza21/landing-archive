@@ -11,7 +11,8 @@ import { open, type ZipFile, type Entry } from 'yauzl';
 import { db, type Row } from './db.js';
 import { archiveTables, archiveSchema } from './backup.js';
 import { eventKinds } from './library.js';
-import { validateMetadata, validateRectangles, validateScreenshot } from './capture-limits.js';
+import { validateMetadata, validateDetection, validateQuality, validateScreenshot } from './capture-limits.js';
+import { validateEvidence } from './detection-policy.js';
 
 const root = process.argv[2];
 const bad = () => { throw new Error('Backup non valido, incompleto o oltre i limiti del ripristino guidato.'); };
@@ -49,7 +50,7 @@ async function extract() {
 }
 const array = (v: any, max = 50000) => { if (!Array.isArray(v) || v.length > max) bad(); return v as any[]; };
 const strings = (v: any, max = 50000, length = 4096) => { if (array(v, max).some(x => typeof x !== 'string' || x.length > length)) bad(); };
-function quality(v: any) { if (v !== null && (!v || !['complete','partial'].includes(v.status) || !Number.isInteger(v.missingImages) || v.missingImages < 0 || v.missingImages > 50000)) bad(); if (v) strings(v.reasons, 20, 1000); }
+function quality(v: any) { if (v !== null) validateQuality(v); }
 function checkRow(table: string, row: Row) {
   for (const [key, value] of Object.entries(row)) {
     if (value === null) { if (['id','event_id','version_id'].includes(key) && ['sites','pages','versions','checks','events','event_reads','version_notes','version_tags'].includes(table) && !(['checks','events'].includes(table) && key === 'version_id')) bad(); continue; }
@@ -64,6 +65,7 @@ function checkRow(table: string, row: Row) {
   for (const key of ['ignore_selectors','include_paths','exclude_paths','sitemap_sources','headings','images','warnings']) if (key in row) strings(JSON.parse(row[key]), ...limits[key]);
   for (const key of ['ignore_rules','important_rules']) if (key in row) for (const rule of array(JSON.parse(row[key]), 30)) if (!rule || typeof rule.selector !== 'string' || rule.selector.length > 500 || typeof rule.label !== 'string' || rule.label.length > 120) bad();
   if ('quality' in row) quality(JSON.parse(row.quality));
+  if ('evidence' in row) validateEvidence(JSON.parse(row.evidence));
   if (table === 'sites') {
     if (!['own','competitor'].includes(row.kind) || row.interval_hours < 1 || row.interval_hours > 8760 || row.max_pages < 1 || row.max_pages > 500 || !Number.isInteger(row.max_pages) || ![0,1].includes(row.include_subdomains) || ![0,1].includes(row.paused)) bad();
     if (row.discovery_interval_hours !== undefined && (row.discovery_interval_hours < 1 || row.discovery_interval_hours > 8760)) bad();
@@ -71,19 +73,24 @@ function checkRow(table: string, row: Row) {
     // Restoring never starts visits automatically.
     row.paused = 1;
   }
-  if (table === 'pages' && (row.notes.length > 20000 || row.title.length > 500)) bad();
+  if (table === 'pages') {
+    if (row.notes.length > 20000 || row.title.length > 500) bad();
+    if (row.candidate_fingerprint !== undefined && row.candidate_fingerprint !== null && !/^[a-f0-9]{64}$/.test(row.candidate_fingerprint)) bad();
+    for (const field of ['candidate_count','candidate_clean_count','candidate_retry_count']) if (row[field] !== undefined && (!Number.isInteger(row[field]) || row[field] < 0 || row[field] > (field === 'candidate_retry_count' ? 2 : 1000000))) bad();
+    // Confirmations cannot span an interrupted restore or refer to diagnostics
+    // intentionally excluded from a permanent archive backup.
+    for (const field of ['candidate_fingerprint','candidate_first_at','candidate_last_at']) if (field in row) row[field] = null;
+    for (const field of ['candidate_count','candidate_clean_count','candidate_retry_count','quality_retry_count']) if (field in row) row[field] = 0;
+  }
   if (table === 'versions') {
     if (!Number.isInteger(row.status_code) || row.status_code < 100 || row.status_code > 599) bad();
+    if (row.review_state !== undefined && !['legacy','confirmed','observed'].includes(row.review_state)) bad();
+    if (row.variant_key !== undefined && row.variant_key !== '' && !/^[a-f0-9]{64}$/.test(row.variant_key)) bad();
     validateMetadata({ title: row.title, text: row.text, headings: JSON.parse(row.headings), links: JSON.parse(row.links), imageUrls: JSON.parse(row.images) });
     if (row.detection) {
       const data = JSON.parse(row.detection);
       if (data !== null) {
-        if (!data || typeof data.rulesKey !== 'string' || data.rulesKey.length > 128) bad();
-        validateMetadata(data.content); validateRectangles(data.ignored, 300);
-        for (const item of array(data.important, 20)) {
-          if (!item || typeof item.selector !== 'string' || item.selector.length > 500 || !Number.isInteger(item.count) || item.count < 0) bad();
-          validateMetadata({ title: '', text: item.text, headings: [], links: item.links, imageUrls: item.imageUrls }); validateRectangles(item.rectangles, 300);
-        }
+        validateDetection(data);
       }
     }
   }
@@ -136,6 +143,7 @@ async function validate() {
     }
     if (files.size !== counts.objects + 2 || db.prepare('PRAGMA foreign_key_check').get()) bad();
     if (db.prepare(`SELECT 1 FROM pages p LEFT JOIN versions v ON v.id=p.last_version_id WHERE p.last_version_id IS NOT NULL AND (v.id IS NULL OR v.page_id<>p.id) LIMIT 1`).get()) bad();
+    if (db.prepare(`SELECT 1 FROM pages p LEFT JOIN versions v ON v.id=p.reference_version_id WHERE p.reference_version_id IS NOT NULL AND (v.id IS NULL OR v.page_id<>p.id OR json_extract(v.quality,'$.status') IS NOT 'complete') LIMIT 1`).get()) bad();
     if (db.prepare('SELECT 1 FROM checks c JOIN versions v ON v.id=c.version_id WHERE v.page_id<>c.page_id LIMIT 1').get()) bad();
     if (db.prepare('SELECT 1 FROM events e JOIN pages p ON p.id=e.page_id WHERE p.site_id<>e.site_id LIMIT 1').get()) bad();
     if (db.prepare('SELECT 1 FROM events e JOIN versions v ON v.id=e.version_id WHERE e.page_id IS NULL OR v.page_id<>e.page_id LIMIT 1').get()) bad();

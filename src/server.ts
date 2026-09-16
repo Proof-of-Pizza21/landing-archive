@@ -6,6 +6,8 @@ import { ZipArchive } from 'archiver';
 import { archiveVersion, snapshot, backupZip, portableZip } from './backup.js';
 import { registerRestore, type ArchiveState } from './restore.js';
 import { registerLibrary } from './library.js';
+import { registerArchiveReview, historySummary } from './archive-review.js';
+import { diagnosticsStatus, listPageDiagnostics, pruneDiagnostics, readDiagnostic, removePageDiagnostics } from './diagnostics.js';
 import { createReadStream, existsSync, rmSync, readFileSync, statSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -15,6 +17,7 @@ import { registerAuth } from './auth.js';
 import { normalizeUrl, validatePublicUrl, CaptureError } from './network.js';
 import { objectPath, storageStatus, checkSpace, removeUnusedObjects } from './storage.js';
 import { startJobs, stopJobs, workerState, cancelSiteJobs, requestManualScan } from './jobs.js';
+import { registerSiteReset } from './site-reset.js';
 import { offlineDocument, offlineMaxBytes, offlinePolicy, type OfflineTarget } from './offline.js';
 import { compareContent } from './comparison.js';
 import { locateVisualChanges, type VisualRegions } from './image-regions.js';
@@ -75,6 +78,11 @@ export async function createApp() {
   const archiveState: ArchiveState = { exporting: false, restoring: false };
   registerRestore(app, archiveState, () => { visualJob?.abort(); visualCache.clear(); });
   registerLibrary(app);
+  registerArchiveReview(app, archiveState, () => { visualJob?.abort(); visualCache.clear(); });
+  registerSiteReset(app, archiveState, () => { visualJob?.abort(); visualCache.clear(); });
+  pruneDiagnostics();
+  const diagnosticTimer = setInterval(() => { if (!archiveState.restoring) pruneDiagnostics(); }, 60000); diagnosticTimer.unref();
+  app.addHook('onClose', async () => { clearInterval(diagnosticTimer); });
   app.setErrorHandler((error: any, _request, reply) => {
     const status = error instanceof CaptureError ? 400 : error.statusCode >= 400 && error.statusCode < 500 ? error.statusCode : /UNIQUE constraint/.test(error.message) ? 409 : 500;
     reply.code(status).send({ error: status === 500 ? 'Operazione non completata. Controlla lo spazio disponibile e riprova.' : status === 429 ? 'Troppi tentativi. Attendi un minuto e riprova.' : /UNIQUE constraint/.test(error.message) ? 'Questo indirizzo è già presente nell’archivio' : error.message });
@@ -86,7 +94,7 @@ export async function createApp() {
       sites: get('SELECT COUNT(*) n FROM sites')!.n, pages: get('SELECT COUNT(*) n FROM pages')!.n,
       versions: get('SELECT COUNT(*) n FROM versions')!.n, bytes: get('SELECT COALESCE(SUM(bytes),0) n FROM objects')!.n,
       queued: get("SELECT COUNT(*) n FROM jobs WHERE status='queued'")!.n, running: get("SELECT COUNT(*) n FROM jobs WHERE status='running'")!.n,
-    }, storage: storageStatus(), worker: await workerState(), events: listEvents(),
+    }, storage: storageStatus(), diagnosticsStatus: diagnosticsStatus(), worker: await workerState(), events: listEvents(),
     queue: listJobs(),
   }));
   app.get('/api/sites', async () => ({ sites: all('SELECT * FROM sites ORDER BY created_at').map(serializeSite) }));
@@ -136,6 +144,7 @@ export async function createApp() {
     if (archiveState.exporting) fail('Un backup è in corso. Attendi che termini prima di eliminare il sito.', 409);
     const hashes = all('SELECT v.html_hash,v.screenshot_hash FROM versions v JOIN pages p ON p.id=v.page_id WHERE p.site_id=?', site.id)
       .flatMap(version => [version.html_hash, version.screenshot_hash]);
+    const pageIds = all('SELECT id FROM pages WHERE site_id=?', site.id).map(page => page.id);
     transaction(() => {
       cancelSiteJobs(site.id, undefined, true);
       run('DELETE FROM jobs WHERE site_id=?', site.id);
@@ -145,6 +154,7 @@ export async function createApp() {
       run('DELETE FROM pages WHERE site_id=?', site.id);
       run('DELETE FROM sites WHERE id=?', site.id);
     });
+    for (const pageId of pageIds) removePageDiagnostics(pageId);
     return { ok: true, ...removeUnusedObjects(hashes) };
   });
   app.post<{ Params: { id: string } }>('/api/sites/:id/pages', async (request, reply) => {
@@ -159,9 +169,22 @@ export async function createApp() {
   app.get<{ Params: { id: string } }>('/api/pages/:id', async request => {
     const page = required('pages', request.params.id), site = required('sites', page.site_id);
     return { page: listPages(site.id).find(p => p.id === page.id), site: serializeSite(site), notes: page.notes,
-      versions: all('SELECT * FROM versions WHERE page_id=? ORDER BY captured_at DESC', page.id).map(v => serializeVersion(v)),
+      versions: all('SELECT id,page_id,captured_at,title,final_url,status_code,bytes,reason,warnings,quality,review_state,variant_key,evidence FROM versions WHERE page_id=? ORDER BY captured_at DESC,id DESC', page.id).map(v => serializeVersion(v)),
+      historySummary: historySummary(page.id), referenceVersionId: page.reference_version_id,
+      diagnostics: listPageDiagnostics(page.id),
       jobs: listJobs(site.id, page.id),
-      checks: all('SELECT id,created_at createdAt,status,message,version_id versionId,quality FROM checks WHERE page_id=? ORDER BY created_at DESC LIMIT 1000', page.id).map(check => ({ ...check, quality: JSON.parse(check.quality) })) };
+      checks: all('SELECT id,created_at createdAt,status,message,version_id versionId,quality,evidence FROM checks WHERE page_id=? ORDER BY created_at DESC,id DESC LIMIT 1000', page.id).map(check => ({ ...check, quality: JSON.parse(check.quality), evidence: JSON.parse(check.evidence) })) };
+  });
+  app.get<{ Params: { id: string; sample: string } }>('/api/pages/:id/diagnostics/:sample/screenshot', async (request, reply) => {
+    required('pages', request.params.id);
+    return reply.type('image/png').send(readDiagnostic(request.params.id, request.params.sample));
+  });
+  app.get<{ Params: { id: string }; Querystring: { before?: string; beforeId?: string } }>('/api/pages/:id/checks', async request => {
+    required('pages', request.params.id);
+    const { before, beforeId } = request.query;
+    if (before !== undefined && (typeof before !== 'string' || before.length !== 24 || !Number.isFinite(Date.parse(before)) || new Date(before).toISOString() !== before || typeof beforeId !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(beforeId))) fail('Data del controllo non valida');
+    const checks = all(`SELECT id,created_at createdAt,status,message,version_id versionId,quality,evidence FROM checks WHERE page_id=?${before ? ' AND (created_at<? OR (created_at=? AND id<?))' : ''} ORDER BY created_at DESC,id DESC LIMIT 1001`, request.params.id, ...(before ? [before,before,beforeId] : []));
+    return { hasMore: checks.length > 1000, checks: checks.slice(0,1000).map(check => ({ ...check, quality: JSON.parse(check.quality), evidence: JSON.parse(check.evidence) })) };
   });
   app.patch<{ Params: { id: string } }>('/api/pages/:id', async request => {
     const page = required('pages', request.params.id), notes = textField(bodyObject(request.body).notes, 20000);
@@ -186,9 +209,12 @@ export async function createApp() {
     const at = request.query.at ?? version.captured_at;
     if (typeof at !== 'string' || at.length > 30 || !Number.isFinite(Date.parse(at)) || new Date(at).toISOString() !== at) fail('Data di consultazione non valida');
     const rows = all(`SELECT p.url,v.id,v.final_url,v.title,v.captured_at FROM pages p JOIN versions v ON v.id=COALESCE(
+      (SELECT c.version_id FROM checks c JOIN versions cv ON cv.id=c.version_id WHERE c.page_id=p.id AND c.created_at<=? AND
+        (c.status IN ('ok','unchanged') OR (cv.review_state='observed' AND json_extract(c.evidence,'$.kind') IN ('first','change')))
+        ORDER BY c.created_at DESC,c.id DESC LIMIT 1),
       (SELECT id FROM versions WHERE page_id=p.id AND captured_at<=? ORDER BY captured_at DESC,id DESC LIMIT 1),
       (SELECT id FROM versions WHERE page_id=p.id ORDER BY captured_at ASC,id ASC LIMIT 1))
-      WHERE p.site_id=? ORDER BY p.first_seen_at,p.id LIMIT 1000`, at, page.site_id);
+      WHERE p.site_id=? ORDER BY p.first_seen_at,p.id LIMIT 1000`, at, at, page.site_id);
     const targets: OfflineTarget[] = rows.map(row => ({ id: row.id, url: row.url, finalUrl: row.final_url, title: row.title, capturedAt: row.captured_at, later: row.captured_at > at }));
     const previewUrl = `/api/versions/${encodeURIComponent(version.id)}/offline/html?at=${encodeURIComponent(at)}`;
     if (!document) return { version: serializeVersion(version), at, targets, previewUrl };

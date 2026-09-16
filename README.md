@@ -4,11 +4,18 @@ Archivio locale per seguire l'evoluzione dei propri siti e delle landing dei
 competitor: nuove pagine, cambiamenti nel messaggio e versioni che scompaiono.
 Interfaccia in italiano, dati sul proprio disco, nessun account cloud richiesto.
 
-**Stato: anteprima 0.1.10 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
-umbrelOS 1.7.4 come ambiente di destinazione.** I [collaudi Linux](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/34835300152)
-sono riusciti. L’immagine è pubblica, verificata senza login e bloccata al digest
-nel community store. Il collaudo dell’aggiornamento sul mini PC rimane distinto;
-questa anteprima non include ARM.
+**Stato: anteprima 0.1.11 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
+umbrelOS 1.7.4 come ambiente di destinazione.** Le immagini vengono pubblicate
+solo dopo i [collaudi Linux](https://github.com/Proof-of-Pizza21/landing-archive/actions/workflows/verify-and-publish.yml)
+e sono bloccate al digest nel community store. Il collaudo dell’aggiornamento
+sul mini PC rimane distinto; questa anteprima non include ARM.
+
+La **0.1.11** separa caricamenti incompleti e modifiche, conserva un riferimento
+affidabile, verifica la pagina offline e richiede conferme per differenze solo
+visive o contenuto scomparso. Offre uno storico raggruppato, diagnostici temporanei
+e una revisione delle vecchie copie con selezione esplicita. Nessuna vecchia copia
+viene cancellata dall’aggiornamento. Il comando **Azzera copie e riscarica** permette
+inoltre di ripartire da zero per un solo sito, dopo conferma. [Guida e limiti](docs/RELEASE-0.1.11.md).
 
 La **0.1.10** aggiunge **Novità da leggere**, tag, preferiti e appunti sulle singole
 versioni, una Raccolta filtrabile, esportazione offline per sito e ripristino

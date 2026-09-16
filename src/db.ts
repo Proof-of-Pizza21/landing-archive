@@ -66,9 +66,9 @@ if (!(db.prepare('PRAGMA table_info(jobs)').all() as Row[]).some(column => colum
 }
 const additions: Record<string, Record<string, string>> = {
   sites: { discovery_interval_hours: 'REAL NOT NULL DEFAULT 24', include_paths: "TEXT NOT NULL DEFAULT '[]'", exclude_paths: "TEXT NOT NULL DEFAULT '[]'", last_discovery_at: 'TEXT', sitemap_sources: "TEXT NOT NULL DEFAULT '[]'" },
-  pages: { ignore_rules: "TEXT NOT NULL DEFAULT '[]'", important_rules: "TEXT NOT NULL DEFAULT '[]'", quality_retry_count: 'INTEGER NOT NULL DEFAULT 0', sitemap_state: "TEXT NOT NULL DEFAULT 'unknown'", sitemap_seen_at: 'TEXT' },
-  versions: { quality: "TEXT NOT NULL DEFAULT 'null'", detection: "TEXT NOT NULL DEFAULT 'null'" },
-  checks: { quality: "TEXT NOT NULL DEFAULT 'null'" },
+  pages: { ignore_rules: "TEXT NOT NULL DEFAULT '[]'", important_rules: "TEXT NOT NULL DEFAULT '[]'", quality_retry_count: 'INTEGER NOT NULL DEFAULT 0', sitemap_state: "TEXT NOT NULL DEFAULT 'unknown'", sitemap_seen_at: 'TEXT', reference_version_id: 'TEXT', candidate_fingerprint: 'TEXT', candidate_count: 'INTEGER NOT NULL DEFAULT 0', candidate_first_at: 'TEXT', candidate_last_at: 'TEXT', candidate_clean_count: 'INTEGER NOT NULL DEFAULT 0', candidate_retry_count: 'INTEGER NOT NULL DEFAULT 0' },
+  versions: { quality: "TEXT NOT NULL DEFAULT 'null'", detection: "TEXT NOT NULL DEFAULT 'null'", review_state: "TEXT NOT NULL DEFAULT 'legacy'", variant_key: "TEXT NOT NULL DEFAULT ''", evidence: "TEXT NOT NULL DEFAULT '{}'" },
+  checks: { quality: "TEXT NOT NULL DEFAULT 'null'", evidence: "TEXT NOT NULL DEFAULT '{}'" },
 };
 for (const [table, fields] of Object.entries(additions)) {
   const columns = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map(column => column.name));
@@ -80,7 +80,8 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS version_tags (version_id TEXT NOT NULL REFERENCES versions(id) ON DELETE CASCADE, tag TEXT NOT NULL, PRIMARY KEY(version_id,tag));
   CREATE INDEX IF NOT EXISTS version_tags_tag ON version_tags(tag,version_id);
   CREATE INDEX IF NOT EXISTS events_date ON events(created_at DESC,id DESC);
-  PRAGMA user_version=4;
+  CREATE INDEX IF NOT EXISTS versions_page_variant ON versions(page_id,variant_key);
+  PRAGMA user_version=5;
 `);
 
 export const get = (sql: string, ...params: any[]) => db.prepare(sql).get(...params) as Row | undefined;
@@ -137,7 +138,7 @@ export function serializeVersion(v: Row, detailed = false) {
     id: v.id, pageId: v.page_id, capturedAt: v.captured_at, title: v.title,
     finalUrl: v.final_url, statusCode: v.status_code, bytes: v.bytes, reason: v.reason,
     warnings: JSON.parse(v.warnings), screenshotUrl: `/api/versions/${v.id}/screenshot`,
-    quality: JSON.parse(v.quality || 'null'),
+    quality: JSON.parse(v.quality || 'null'), reviewState: v.review_state || 'legacy', variantKey: v.variant_key || '', evidence: JSON.parse(v.evidence || '{}'),
     htmlUrl: `/api/versions/${v.id}/html`,
   };
   if (detailed) Object.assign(value, { text: v.text, links: JSON.parse(v.links), headings: JSON.parse(v.headings), imageUrls: JSON.parse(v.images) });
@@ -155,13 +156,13 @@ export function listPages(siteId: string) {
       (SELECT id FROM checks c WHERE c.page_id=p.id ORDER BY created_at DESC LIMIT 1) latestCheckId,
       (SELECT MAX(created_at) FROM checks c WHERE c.page_id=p.id AND c.status IN ('ok','unchanged')) lastSuccessfulAt,
       (SELECT kind FROM events e WHERE e.page_id=p.id AND e.kind IN ('discovered','captured','changed','returned','recovered') ORDER BY e.rowid DESC LIMIT 1) lifecycle,
-      (SELECT MAX(created_at) FROM events e WHERE e.page_id=p.id AND e.kind IN ('changed','captured','returned')) lastChangeAt
+      (SELECT MAX(created_at) FROM events e WHERE e.page_id=p.id AND e.kind IN ('changed','observed','captured','returned')) lastChangeAt
       FROM pages p WHERE site_id=? ORDER BY p.first_seen_at ASC`, siteId)
     .map(p => ({ id: p.id, url: p.url, title: p.title, notes: p.notes, source: p.source, firstSeenAt: p.first_seen_at, lastSuccessfulAt: p.lastSuccessfulAt,
       sitemapState: p.sitemap_state, sitemapSeenAt: p.sitemap_seen_at,
       lifecycle: p.last_status === 'missing' ? 'missing' : p.lifecycle === 'recovered' ? 'recovered' : ['changed','returned'].includes(p.lifecycle) ? 'changed' : 'new',
       ignoreRules: JSON.parse(p.ignore_rules), importantRules: JSON.parse(p.important_rules),
-      lastCheckedAt: p.last_checked_at, lastStatus: p.last_status, versionCount: p.versionCount, latestVersionId: p.last_version_id, latestCheckId: p.latestCheckId, lastChangeAt: p.lastChangeAt }));
+      lastCheckedAt: p.last_checked_at, lastStatus: p.last_status, versionCount: p.versionCount, latestVersionId: p.last_version_id, latestCheckId: p.latestCheckId, lastChangeAt: p.lastChangeAt, referenceVersionId: p.reference_version_id, pendingConfirmation: p.candidate_fingerprint ? { count: p.candidate_count, retries: p.candidate_retry_count, firstSeenAt: p.candidate_first_at } : null }));
 }
 
 export function listJobs(siteId?: string, pageId?: string) {

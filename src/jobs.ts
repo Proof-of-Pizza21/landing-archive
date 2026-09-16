@@ -7,6 +7,7 @@ import { decodeCaptureResult, readWorkerJson, validateDiscoveryResult } from './
 import { abortable } from './abort.js';
 import { isUrlInScope, normalizeUrl } from './network.js';
 import { matchesDiscoveryPaths } from './discovery.js';
+import { appVersion, captureProtocol } from './version.js';
 
 let busy = false;
 let stopped = false;
@@ -15,13 +16,23 @@ let controller: AbortController | undefined;
 let activeJob: Row | undefined;
 let lastWorkerError = '';
 let healthTime = 0, healthy = true;
+let engineVersion: string | undefined, engineProtocol: number | undefined;
 export async function workerState() {
   if (workerUrl && Date.now() - healthTime > 10000) {
     healthTime = Date.now();
-    try { healthy = (await fetch(`${workerUrl.replace(/\/$/, '')}/api/health`, { signal: AbortSignal.timeout(2000) })).ok; }
+    try {
+      const response = await fetch(`${workerUrl.replace(/\/$/, '')}/api/health`, { signal: AbortSignal.timeout(2000) });
+      healthy = response.ok;
+      const info = healthy ? await readWorkerJson(response, 4096) : undefined;
+      engineVersion = typeof info?.version === 'string' && /^\d+\.\d+\.\d+$/.test(info.version) ? info.version : undefined;
+      engineProtocol = Number.isInteger(info?.captureProtocol) ? info.captureProtocol : undefined;
+    }
     catch { healthy = false; }
   }
-  return { available: workerUrl ? healthy : true, message: workerUrl && !healthy ? 'Il motore non risponde. Controlla lo stato dell’app in Umbrel e riavviala se il servizio è fermo.' : lastWorkerError || undefined, schedulerEnabled };
+  const compatible = !workerUrl || (engineVersion === appVersion && engineProtocol === captureProtocol);
+  return { available: workerUrl ? healthy : true, version: workerUrl ? engineVersion : appVersion, expectedVersion: appVersion,
+    captureProtocol: workerUrl ? engineProtocol : captureProtocol, compatible,
+    message: workerUrl && !healthy ? 'Il motore non risponde. Controlla lo stato dell’app in Umbrel e riavviala se il servizio è fermo.' : !compatible ? 'Il motore di acquisizione deve essere aggiornato insieme all’app. Aggiorna Landing Archive dallo store Umbrel e riavviala: le copie precedenti sono conservate.' : lastWorkerError || undefined, schedulerEnabled };
 }
 
 async function remote<T>(path: string, body: unknown, signal: AbortSignal): Promise<T> {
@@ -40,6 +51,7 @@ async function doCapture(page: Row, site: Row, signal: AbortSignal) {
   if (workerUrl) {
     const json: any = await remote('/capture', input, signal);
     result = decodeCaptureResult(json);
+    if (result.quality?.version !== captureProtocol) throw Object.assign(new Error('Il motore usa controlli di qualità precedenti. Aggiorna e riavvia Landing Archive in Umbrel prima di acquisire nuove copie.'), { code: 'INVALID_RESULT' });
   } else {
     const { capturePage } = await import('./capture.js');
     result = await capturePage({ ...input, signal });
@@ -140,9 +152,11 @@ export function requestManualScan(siteId: string, options: { pageId?: string; re
     return jobs;
   });
   // Wake an already started coordinator; createApp() alone does not start jobs.
-  if (tickTimer && !stopped) setImmediate(() => void processNextJob());
+  wakeJobs();
   return { ok: true, jobIds, paused: Boolean(site.paused), message: 'Controllo manuale prioritario richiesto. Le pagine saranno scaricate di nuovo; una nuova versione verrà conservata se cambia il contenuto.' };
 }
+
+export function wakeJobs() { if (tickTimer && !stopped) setImmediate(() => void processNextJob()); }
 
 export function scheduleDue() {
   if (!schedulerEnabled) return;

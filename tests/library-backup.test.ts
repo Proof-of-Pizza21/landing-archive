@@ -21,7 +21,7 @@ test('reading inbox, version research, portable export and guarded restore prese
   let site:any,page:any,first='',second='',eventId='',backup:Buffer;
   const capture=async(title:string,url='https://1.1.1.1/',when=now())=> {
     const p=addPage(site.id,url).page, png=new PNG({width:12,height:12});png.data.fill(255);
-    return recordCapture(p,get('SELECT * FROM sites WHERE id=?',site.id)!,{requestedUrl:url,finalUrl:url,title,text:title,html:`<html><head data-head="x"><style>@import url('https://outside.example/spy');</style><script>window.compromised=true</script></head><body><h1>${title}</h1><a href="/offer/">Offer link</a><img src="https://outside.example/spy"><form action="https://outside.example/send"><button>Send</button></form></body></html>`,screenshot:PNG.sync.write(png),statusCode:200,links:[],headings:[],imageUrls:[],warnings:[],capturedAt:when});
+    return recordCapture(p,get('SELECT * FROM sites WHERE id=?',site.id)!,{requestedUrl:url,finalUrl:url,title,text:title,html:`<html><head data-head="x"><style>@import url('https://outside.example/spy');</style><script>window.compromised=true</script></head><body><h1>${title}</h1><a href="/offer/">Offer link</a><img src="https://outside.example/spy"><form action="https://outside.example/send"><button>Send</button></form></body></html>`,screenshot:PNG.sync.write(png),statusCode:200,links:[],headings:[],imageUrls:[],warnings:[],quality:{status:'complete',missingImages:0,reasons:[],version:2,stable:true,renderStatus:'complete',archiveStatus:'complete'},capturedAt:when});
   };
   const upload=async(bytes:Buffer)=> {
     const start=await call('POST','/api/restore/uploads',{bytes:bytes.length});assert.equal(start.statusCode,200,start.body);const id=start.json().id;

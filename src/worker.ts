@@ -5,11 +5,12 @@ import { pathToFileURL } from 'node:url';
 import { host, getWorkerToken } from './config.js';
 import { capturePage, closeBrowser, CaptureError } from './capture.js';
 import { discoverSite } from './discovery.js';
+import { appVersion, captureProtocol } from './version.js';
 
 export function createWorker() {
   const app = Fastify({ logger: false, bodyLimit: 96 * 1024, requestTimeout: 200000 });
   let busy = false;
-  app.get('/api/health', async () => ({ ok: true, busy }));
+  app.get('/api/health', async () => ({ ok: true, busy, version: appVersion, captureProtocol }));
   app.addHook('onRequest', async (request, reply) => {
     if (request.url === '/api/health') return;
     let expected: Buffer;

@@ -36,7 +36,7 @@ test('comparison highlights archived regions, explains invisible changes and sta
   const save = async (day: number, changed: boolean, tracking: string) => (await recordCapture(get('SELECT * FROM pages WHERE id=?', pageRow.id)!, row, {
     requestedUrl: pageRow.url, finalUrl: pageRow.url, title: 'Landing di prova', text: changed ? 'Offerta 120 euro' : 'Offerta 100 euro', statusCode: 200,
     html: '<html><body><h1>Landing di prova</h1><p>Una copia conservata nell’archivio.</p></body></html>', screenshot: changed ? secondImage : firstImage,
-    headings: ['Offerta'], links: [{ url: `https://example.com/offer?utm_source=${tracking}`, text: 'Scopri' }], imageUrls: [`https://example.com/hero.png?cache=${tracking}`], warnings: [], capturedAt: `2026-09-${day}T12:00:00.000Z`,
+    headings: ['Offerta'], links: [{ url: `https://example.com/offer?utm_source=${tracking}`, text: 'Scopri' }], imageUrls: [`https://example.com/hero.png?cache=${tracking}`], warnings: [], quality: { version: 2, stable: true, renderStatus: 'complete', archiveStatus: 'complete', status: 'complete', missingImages: 0, reasons: [] },  capturedAt: `2026-09-${day}T12:00:00.000Z`,
   })).versionId;
   const a = await save(10, false, 'A'), b = await save(11, true, 'A'), c = await save(12, true, 'B');
   const versionsBefore = get('SELECT COUNT(*) n FROM versions')!.n, objectsBefore = get('SELECT COUNT(*) n FROM objects')!.n;
@@ -44,7 +44,7 @@ test('comparison highlights archived regions, explains invisible changes and sta
   assert.equal((await app.inject({ url: endpoint })).statusCode, 401);
   assert.equal((await call('/api/compare/visual')).statusCode, 400);
   const wrongPage = addPage(site.id, 'https://1.1.1.1/other').page;
-  const wrongVersion = (await recordCapture(wrongPage, row, { requestedUrl: wrongPage.url, finalUrl: wrongPage.url, title: 'Other', text: 'Other', statusCode: 200, html: '<h1>Other</h1>', screenshot: firstImage, headings: [], links: [], imageUrls: [], warnings: [], capturedAt: '2026-09-12T12:00:00.000Z' })).versionId;
+  const wrongVersion = (await recordCapture(wrongPage, row, { requestedUrl: wrongPage.url, finalUrl: wrongPage.url, title: 'Other', text: 'Other', statusCode: 200, html: '<h1>Other</h1>', screenshot: firstImage, headings: [], links: [], imageUrls: [], warnings: [], quality: { version: 2, stable: true, renderStatus: 'complete', archiveStatus: 'complete', status: 'complete', missingImages: 0, reasons: [] },  capturedAt: '2026-09-12T12:00:00.000Z' })).versionId;
   assert.equal((await call(`/api/compare/visual?left=${a}&right=${wrongVersion}`)).statusCode, 400);
   const concurrent = await Promise.all([call(endpoint), call(endpoint)]);
   assert.deepEqual(concurrent.map(r => r.statusCode).sort(), [200, 409]);

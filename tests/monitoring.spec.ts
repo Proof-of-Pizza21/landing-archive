@@ -45,7 +45,7 @@ test('visual selection, two-copy preview, discovery settings and lifecycle filte
     const row = get('SELECT * FROM sites WHERE id=?', site.id)!;
     const target = listPages(site.id)[0];
     for (let n = 0; n < 2; n++) await recordCapture(get('SELECT * FROM pages WHERE id=?', target.id)!, row, {
-      requestedUrl: target.url, finalUrl: target.url, statusCode: 200, title: 'Offer fixture', text: `Offer ${n} Price 100 Counter ${10 - n}`, links: [], headings: ['Offer'], imageUrls: [], warnings: [], screenshot: picture(), capturedAt: `2026-09-${10 + n}T10:00:00.000Z`,
+      requestedUrl: target.url, finalUrl: target.url, statusCode: 200, title: 'Offer fixture', text: `Offer ${n} Price 100 Counter ${10 - n}`, links: [], headings: ['Offer'], imageUrls: [], warnings: [], quality: { version: 2, stable: true, renderStatus: 'complete', archiveStatus: 'complete', status: 'complete', missingImages: 0, reasons: [] },  screenshot: picture(), capturedAt: `2026-09-${10 + n}T10:00:00.000Z`,
       html: `<!doctype html><html><head><style>body{font:20px system-ui;margin:30px}#counter{padding:20px;background:#ffeccc}button{padding:20px}p{margin:24px 0}</style><script>window.parent.badArchiveScript=true</script></head><body><h1>Offer ${n}</h1><p id="counter">Counter ${10 - n}</p><p id="price">Price 100</p><button id="cta">Buy now</button><a href="https://external.example/">External</a><img src="https://external.example/tracker.png"></body></html>`,
     });
     const vanished = addPage(site.id, 'https://1.1.1.1/old-offer', 'sitemap').page;
