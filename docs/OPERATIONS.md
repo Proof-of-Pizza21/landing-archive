@@ -58,7 +58,7 @@ solo al confronto automatico. Le zone importanti hanno la precedenza.
 Il primo controllo completo dopo un cambio di regole salva un nuovo riferimento,
 indicato come tale e distinto da una modifica del sito.
 
-Dalla **0.1.11**, un’immagine visibile, uno sfondo, un carattere o una risorsa
+Dalla **0.1.12**, un’immagine visibile, uno sfondo, un carattere o una risorsa
 necessaria non caricati segnalano una copia parziale. Il motore verifica più
 letture della pagina e riapre l’HTML senza rete per controllarne la riproduzione.
 Il riferimento del confronto proviene da una copia completa; copie dubbie non
@@ -88,7 +88,7 @@ precedenti ai nuovi controlli restano disponibili in **Archivio precedente**.
 partenza. Prime copie, riferimento, ultima copia, evidenze nuove, preferiti, note
 e tag sono protetti. La conferma elimina i file non condivisi delle copie scelte,
 conservando date e risultati dei controlli. Per recuperare i file eliminati occorre
-un backup precedente. Vedi [RELEASE-0.1.11.md](RELEASE-0.1.11.md).
+un backup precedente. Vedi [RELEASE-0.1.12.md](RELEASE-0.1.12.md).
 
 ## Azzerare tutte le copie di un sito
 

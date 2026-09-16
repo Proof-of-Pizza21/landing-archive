@@ -61,6 +61,8 @@ async function waitForCheck(pageId, count) {
 const check = message => console.log(`PASS ${message}`);
 
 try {
+  const imageVersion = (await command('docker', ['image', 'inspect', '--format', '{{index .Config.Labels "org.opencontainers.image.version"}}', image], { quiet: true })).trim();
+  assert.equal(imageVersion, expectedVersion, 'The actual container label must match the app release');
   const configuration = JSON.parse(await command('docker', ['compose', '-f', 'compose.yaml', 'config', '--format', 'json'], { quiet: true }));
   configuration.name = project;
   for (const [name, service] of Object.entries(configuration.services)) {

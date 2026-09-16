@@ -1,4 +1,4 @@
-# Qualità delle copie e storico leggibile — 0.1.11
+# Qualità delle copie e storico leggibile — 0.1.12
 
 Questa versione interviene sul caso in cui risorse o sezioni non caricate
 venivano interpretate come modifiche, facendo crescere inutilmente l'archivio.

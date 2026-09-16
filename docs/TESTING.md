@@ -5,9 +5,9 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
-## Aggiornamento 0.1.11 — caricamenti, conferme e storia
+## Aggiornamento 0.1.12 — caricamenti, conferme e storia
 
-Il 2026-09-16 sono passati localmente compilazione, controlli di tipo, **91 test
+Il 2026-09-16 sono passati localmente compilazione, controlli di tipo, **92 test
 automatici e 12 prove browser** con Node.js 24.20.0 e Chrome su macOS.
 Le sequenze simulate coprono copie complete/incomplete/recuperate, immagini
 assenti e corrotte, sfondi CSS, font, testo differito, un prezzo nuovo con
@@ -35,6 +35,11 @@ colonne, riferimenti fra pagine rifiutati, qualità ed evidenze non valide,
 conservazione del riferimento e azzeramento delle conferme dopo il ripristino.
 Le prove Docker verificano inoltre la versione del motore, il protocollo di
 qualità, la copia offline, la protezione della prima evidenza e il backup schema 5.
+
+La build preparatoria 0.1.11 superava i test funzionali ma riportava ancora
+0.1.10 nell’etichetta OCI. Non è stata aggiunta al community store. La 0.1.12
+allinea i metadati e verifica automaticamente la coerenza fra pacchetto,
+motore e immagine prima della pubblicazione.
 
 Le prove locali non sono un monitoraggio di 48 ore dei siti dell’utente né una
 misura del dispositivo Umbrel. Gli esiti della build Linux e il digest pubblicato
