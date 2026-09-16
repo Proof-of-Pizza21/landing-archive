@@ -7,7 +7,7 @@ services:
 
   web:
     # Preview for Intel/AMD 64-bit mini PCs.
-    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.10@sha256:97bda6fee9ed1145ddb09d9739de52ee6ac20b63bb8478c3aa854b4bbdc455a7
+    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.12@sha256:13475adf6db84a396a4bbfab286389cb35a2c349d5204d88a6987c535ecb262e
     user: "1000:1000"
     init: true
     restart: on-failure
@@ -37,7 +37,7 @@ services:
       retries: 3
 
   worker:
-    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.10@sha256:97bda6fee9ed1145ddb09d9739de52ee6ac20b63bb8478c3aa854b4bbdc455a7
+    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.12@sha256:13475adf6db84a396a4bbfab286389cb35a2c349d5204d88a6987c535ecb262e
     user: "1000:1000"
     init: true
     restart: on-failure

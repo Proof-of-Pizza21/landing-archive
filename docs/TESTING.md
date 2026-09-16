@@ -42,8 +42,15 @@ allinea i metadati e verifica automaticamente la coerenza fra pacchetto,
 motore e immagine prima della pubblicazione.
 
 Le prove locali non sono un monitoraggio di 48 ore dei siti dell’utente né una
-misura del dispositivo Umbrel. Gli esiti della build Linux e il digest pubblicato
-vengono aggiunti dopo il completamento della pipeline di release.
+misura del dispositivo Umbrel. Il [collaudo Linux della release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35118902075)
+è riuscito: 92 test automatici, 12 prove browser e container reali con sandbox,
+acquisizione, confronto, backup/ripristino e scansione dopo azzeramento.
+L’immagine pubblica è stata verificata senza login, incluso l’accesso ai 23 strati,
+e coincide con l’inventario di sicurezza della pipeline. Digest:
+`sha256:13475adf6db84a396a4bbfab286389cb35a2c349d5204d88a6987c535ecb262e`.
+L’inventario contiene 397 segnalazioni e 228 CVE distinte: zero vulnerabilità
+alte o critiche correggibili e zero segreti. Questo non equivale ad assenza
+di vulnerabilità.
 
 ## Aggiornamento 0.1.10 — novità, raccolta e ripristino
 
