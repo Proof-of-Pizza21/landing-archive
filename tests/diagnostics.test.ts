@@ -106,7 +106,7 @@ test('temporary diagnostics remain bounded, private, expiring and independent fr
       const url = `/api/pages/${page.id}/diagnostics/${sample}/screenshot`;
       assert.equal((await app.inject({ method: 'GET', url })).statusCode, 401);
       const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'diagnostic-test', password: 'temporary-test-password' } });
-      const cookie = String(setup.headers['set-cookie']).split(';')[0], headers = { cookie };
+      const authorization = `Bearer ${setup.json().token}`, headers = { authorization };
       const response = await app.inject({ method: 'GET', url, headers });
       assert.equal(response.statusCode, 200); assert.match(String(response.headers['content-type']), /image\/png/);
       assert.equal((await app.inject({ method: 'GET', url: `/api/pages/${otherPage.id}/diagnostics/${sample}/screenshot`, headers })).statusCode, 404);

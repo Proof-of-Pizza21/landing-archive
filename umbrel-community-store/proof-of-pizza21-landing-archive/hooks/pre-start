@@ -2,6 +2,21 @@
 set -euo pipefail
 
 # Umbrel 1.7.4 runs this host hook before Compose on install, update and start.
+# The worker receives only its own credential directory, never the archive.
+# APP_DATA_DIR is set by Umbrel; local Docker uses its own named volume instead.
+if [[ -n "${APP_DATA_DIR:-}" ]]; then
+  auth_dir="${APP_DATA_DIR%/}/worker-auth"
+  if [[ -L "$auth_dir" ]] || [[ -e "$auth_dir" && ! -d "$auth_dir" ]]; then
+    echo 'Landing Archive: worker credential directory must be a real directory.' >&2
+    exit 1
+  fi
+  if [[ ${EUID} -ne 0 ]]; then
+    echo 'Landing Archive: preparing the worker credential directory requires the Umbrel host hook to run as root.' >&2
+    exit 1
+  fi
+  install -d -m 0700 -o 1000 -g 1000 -- "$auth_dir"
+fi
+
 # Only a named in-memory profile is loaded. No global policy or sysctl is changed.
 if [[ ! -r /sys/module/apparmor/parameters/enabled ]] || [[ "$(cat /sys/module/apparmor/parameters/enabled)" != Y ]]; then
   echo 'Landing Archive: AppArmor is not enabled on this host; container and Chromium restrictions remain configured.'

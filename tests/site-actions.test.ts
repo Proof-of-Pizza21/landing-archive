@@ -29,11 +29,11 @@ test('manual controls and deletion preserve queue, archive and backup integrity'
     return response(input.url);
   });
   let session = '';
-  const call = (method: any, url: string, payload?: unknown, headers = {}) => app.inject({ method, url, payload, headers: { cookie: session, ...headers } });
+  const call = (method: any, url: string, payload?: unknown, headers = {}) => app.inject({ method, url, payload, headers: { authorization: session, ...headers } });
   const spinUntil = async (predicate: () => boolean) => { for (let i = 0; i < 100 && !predicate(); i++) await new Promise(resolve => setTimeout(resolve, 5)); assert.ok(predicate()); };
   try {
     const setup = await call('POST', '/api/auth/setup', { username: 'test-user', password: 'temporary-test-password' });
-    session = String(setup.headers['set-cookie']).split(';')[0];
+    session = `Bearer ${setup.json().token}`;
     const a = (await call('POST', '/api/sites', { name: 'Site A', url: 'https://1.1.1.1/', maxPages: 1 })).json().site;
     const b = (await call('POST', '/api/sites', { name: 'Site B', url: 'https://8.8.8.8/', maxPages: 1 })).json().site;
     const pageA = get('SELECT * FROM pages WHERE site_id=?', a.id)!;
@@ -77,7 +77,7 @@ test('manual controls and deletion preserve queue, archive and backup integrity'
     });
 
     await t.test('deletion needs authentication, same-origin and explicit matching confirmation', async () => {
-      assert.equal((await call('DELETE', `/api/sites/${a.id}`, { confirmSiteId: a.id }, { cookie: '' })).statusCode, 401);
+      assert.equal((await call('DELETE', `/api/sites/${a.id}`, { confirmSiteId: a.id }, { authorization: '' })).statusCode, 401);
       assert.equal((await call('DELETE', `/api/sites/${a.id}`, { confirmSiteId: a.id }, { origin: 'https://outside.example' })).statusCode, 403);
       assert.equal((await call('DELETE', `/api/sites/${a.id}`, {})).statusCode, 400);
       assert.equal((await call('DELETE', `/api/sites/${a.id}`, { confirmSiteId: b.id })).statusCode, 400);
@@ -98,7 +98,7 @@ test('manual controls and deletion preserve queue, archive and backup integrity'
       const preview = (await call('GET', `/api/sites/${a.id}/reset`)).json();
       assert.equal(preview.annotatedVersions, 1); assert.equal(preview.versions, 2); assert.ok(preview.reclaimableBytes > 0);
       const body = { token: preview.token, confirmSiteId: a.id };
-      assert.equal((await call('POST', `/api/sites/${a.id}/reset`, body, { cookie: '' })).statusCode, 401);
+      assert.equal((await call('POST', `/api/sites/${a.id}/reset`, body, { authorization: '' })).statusCode, 401);
       assert.equal((await call('POST', `/api/sites/${a.id}/reset`, body, { origin: 'https://outside.example' })).statusCode, 403);
       assert.equal((await call('POST', `/api/sites/${a.id}/reset`, { ...body, confirmSiteId: b.id })).statusCode, 400);
       assert.equal((await call('POST', `/api/sites/${a.id}/reset`, {})).statusCode, 400);

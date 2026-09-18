@@ -16,9 +16,9 @@ test('offline browser navigation preserves dates, blocks live traffic and keeps 
   await app.listen({ host: '127.0.0.1', port: 0 });
   const origin = `http://127.0.0.1:${(app.server.address() as { port: number }).port}`;
   const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'offline-test', password: 'temporary-test-password' } });
-  const cookie = String(setup.headers['set-cookie']).split(';')[0];
-  const call = (url: string) => app.inject({ method: 'GET', url, headers: { cookie } });
-  const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { cookie }, payload: { name: 'Offline fixture', url: 'https://1.1.1.1/', maxPages: 1, paused: true } })).json().site;
+  const authorization = `Bearer ${setup.json().token}`;
+  const call = (url: string) => app.inject({ method: 'GET', url, headers: { authorization } });
+  const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { authorization }, payload: { name: 'Offline fixture', url: 'https://1.1.1.1/', maxPages: 1, paused: true } })).json().site;
   const row = get('SELECT * FROM sites WHERE id=?', site.id)!;
   const png = new PNG({ width: 12, height: 12 }); png.data.fill(255);
   const save = async (url: string, title: string, day: number, html: string) => {
@@ -43,7 +43,7 @@ test('offline browser navigation preserves dates, blocks live traffic and keeps 
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   const browser = await chromium.launch({ headless: true, chromiumSandbox: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined) });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-  await context.addCookies([{ url: origin, name: cookie.split('=')[0], value: cookie.slice(cookie.indexOf('=') + 1), httpOnly: true, sameSite: 'Strict' }]);
+  await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
   const escaped: string[] = [];
   await context.route('**/*', route => {
     const url = route.request().url();

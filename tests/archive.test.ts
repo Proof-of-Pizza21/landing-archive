@@ -38,7 +38,7 @@ test('archive workflow: authentication, version history, failures, comparison an
   const app = await createApp();
   let session = '', siteId = '', pageId = '', first = '', second = '';
   let instant = Date.now() - 3600000;
-  const call = (method: any, url: string, payload?: unknown, extra = {}) => app.inject({ method, url, headers: { cookie: session, ...extra }, payload });
+  const call = (method: any, url: string, payload?: unknown, extra = {}) => app.inject({ method, url, headers: { authorization: session, ...extra }, payload });
   try {
     await t.test('private API, setup, wrong-origin and invalid URL protections', async () => {
       assert.equal((await call('GET', '/api/sites')).statusCode, 401);
@@ -47,9 +47,9 @@ test('archive workflow: authentication, version history, failures, comparison an
       assert.equal(wrongOrigin.statusCode, 403);
       const setup = await call('POST', '/api/auth/setup', { username: 'localuser', password: 'local-test-password' });
       assert.equal(setup.statusCode, 200);
-      session = String(setup.headers['set-cookie']).split(';')[0];
-      assert.match(String(setup.headers['set-cookie']), /HttpOnly/);
-      assert.match(String(setup.headers['set-cookie']), /SameSite=Strict/);
+      session = `Bearer ${setup.json().token}`;
+      assert.match(setup.json().token, /^la2_[a-f0-9]{64}$/);
+      assert.equal(setup.headers['set-cookie'], undefined);
       assert.equal((await call('POST', '/api/auth/setup', { username: 'another', password: 'local-test-password' })).statusCode, 409);
       assert.equal((await call('POST', '/api/sites', { name: 'Internal', url: 'http://127.0.0.1' })).statusCode, 400);
       assert.equal((await call('POST', '/api/sites', { name: 'Example', url: 'https://1.1.1.1', intervalHours: -1 })).statusCode, 400);

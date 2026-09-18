@@ -86,7 +86,8 @@ Apri `http://localhost:4310`, crea un nome utente e una password di almeno
 12 caratteri e aggiungi il primo sito. La password non è predefinita e non viene
 inserita nel manifest. L'app
 genera i segreti persistenti al primo avvio; il worker attende che l'app sia
-pronta e legge il token interno dal volume condiviso in sola lettura.
+pronta e legge il token interno da una cartella dedicata in sola lettura.
+Il volume dell’archivio è montato soltanto nel servizio web.
 
 Il primo build scarica Chromium e le librerie di sistema. Non include gli URL
 di collaudo o le copie già presenti sul computer. Se il browser non riesce a
@@ -218,7 +219,8 @@ l'esistenza dell'immagine di base `node:24.20.0-bookworm-slim`, con immagini
 `linux/amd64` e `linux/arm64` attive e digest dell'indice
 `sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e`.
 Il Dockerfile blocca tag e digest a questo risultato e installa la versione
-Chromium corrispondente al Playwright del file di lock.
+il browser stabile fissato in `scripts/browser-release.json`, verificato
+tramite SHA-256 e collaudato con il Playwright del file di lock.
 
 Sono state verificate la sintassi YAML di Compose e manifest, la struttura JSON
 del profilo seccomp e la coerenza di porte, endpoint di salute e utenti.

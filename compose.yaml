@@ -12,12 +12,14 @@ services:
       HOST: "0.0.0.0"
       PORT: "4310"
       DATA_DIR: /data
+      WORKER_TOKEN_FILE: /run/landing-archive/worker-token
       CAPTURE_WORKER_URL: http://worker:4311
       NODE_ENV: production
     ports:
       - "127.0.0.1:4310:4310"
     volumes:
       - archive:/data
+      - worker-auth:/run/landing-archive
     read_only: true
     tmpfs:
       - /tmp:size=128m,mode=1777
@@ -47,10 +49,10 @@ services:
     environment:
       HOST: "0.0.0.0"
       PORT: "4311"
-      DATA_DIR: /data
+      WORKER_TOKEN_FILE: /run/landing-archive/worker-token
       NODE_ENV: production
     volumes:
-      - archive:/data:ro
+      - worker-auth:/run/landing-archive:ro
     read_only: true
     tmpfs:
       - /tmp:size=1g,mode=1777
@@ -73,3 +75,4 @@ services:
 
 volumes:
   archive:
+  worker-auth:

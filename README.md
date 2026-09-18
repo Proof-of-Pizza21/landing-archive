@@ -4,11 +4,18 @@ Archivio locale per seguire l'evoluzione dei propri siti e delle landing dei
 competitor: nuove pagine, cambiamenti nel messaggio e versioni che scompaiono.
 Interfaccia in italiano, dati sul proprio disco, nessun account cloud richiesto.
 
-**Stato: anteprima 0.1.12 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
+**Stato: anteprima 0.1.13 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
 umbrelOS 1.7.4 come ambiente di destinazione.** Le immagini vengono pubblicate
 solo dopo i [collaudi Linux](https://github.com/Proof-of-Pizza21/landing-archive/actions/workflows/verify-and-publish.yml)
 e sono bloccate al digest nel community store. Il collaudo dell’aggiornamento
 sul mini PC rimane distinto; questa anteprima non include ARM.
+
+La **0.1.13** aggiorna il browser e rafforza accesso, copie HTML e ripristino.
+Le sessioni sono separate da quelle delle altre app Umbrel; il motore non può
+più leggere il volume dell’archivio. L’HTML viene ripulito in un processo con
+limiti di tempo e memoria, anche quando si scarica una vecchia copia.
+Dopo l’aggiornamento accedi di nuovo con le credenziali attuali: siti, password
+e copie restano conservati. [Interventi e limiti di sicurezza](docs/SECURITY-0.1.13.md).
 
 La **0.1.12** separa caricamenti incompleti e modifiche, conserva un riferimento
 affidabile, verifica la pagina offline e richiede conferme per differenze solo

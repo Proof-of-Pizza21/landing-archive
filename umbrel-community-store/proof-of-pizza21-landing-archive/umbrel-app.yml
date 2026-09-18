@@ -2,7 +2,7 @@ manifestVersion: 1
 id: proof-of-pizza21-landing-archive
 category: Productivity
 name: Landing Archive
-version: "0.1.12"
+version: "0.1.13"
 tagline: La storia dei tuoi siti e delle landing dei competitor
 icon: https://raw.githubusercontent.com/Proof-of-Pizza21/umbrel-community-store/main/proof-of-pizza21-landing-archive/assets/icon.svg
 description: >-
@@ -25,27 +25,21 @@ description: >-
   Le pagine protette da login, CAPTCHA o sistemi anti-bot possono non essere
   acquisibili. Le landing senza collegamenti pubblici vanno aggiunte a mano.
 releaseNotes: >-
-  I caricamenti incompleti non diventano il riferimento dei confronti. Il motore
-  controlla immagini, sfondi, caratteri, stabilità e riproduzione offline. Le sole
-  differenze visive e le parti scomparse richiedono due visite verificate coerenti.
+  Aggiornamento di sicurezza: browser aggiornato, sessioni separate dalle altre
+  app Umbrel e motore isolato dal volume con database, copie e backup.
 
 
-  Versioni utili, varianti e tutte le osservazioni rendono leggibile lo storico.
-  I ritorni a una copia precedente conservano la nuova data e riutilizzano i file.
-  I campioni dei tentativi dubbi sono temporanei, con limiti di spazio e scadenza.
+  Le copie HTML vengono ripulite in un processo con limiti di tempo e memoria,
+  anche quando si scarica una versione precedente. Corrette le pagine malformate
+  che potevano bloccare la scoperta e le richieste interrotte che impedivano
+  successivi ripristini. Rafforzata anche la verifica dei backup importati.
 
 
-  Anteprima pulizia permette di rivedere copie precedenti senza cancellazioni
-  automatiche. Il nuovo tasto Azzera copie e riscarica elimina tutte le copie di
-  un singolo sito, dopo anteprima e conferma, e avvia una scansione pulita.
-  Conserva sito, indirizzi, impostazioni e note delle pagine; elimina anche
-  preferiti, tag e appunti delle vecchie versioni. Le date dei controlli restano.
-
-
-  Scarica un backup prima di aggiornare e non disinstallare l’app. L’aggiornamento
-  conserva le copie esistenti e porta il database allo schema 5. Verifica 0.1.12
-  nella barra laterale e nel motore. Anteprima Intel/AMD a 64 bit, verificata nei
-  container Linux; il collaudo sul dispositivo umbrelOS 1.7.4 resta distinto.
+  Dopo l’aggiornamento accedi di nuovo con il nome utente e la password attuali.
+  Account, siti e copie rimangono conservati. Scarica un backup prima di
+  aggiornare e non disinstallare l’app. Verifica 0.1.13 nella barra laterale
+  e nel motore. Anteprima Intel/AMD a 64 bit; il collaudo sul dispositivo
+  umbrelOS 1.7.4 resta distinto dalle prove nei container Linux.
 
 developer: Proof-of-Pizza21
 website: https://github.com/Proof-of-Pizza21/landing-archive

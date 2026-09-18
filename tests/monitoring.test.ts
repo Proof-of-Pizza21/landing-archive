@@ -46,8 +46,8 @@ test('quality checks, changed prices, new rules and lifecycle observations prese
   const app = await createApp();
   try {
     const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'monitor-test', password: 'temporary-test-password' } });
-    const cookie = String(setup.headers['set-cookie']).split(';')[0];
-    const call = (method: any, url: string, payload?: unknown) => app.inject({ method, url, payload, headers: { cookie } });
+    const authorization = `Bearer ${setup.json().token}`;
+    const call = (method: any, url: string, payload?: unknown) => app.inject({ method, url, payload, headers: { authorization } });
     const response = await call('POST', '/api/sites', { name: 'Monitoring fixture', url: 'https://1.1.1.1/', discoveryIntervalHours: 3, includePaths: ['/offers'], excludePaths: ['/offers/old'], maxPages: 20 });
     assert.equal(response.statusCode, 201);
     const siteId = response.json().site.id;

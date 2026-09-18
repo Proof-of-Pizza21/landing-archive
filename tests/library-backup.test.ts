@@ -16,8 +16,8 @@ test('reading inbox, version research, portable export and guarded restore prese
   const { recordCapture }=await import('../src/history.js');
   const app=await createApp();
   const setup=await app.inject({method:'POST',url:'/api/auth/setup',payload:{username:'archive-test',password:'temporary-test-password'}});
-  const cookie=String(setup.headers['set-cookie']).split(';')[0];
-  const call=(method:any,url:string,payload?:any,headers={})=>app.inject({method,url,payload,headers:{cookie,...headers}});
+  const authorization=`Bearer ${setup.json().token}`;
+  const call=(method:any,url:string,payload?:any,headers={})=>app.inject({method,url,payload,headers:{authorization,...headers}});
   let site:any,page:any,first='',second='',eventId='',backup:Buffer;
   const capture=async(title:string,url='https://1.1.1.1/',when=now())=> {
     const p=addPage(site.id,url).page, png=new PNG({width:12,height:12});png.data.fill(255);
@@ -68,7 +68,7 @@ test('reading inbox, version research, portable export and guarded restore prese
     });
     backup=(await call('GET','/api/export')).rawPayload;
     await t.test('upload needs auth/origin and rejects excessive size, wrong offsets and oversize chunks',async()=> {
-      assert.equal((await call('POST','/api/restore/uploads',{bytes:100},{cookie:''})).statusCode,401);
+      assert.equal((await call('POST','/api/restore/uploads',{bytes:100},{authorization:''})).statusCode,401);
       assert.equal((await call('POST','/api/restore/uploads',{bytes:100},{origin:'https://outside.example'})).statusCode,403);
       assert.equal((await call('POST','/api/restore/uploads',{bytes:33*1024**3})).statusCode,400);
       const id=(await call('POST','/api/restore/uploads',{bytes:2000000})).json().id;

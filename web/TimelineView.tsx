@@ -1,3 +1,4 @@
+import { SecureLink } from './SecureResources';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowRight, Check, ChevronRight, Clock3, History, LoaderCircle } from 'lucide-react';
 import { api } from './client';
@@ -126,6 +127,6 @@ export function QualitySummary({ version, reference, observation, date }: { vers
 
 export function DiagnosticsPanel({ diagnostics, date, bytes }: { diagnostics: Diagnostic[]; date: DateLabel; bytes: SizeLabel }) {
   return <details className="panel diagnostics-panel"><summary>Campioni temporanei delle anomalie <span>{diagnostics.length}</span></summary><p>Aiutano a capire cosa non è stato caricato. Hanno una scadenza; il registro dei controlli resta disponibile.</p>
-    {diagnostics.length ? <ul>{diagnostics.map(sample => <li key={sample.id}><time dateTime={sample.createdAt}>{date(sample.createdAt)}</time><p>{sample.reason}</p><span>{bytes(sample.bytes)} · Scadenza {date(sample.expiresAt)}</span>{sample.screenshotUrl && <a className="text-button" href={sample.screenshotUrl} target="_blank" rel="noreferrer">Apri campione <ArrowRight size={14} /></a>}</li>)}</ul> : <p>Nessun campione temporaneo disponibile.</p>}
+    {diagnostics.length ? <ul>{diagnostics.map(sample => <li key={sample.id}><time dateTime={sample.createdAt}>{date(sample.createdAt)}</time><p>{sample.reason}</p><span>{bytes(sample.bytes)} · Scadenza {date(sample.expiresAt)}</span>{sample.screenshotUrl && <SecureLink className="text-button" href={sample.screenshotUrl} target="_blank" rel="noreferrer">Apri campione <ArrowRight size={14} /></SecureLink>}</li>)}</ul> : <p>Nessun campione temporaneo disponibile.</p>}
   </details>;
 }

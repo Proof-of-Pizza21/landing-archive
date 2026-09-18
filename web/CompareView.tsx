@@ -1,3 +1,5 @@
+import { SecureImage, SecureLink } from './SecureResources';
+import { authFetch } from './client';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, ArrowRight, Check, FileText, Link2, LoaderCircle, Monitor, Search } from 'lucide-react';
 
@@ -18,7 +20,7 @@ type Visual = { width: number; height: number; left: { width: number; height: nu
 type DateLabel = (value?: string) => string;
 
 async function load<T>(path: string, signal: AbortSignal): Promise<T> {
-  const response = await fetch(path, { credentials: 'same-origin', signal });
+  const response = await authFetch(path, { signal });
   const value = await response.json();
   if (response.status === 401) window.dispatchEvent(new CustomEvent('session-expired'));
   if (!response.ok) throw new Error(value.error || 'Confronto non disponibile. Riprova.');
@@ -104,10 +106,10 @@ function VisualComparison({ data, date }: { data: Comparison; date: DateLabel })
       return <div key={`${version.id}-${index}`}><div className="compare-image-label"><span>{index ? 'Versione da confrontare' : 'Versione di partenza'}</span><strong>{date(version.capturedAt)}</strong></div>
         <div className="compare-image" ref={node => { panes.current[index] = node; }} onScroll={event => sync(event.currentTarget, index)} tabIndex={0} aria-label={index ? 'Screenshot dopo' : 'Screenshot prima'}>
           {visual && size ? <div className="comparison-canvas" style={{ aspectRatio: `${visual.width} / ${visual.height}` }}>
-            <img src={version.screenshotUrl} alt={`Pagina acquisita il ${date(version.capturedAt)}`} style={{ width: `${size.width / visual.width * 100}%` }} />
+            <SecureImage src={version.screenshotUrl} alt={`Pagina acquisita il ${date(version.capturedAt)}`} style={{ width: `${size.width / visual.width * 100}%` }} />
             {show && <svg className="difference-overlay" viewBox={`0 0 ${visual.width} ${visual.height}`} aria-label="Zone di differenza" role="img">{visual.regions.map((region, i) => <rect key={i} x={region.x} y={region.y} width={region.width} height={region.height} className={active === i ? 'active' : ''} vectorEffect="non-scaling-stroke"><title>Zona {i + 1}</title></rect>)}</svg>}
-          </div> : <img src={version.screenshotUrl} alt={`Pagina acquisita il ${date(version.capturedAt)}`} />}
-        </div><div className="compare-downloads"><a className="text-button" href={version.screenshotUrl} target="_blank" rel="noreferrer">Apri screenshot</a><a className="text-button" href={version.htmlUrl} download><ArrowDownToLine size={14} /> Scarica HTML</a></div>
+          </div> : <SecureImage src={version.screenshotUrl} alt={`Pagina acquisita il ${date(version.capturedAt)}`} />}
+        </div><div className="compare-downloads"><SecureLink className="text-button" href={version.screenshotUrl} target="_blank" rel="noreferrer">Apri screenshot</SecureLink><SecureLink className="text-button" href={version.htmlUrl} download><ArrowDownToLine size={14} /> Scarica HTML</SecureLink></div>
       </div>;
     })}</div>
   </>;

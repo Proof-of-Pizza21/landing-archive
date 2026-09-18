@@ -17,8 +17,8 @@ test('quality-aware backup validates references and evidence, clears pending con
   const app = await createApp();
   try {
     const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'restore-quality-test', password: 'temporary-test-password' } });
-    const cookie = String(setup.headers['set-cookie']).split(';')[0];
-    const call = (method: any, url: string, payload?: unknown, headers = {}) => app.inject({ method, url, payload, headers: { cookie, ...headers } });
+    const authorization = `Bearer ${setup.json().token}`;
+    const call = (method: any, url: string, payload?: unknown, headers = {}) => app.inject({ method, url, payload, headers: { authorization, ...headers } });
     const siteId = id(); run('INSERT INTO sites(id,name,url,next_discovery_at,created_at,updated_at) VALUES(?,?,?,?,?,?)', siteId, 'Restore fixture', 'https://example.com/', later(24), now(), now());
     const page = addPage(siteId, 'https://example.com/').page, secondPage = addPage(siteId, 'https://example.com/second').page;
     const png = new PNG({ width: 16, height: 16 }); png.data.fill(255);

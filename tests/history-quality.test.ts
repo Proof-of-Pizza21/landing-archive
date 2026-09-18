@@ -27,9 +27,9 @@ test('quality gate preserves evidence without making incomplete renders into ref
   const { recordCapture, recordFailure } = await import('../src/history.js');
   const app = await createApp();
   const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'quality-test', password: 'temporary-test-password' } });
-  const cookie = String(setup.headers['set-cookie']).split(';')[0];
-  const call = (url: string) => app.inject({ method: 'GET', url, headers: { cookie } });
-  const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { cookie }, payload: { name: 'Quality fixture', url: 'https://1.1.1.1/', maxPages: 100, intervalHours: 24 } })).json().site;
+  const authorization = `Bearer ${setup.json().token}`;
+  const call = (url: string) => app.inject({ method: 'GET', url, headers: { authorization } });
+  const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { authorization }, payload: { name: 'Quality fixture', url: 'https://1.1.1.1/', maxPages: 100, intervalHours: 24 } })).json().site;
   let clock = Date.parse('2026-09-01T10:00:00Z');
   function fixture(path: string) {
     const url = `https://1.1.1.1/${path}`, row = addPage(site.id, url).page;

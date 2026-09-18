@@ -1,3 +1,5 @@
+import { SecureFrame, SecureLink } from './SecureResources';
+import { authFetch } from './client';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowLeft, Expand, Globe2, LoaderCircle, Shrink } from 'lucide-react';
 
@@ -18,7 +20,7 @@ export default function OfflineView({ version, date, at = version.capturedAt }: 
   useEffect(() => {
     const abort = new AbortController();
     setData(null); setError(''); setNotice(''); setReady(false);
-    fetch(`/api/versions/${encodeURIComponent(visit.id)}/offline?at=${encodeURIComponent(at)}`, { credentials: 'same-origin', signal: abort.signal })
+    authFetch(`/api/versions/${encodeURIComponent(visit.id)}/offline?at=${encodeURIComponent(at)}`, { signal: abort.signal })
       .then(async response => {
         const value = await response.json();
         if (!response.ok) {
@@ -75,8 +77,8 @@ export default function OfflineView({ version, date, at = version.capturedAt }: 
     {notice && <div className="notice amber" role="status">{notice}</div>}
     {error ? <div className="notice error" role="alert">{error}</div> : <>
       {!ready && <div className="loading" role="status"><LoaderCircle className="spin" size={20} /> Apertura della copia offline…</div>}
-      {data && <iframe key={data.previewUrl} ref={frame} title="Pagina archiviata offline" src={data.previewUrl} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={loaded} />}
+      {data && <SecureFrame key={data.previewUrl} ref={frame} title="Pagina archiviata offline" src={data.previewUrl} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={loaded} />}
     </>}
-    <div className="offline-note"><span>I link aprono le copie dello stesso sito. Data di riferimento: {date(at)}. Moduli e funzioni che richiedono servizi online non sono attivi.</span>{data && <a className="text-button" href={data.version.htmlUrl} download><ArrowDownToLine size={15} /> Scarica questa pagina</a>}</div>
+    <div className="offline-note"><span>I link aprono le copie dello stesso sito. Data di riferimento: {date(at)}. Moduli e funzioni che richiedono servizi online non sono attivi.</span>{data && <SecureLink className="text-button" href={data.version.htmlUrl} download><ArrowDownToLine size={15} /> Scarica questa pagina</SecureLink>}</div>
   </div>;
 }

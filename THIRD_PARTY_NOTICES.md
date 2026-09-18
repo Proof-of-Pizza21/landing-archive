@@ -23,6 +23,13 @@ licenze e attribuzioni nei pacchetti distribuiti.
 | archiver | MIT | https://github.com/archiverjs/node-archiver |
 | yauzl 3.4.0 | MIT | https://github.com/thejoshwolfe/yauzl |
 
+Il browser Linux è Chrome Headless Shell 153.0.8010.52, pubblicato dal progetto
+[Chrome for Testing](https://github.com/GoogleChromeLabs/chrome-for-testing).
+URL e SHA-256 sono fissati in `scripts/browser-release.json`, separatamente da
+Playwright. La distribuzione conserva `ABOUT` e `LICENSE.headless_shell`, incluse
+le attribuzioni Chromium e dei componenti, in
+`/opt/landing-browser/chrome-headless-shell-linux64`.
+
 Node.js e Chromium includono inoltre le licenze e attribuzioni dei loro
 componenti. La distribuzione Linux dell'immagine conserva i documenti di
 copyright dei pacchetti di sistema. La compilazione non elimina i file di

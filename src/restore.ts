@@ -22,15 +22,26 @@ export function registerRestore(app: FastifyInstance, state: ArchiveState, clear
   for (const name of readdirSync(root)) rmSync(join(root, name), { recursive: true, force: true });
   const safety = join(dataDir, 'backups', 'before-restore.zip');
   let pending: Pending | undefined, activeWrites = 0;
-  const writing = new WeakSet<FastifyRequest>();
   const cleanup = () => { if (!pending || pending.busy) return; rmSync(pending.directory, { recursive: true, force: true }); pending = undefined; };
   const expiry = setInterval(() => { if (pending && pending.expires < Date.now()) cleanup(); }, 60000); expiry.unref();
   app.addHook('onClose', async () => { clearInterval(expiry); if (pending?.child) { const child = pending.child; await new Promise<void>(resolve => { child.once('exit', () => resolve()); child.kill('SIGKILL'); }); } if (pending) pending.busy = false; cleanup(); });
   app.addHook('onRequest', async (request, reply) => {
     if (state.restoring && request.routeOptions.url?.startsWith('/api/') && !['/api/restore/status','/api/auth/status'].includes(request.routeOptions.url)) return reply.code(503).send({ error: 'Ripristino in corso. Attendi il completamento prima di usare l’archivio.' });
-    if (!['GET','HEAD','OPTIONS'].includes(request.method) && !request.routeOptions.url?.startsWith('/api/restore')) { activeWrites++; writing.add(request); }
   });
-  app.addHook('onResponse', async request => { if (writing.delete(request)) activeWrites--; });
+  // Count the mutation itself, not the lifetime of the HTTP connection. A client
+  // can disconnect before the body is parsed or while an async write still runs.
+  // Register this hook before all application routes, including authentication.
+  app.addHook('onRoute', route => {
+    if ((Array.isArray(route.method) ? route.method : [route.method]).every(method => ['GET','HEAD','OPTIONS'].includes(method)) || route.url.startsWith('/api/restore')) return;
+    const handler = route.handler;
+    route.handler = async function (request, reply) {
+      // A body may finish arriving after onRequest allowed it and restore began.
+      if (state.restoring) return reply.code(503).send({ error: 'Ripristino in corso. Attendi il completamento prima di usare l’archivio.' });
+      activeWrites++;
+      try { return await handler.call(this, request, reply); }
+      finally { activeWrites--; }
+    };
+  });
   app.addContentTypeParser('application/octet-stream', { parseAs: 'buffer', bodyLimit: chunkBytes }, (_request, body, done) => done(null, body));
   const owned = (request: FastifyRequest, value: string) => {
     if (!pending || pending.id !== value || pending.owner !== sessionUser(request)?.id || pending.expires < Date.now()) return fail('Caricamento scaduto o non disponibile. Seleziona nuovamente il backup.', 404);

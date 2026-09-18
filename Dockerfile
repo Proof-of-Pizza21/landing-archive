@@ -16,19 +16,21 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=4310 \
     DATA_DIR=/data \
-    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/opt/landing-browser/chrome-headless-shell-linux64/chrome-headless-shell \
     XDG_CONFIG_HOME=/tmp/landing-archive/config \
     XDG_CACHE_HOME=/tmp/landing-archive/cache
 WORKDIR /app
 COPY --from=build /app/package.json /app/package-lock.json ./
 COPY --from=build /app/node_modules ./node_modules
-# The CLI comes from the lockfile; do not download a different Playwright version.
-RUN ./node_modules/.bin/playwright install --with-deps chromium \
+# Browser security patches are pinned independently of the automation library.
+COPY scripts/browser-release.json scripts/install-browser.mjs ./scripts/
+RUN ./node_modules/.bin/playwright install-deps chromium \
     && apt-get update \
     && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
-    && mkdir -p /data \
-    && chown 1000:1000 /data \
-    && chmod -R a+rX /ms-playwright \
+    && mkdir -p /data /run/landing-archive \
+    && chown 1000:1000 /data /run/landing-archive \
+    && chmod 0700 /run/landing-archive \
+    && node scripts/install-browser.mjs /opt/landing-browser \
     && rm -rf /var/lib/apt/lists/* /root/.npm /usr/local/lib/node_modules/npm /opt/yarn-* \
     && rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/yarn /usr/local/bin/yarnpkg
 COPY --from=build /app/dist ./dist
@@ -49,7 +51,7 @@ COPY umbrel-community-store/proof-of-pizza21-landing-archive/hooks/LICENSE-MOBY 
 LABEL org.opencontainers.image.title="Landing Archive" \
       org.opencontainers.image.description="Archivio locale delle versioni di siti e landing page" \
       org.opencontainers.image.authors="Proof-of-Pizza21" \
-      org.opencontainers.image.version="0.1.12" \
+      org.opencontainers.image.version="0.1.13" \
       org.opencontainers.image.licenses="AGPL-3.0-or-later"
 USER 1000:1000
 EXPOSE 4310

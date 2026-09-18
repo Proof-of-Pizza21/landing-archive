@@ -6,7 +6,9 @@ import { pipeline } from 'node:stream/promises';
 import { db, id, now, type Row } from './db.js';
 import { dataDir } from './config.js';
 import { checkSpace } from './storage.js';
-import { offlineDocument, offlineMaxBytes, type OfflineTarget } from './offline.js';
+import { offlineMaxBytes, type OfflineTarget } from './offline.js';
+
+import { offlineDocumentIsolated } from './html-transform.js';
 
 export { appVersion as archiveVersion } from './version.js';
 import { appVersion as archiveVersion } from './version.js';
@@ -46,10 +48,12 @@ export async function saveSafetyBackup(destination: string) {
 export function portableZip(path: string, siteId: string) {
   const copy = new DatabaseSync(path, { readOnly: true });
   const zip = new ZipArchive({ zlib: { level: 3 } });
+  const controller = new AbortController();
   const indexPath = path + '.html';
   let indexFd: number | undefined;
   const closeIndex = () => { if (indexFd !== undefined) { closeSync(indexFd); indexFd = undefined; } };
-  const dispose = () => { closeIndex(); copy.close(); rmSync(indexPath, { force: true }); };
+  let disposed = false;
+  const dispose = () => { if (disposed) return; disposed = true; controller.abort(); closeIndex(); copy.close(); rmSync(indexPath, { force: true }); };
   try {
     const site = copy.prepare('SELECT * FROM sites WHERE id=?').get(siteId) as Row;
     const versions = copy.prepare(`SELECT v.id,v.id entry_id,v.page_id,v.captured_at,v.captured_at archived_at,v.title,v.final_url,v.html_hash,v.screenshot_hash,v.reason,p.url
@@ -68,7 +72,7 @@ export function portableZip(path: string, siteId: string) {
     // Produce one sanitized copy at a time as archiver consumes the prior entry.
     // This keeps export memory proportional to a page, not the entire site.
     let cursor = 0, writing = false;
-    const next = () => {
+    const next = async () => {
       if (writing || zip.destroyed) return;
       if (cursor >= versions.length) {
         writing = true;
@@ -87,8 +91,9 @@ export function portableZip(path: string, siteId: string) {
       try {
         const source = join(dataDir, object.path);
         if (statSync(source).size > offlineMaxBytes) throw new Error('limit');
-        html = offlineDocument(readFileSync(source, 'utf8'), v.final_url, targets, files);
+        html = await offlineDocumentIsolated(readFileSync(source, 'utf8'), v.final_url, targets, files, { signal: controller.signal });
       } catch { fallback = true; html = '<html><head></head><body><p>Copia troppo complessa o non disponibile. Consulta lo screenshot conservato.</p></body></html>'; }
+      if (disposed || zip.destroyed || controller.signal.aborted) return;
       const bar = `<aside style="all:initial;display:block;background:#fff4cc;color:#172a23;padding:16px;font:16px system-ui;position:relative;z-index:2147483647"><a href="../index.html">Indice dell’archivio</a> · Osservazione del ${escapeHtml(v.captured_at)}${v.archived_at !== v.captured_at ? ` · Variante già acquisita il ${escapeHtml(v.archived_at)}` : ''} · <a href="../screenshots/${picture}">Screenshot</a></aside>`;
       html = html.replace(/<head(?:\s[^>]*)?>/i, `<head>${head}`).replace(/<body([^>]*)>/, `<body$1>${bar}`);
       checkSpace(Buffer.byteLength(html) + 128 * 1024);
@@ -97,9 +102,9 @@ export function portableZip(path: string, siteId: string) {
       zip.file(join(dataDir, png.path), { name: `screenshots/${picture}` });
       zip.append(html, { name: `versions/${name}` });
     };
-    zip.on('entry', entry => { if (entry.name.startsWith('versions/')) { writing = false; setImmediate(() => { try { next(); } catch (error: any) { zip.destroy(error); } }); } });
+    zip.on('entry', entry => { if (entry.name.startsWith('versions/')) { writing = false; setImmediate(() => { void next().catch(error => zip.destroy(error)); }); } });
     zip.once('close', dispose);
-    setImmediate(() => { try { next(); } catch (error: any) { zip.destroy(error); } });
+    setImmediate(() => { void next().catch(error => zip.destroy(error)); });
     return zip;
   } catch (error) { dispose(); zip.abort(); throw error; }
 }

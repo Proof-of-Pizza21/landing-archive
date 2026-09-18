@@ -14,8 +14,8 @@ test('cleanup previews protect evidence, require a fresh explicit selection and 
   const app = await createApp();
   try {
     const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'review-test', password: 'temporary-test-password' } });
-    const cookie = String(setup.headers['set-cookie']).split(';')[0];
-    const call = (method: any, url: string, payload?: unknown, headers = {}) => app.inject({ method, url, payload, headers: { cookie, ...headers } });
+    const authorization = `Bearer ${setup.json().token}`;
+    const call = (method: any, url: string, payload?: unknown, headers = {}) => app.inject({ method, url, payload, headers: { authorization, ...headers } });
     const siteId = id();
     run('INSERT INTO sites(id,name,url,next_discovery_at,created_at,updated_at) VALUES(?,?,?,?,?,?)', siteId, 'Review fixture', 'https://example.com/', later(24), now(), now());
     const page = addPage(siteId, 'https://example.com/').page;

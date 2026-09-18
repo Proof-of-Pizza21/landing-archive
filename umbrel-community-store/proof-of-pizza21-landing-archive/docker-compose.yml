@@ -7,7 +7,7 @@ services:
 
   web:
     # Preview for Intel/AMD 64-bit mini PCs.
-    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.12@sha256:13475adf6db84a396a4bbfab286389cb35a2c349d5204d88a6987c535ecb262e
+    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.13
     user: "1000:1000"
     init: true
     restart: on-failure
@@ -16,10 +16,12 @@ services:
       HOST: "0.0.0.0"
       PORT: "4310"
       DATA_DIR: /data
+      WORKER_TOKEN_FILE: /run/landing-archive/worker-token
       CAPTURE_WORKER_URL: http://proof-of-pizza21-landing-archive_worker_1:4311
       NODE_ENV: production
     volumes:
       - ${APP_DATA_DIR}/data:/data
+      - ${APP_DATA_DIR}/worker-auth:/run/landing-archive
     read_only: true
     tmpfs:
       - /tmp:size=128m,mode=1777
@@ -37,7 +39,7 @@ services:
       retries: 3
 
   worker:
-    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.12@sha256:13475adf6db84a396a4bbfab286389cb35a2c349d5204d88a6987c535ecb262e
+    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.13
     user: "1000:1000"
     init: true
     restart: on-failure
@@ -48,10 +50,10 @@ services:
     environment:
       HOST: "0.0.0.0"
       PORT: "4311"
-      DATA_DIR: /data
+      WORKER_TOKEN_FILE: /run/landing-archive/worker-token
       NODE_ENV: production
     volumes:
-      - ${APP_DATA_DIR}/data:/data:ro
+      - ${APP_DATA_DIR}/worker-auth:/run/landing-archive:ro
     read_only: true
     tmpfs:
       - /tmp:size=1g,mode=1777

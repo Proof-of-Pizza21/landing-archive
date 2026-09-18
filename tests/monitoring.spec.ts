@@ -40,8 +40,8 @@ test('visual selection, two-copy preview, discovery settings and lifecycle filte
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
   try {
     const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'rules-test', password: 'temporary-test-password' } });
-    const cookie = String(setup.headers['set-cookie']).split(';')[0];
-    const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { cookie }, payload: { name: 'Campaign fixture', url: 'https://1.1.1.1/', maxPages: 10 } })).json().site;
+    const authorization = `Bearer ${setup.json().token}`;
+    const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { authorization }, payload: { name: 'Campaign fixture', url: 'https://1.1.1.1/', maxPages: 10 } })).json().site;
     const row = get('SELECT * FROM sites WHERE id=?', site.id)!;
     const target = listPages(site.id)[0];
     for (let n = 0; n < 2; n++) await recordCapture(get('SELECT * FROM pages WHERE id=?', target.id)!, row, {
@@ -55,7 +55,7 @@ test('visual selection, two-copy preview, discovery settings and lifecycle filte
     const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     browser = await chromium.launch({ headless: true, chromiumSandbox: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined) });
     const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-    await context.addCookies([{ url: origin, name: cookie.split('=')[0], value: cookie.slice(cookie.indexOf('=') + 1), httpOnly: true, sameSite: 'Strict' }]);
+    await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
     const external: string[] = [], errors: string[] = [];
     await context.route('**/*', route => { if (!route.request().url().startsWith(origin + '/')) { external.push(route.request().url()); return route.abort(); } return route.continue(); });
     const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));

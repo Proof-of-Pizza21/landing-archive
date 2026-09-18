@@ -1,6 +1,7 @@
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import type { DiscoveryInput, DiscoveryResult } from './types.js';
 import { CaptureError, isUrlInScope, normalizeUrl, safeFetch, validatePublicUrl, type RequestBudget } from './network.js';
+import { scanHtml } from './html-bounds.js';
 
 const NON_PAGE = /\.(?:pdf|jpe?g|png|webp|gif|svg|ico|mp[34]|webm|woff2?|ttf|zip|gz|css|js|json|xml)(?:$|\?)/i;
 const ACTION_PATH = /\/(?:wp-admin|wp-json|logout|log-out|signout|checkout|cart|carrello)(?:\/|$)/i;
@@ -22,17 +23,17 @@ function decodeHtml(value: string): string {
 }
 
 export function extractPageLinks(html: string, base: string): string[] {
-  const clean = html.replace(/<!--[\s\S]*?-->|<script\b[^>]*>[\s\S]*?<\/script\s*>/gi, '');
   const urls = new Set<string>();
-  for (const tag of clean.matchAll(/<a\b[^>]*>/gi)) {
-    const match = /\bhref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag[0]);
-    if (!match) continue;
+  scanHtml(html, tag => {
+    if (tag.closing || tag.name !== 'a') return;
+    const href = tag.attributes.get('href');
+    if (href === undefined || href.length > 4096) return;
     try {
-      const candidate = normalizeUrl(new URL(decodeHtml(match[1] ?? match[2] ?? match[3]), base).href);
+      const candidate = normalizeUrl(new URL(decodeHtml(href), base).href);
       if (isDiscoverablePage(candidate)) urls.add(candidate);
     } catch { /* Non-HTTP links are not crawl targets. */ }
-    if (urls.size >= 2000) break;
-  }
+    if (urls.size >= 2000) return false;
+  }, { maxBytes: 3 * 1024 * 1024, depth: false });
   return [...urls];
 }
 

@@ -14,9 +14,9 @@ test('research UI opens exact evidence, saves notes, previews restore and browse
   const { createApp }=await import('../src/server.js');const { db,get,addPage,now }=await import('../src/db.js');const { recordCapture }=await import('../src/history.js');
   const app=await createApp();let browser:Awaited<ReturnType<typeof chromium.launch>>|undefined;
   try {
-    const setup=await app.inject({method:'POST',url:'/api/auth/setup',payload:{username:'research-test',password:'temporary-test-password'}});const cookie=String(setup.headers['set-cookie']).split(';')[0];
-    const call=(url:string)=>app.inject({url,headers:{cookie}});
-    const site=(await app.inject({method:'POST',url:'/api/sites',headers:{cookie},payload:{name:'Campaign notes',url:'https://1.1.1.1/',maxPages:10}})).json().site;
+    const setup=await app.inject({method:'POST',url:'/api/auth/setup',payload:{username:'research-test',password:'temporary-test-password'}});const authorization=`Bearer ${setup.json().token}`;
+    const call=(url:string)=>app.inject({url,headers:{authorization}});
+    const site=(await app.inject({method:'POST',url:'/api/sites',headers:{authorization},payload:{name:'Campaign notes',url:'https://1.1.1.1/',maxPages:10}})).json().site;
     const root=get('SELECT * FROM pages WHERE site_id=?',site.id)!;const png=new PNG({width:20,height:20});png.data.fill(255);
     const save=async(url:string,title:string,when:string)=>{const p=addPage(site.id,url).page;const v=await recordCapture(p,get('SELECT * FROM sites WHERE id=?',site.id)!,{requestedUrl:url,finalUrl:url,title,text:title,statusCode:200,links:[],headings:[],imageUrls:[],warnings:[], quality: { version: 2, stable: true, renderStatus: 'complete', archiveStatus: 'complete', status: 'complete', missingImages: 0, reasons: [] }, screenshot:PNG.sync.write(png),capturedAt:when,html:`<html><head data-check="yes"><style>@import url('https://outside.example/style');body{font:20px system-ui;padding:30px}</style><script>window.compromised=true;fetch('https://outside.example/script')</script></head><body><h1>${title}</h1><a href="/offer/">Secondary page</a><img src="https://outside.example/image" onerror="window.compromised=true"><a href="https://outside.example/live">Live link</a><form action="https://outside.example/send"><button>Send</button></form></body></html>`});return v.versionId;};
     const old=await save(root.url,'First campaign',new Date(Date.now()-3600000).toISOString());
@@ -24,7 +24,7 @@ test('research UI opens exact evidence, saves notes, previews restore and browse
     const latest=await save(root.url,'Updated campaign',now());
     await app.listen({host:'127.0.0.1',port:0});const origin=`http://127.0.0.1:${(app.server.address() as {port:number}).port}`;
     const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';browser=await chromium.launch({headless:true,chromiumSandbox:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||(process.platform==='darwin'&&existsSync(chrome)?chrome:undefined)});
-    const context=await browser.newContext({viewport:{width:1440,height:1100}});await context.addCookies([{url:origin,name:cookie.split('=')[0],value:cookie.slice(cookie.indexOf('=')+1),httpOnly:true,sameSite:'Strict'}]);
+    const context=await browser.newContext({viewport:{width:1440,height:1100}});await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
     const page=await context.newPage();const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto(`${origin}/#/inbox`);await page.getByRole('heading',{name:'Novità da leggere',exact:true}).waitFor();
     await page.getByRole('link',{name:'Apri questa versione',exact:true}).click();

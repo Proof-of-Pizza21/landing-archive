@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { type FastifyReply } from 'fastify';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import serveStatic from '@fastify/static';
@@ -18,10 +18,19 @@ import { normalizeUrl, validatePublicUrl, CaptureError } from './network.js';
 import { objectPath, storageStatus, checkSpace, removeUnusedObjects } from './storage.js';
 import { startJobs, stopJobs, workerState, cancelSiteJobs, requestManualScan } from './jobs.js';
 import { registerSiteReset } from './site-reset.js';
-import { offlineDocument, offlineMaxBytes, offlinePolicy, type OfflineTarget } from './offline.js';
+import { offlineMaxBytes, offlinePolicy, type OfflineTarget } from './offline.js';
+import { offlineDocumentIsolated, sanitizeArchiveDocument } from './html-transform.js';
 import { compareContent } from './comparison.js';
 import { locateVisualChanges, type VisualRegions } from './image-regions.js';
 import { captureLimits } from './capture-limits.js';
+
+async function renderHtml(reply: FastifyReply, transform: (signal: AbortSignal) => Promise<string>) {
+  const controller = new AbortController();
+  const closed = () => { if (!reply.raw.writableFinished) controller.abort(); };
+  reply.raw.once('close', closed);
+  try { return await transform(controller.signal); }
+  finally { reply.raw.off('close', closed); }
+}
 
 const fail = (message: string, statusCode = 400): never => { throw Object.assign(new Error(message), { statusCode }); };
 const required = (table: 'sites' | 'pages' | 'versions', value: unknown) => {
@@ -74,9 +83,9 @@ export async function createApp() {
   app.addHook('onClose', async () => { visualJob?.abort(); visualCache.clear(); });
   await app.register(cookie);
   await app.register(rateLimit, { global: false });
-  registerAuth(app);
   const archiveState: ArchiveState = { exporting: false, restoring: false };
   registerRestore(app, archiveState, () => { visualJob?.abort(); visualCache.clear(); });
+  registerAuth(app);
   registerLibrary(app);
   registerArchiveReview(app, archiveState, () => { visualJob?.abort(); visualCache.clear(); });
   registerSiteReset(app, archiveState, () => { visualJob?.abort(); visualCache.clear(); });
@@ -219,8 +228,8 @@ export async function createApp() {
     const previewUrl = `/api/versions/${encodeURIComponent(version.id)}/offline/html?at=${encodeURIComponent(at)}`;
     if (!document) return { version: serializeVersion(version), at, targets, previewUrl };
     const path = objectPath(version.html_hash);
-    if (statSync(path).size > offlineMaxBytes) fail('Questa copia supera il limite della vista offline. Puoi scaricare l’HTML dal pulsante in alto.', 413);
-    const html = offlineDocument(readFileSync(path, 'utf8'), version.final_url, targets);
+    if (statSync(path).size > offlineMaxBytes) fail('Questa copia supera il limite di elaborazione sicura. Puoi consultare lo screenshot conservato.', 413);
+    const html = await renderHtml(reply, signal => offlineDocumentIsolated(readFileSync(path, 'utf8'), version.final_url, targets, undefined, { signal }));
     reply.type('text/html; charset=utf-8').header('Content-Security-Policy', offlinePolicy)
       .header('X-Frame-Options', 'SAMEORIGIN').header('Referrer-Policy', 'no-referrer')
       .header('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
@@ -230,7 +239,12 @@ export async function createApp() {
     const v = required('versions', request.params.id), isHtml = kind === 'html';
     reply.type(isHtml ? 'text/html; charset=utf-8' : 'image/png');
     if (isHtml) reply.header('Content-Disposition', `attachment; filename="landing-${v.captured_at.slice(0, 10)}-${v.id}.html"`).header('Content-Security-Policy', "sandbox; default-src 'none'; style-src 'unsafe-inline' data:; img-src data:; font-src data:");
-    return reply.send(createReadStream(objectPath(isHtml ? v.html_hash : v.screenshot_hash)));
+    if (isHtml) {
+      const path = objectPath(v.html_hash);
+      if (statSync(path).size > offlineMaxBytes) fail('Questa copia supera il limite di elaborazione sicura. Puoi consultare lo screenshot conservato.', 413);
+      return reply.send(await renderHtml(reply, signal => sanitizeArchiveDocument(readFileSync(path, 'utf8'), v.final_url, { signal })));
+    }
+    return reply.send(createReadStream(objectPath(v.screenshot_hash)));
   });
   app.get<{ Querystring: { left: string; right: string } }>('/api/compare', async request => {
     const left = required('versions', request.query.left), right = required('versions', request.query.right);

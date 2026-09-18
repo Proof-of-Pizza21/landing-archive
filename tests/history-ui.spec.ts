@@ -14,8 +14,8 @@ test('history interface shows returned dates, paginated observations and explici
   const { recordCapture } = await import('../src/history.js');
   const app = await createApp();
   const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'history-interface-test', password: 'temporary-test-password' } });
-  const cookie = String(setup.headers['set-cookie']).split(';')[0];
-  const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { cookie }, payload: { name: 'Landing fixture', url: 'https://1.1.1.1/', paused: true } })).json().site;
+  const authorization = `Bearer ${setup.json().token}`;
+  const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { authorization }, payload: { name: 'Landing fixture', url: 'https://1.1.1.1/', paused: true } })).json().site;
   const pageRow = get('SELECT * FROM pages WHERE site_id=?', site.id)!;
   const png = new PNG({ width: 600, height: 500 }); png.data.fill(250);
   for (let i = 3; i < png.data.length; i += 4) png.data[i] = 255;
@@ -33,7 +33,7 @@ test('history interface shows returned dates, paginated observations and explici
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined), headless: true, chromiumSandbox: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-  await context.addCookies([{ url: origin, name: cookie.split('=')[0], value: cookie.slice(cookie.indexOf('=') + 1), httpOnly: true, sameSite: 'Strict' }]);
+  await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
   const page = await context.newPage(), errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const screenshot = async (name: string) => { if (process.env.UI_SCREENSHOT_DIR) { mkdirSync(process.env.UI_SCREENSHOT_DIR, { recursive: true }); await page.screenshot({ path: join(process.env.UI_SCREENSHOT_DIR, name), fullPage: true }); } };
   try {

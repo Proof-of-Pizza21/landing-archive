@@ -11,7 +11,7 @@ import { open, type ZipFile, type Entry } from 'yauzl';
 import { db, type Row } from './db.js';
 import { archiveTables, archiveSchema } from './backup.js';
 import { eventKinds } from './library.js';
-import { validateMetadata, validateDetection, validateQuality, validateScreenshot } from './capture-limits.js';
+import { captureLimits, validateMetadata, validateDetection, validateQuality, validateScreenshot } from './capture-limits.js';
 import { validateEvidence } from './detection-policy.js';
 
 const root = process.argv[2];
@@ -51,11 +51,47 @@ async function extract() {
 const array = (v: any, max = 50000) => { if (!Array.isArray(v) || v.length > max) bad(); return v as any[]; };
 const strings = (v: any, max = 50000, length = 4096) => { if (array(v, max).some(x => typeof x !== 'string' || x.length > length)) bad(); };
 function quality(v: any) { if (v !== null) validateQuality(v); }
+// Keep imported scalar fields within the bounds used by capture and the API.
+// Event/reason text has extra room for historical messages containing a full URL.
+const scalarLengths: Record<string, number> = {
+  name: 120, title: 500, url: captureLimits.url, final_url: captureLimits.url,
+  notes: 20000, note: 20000, tag: 40, text: captureLimits.text,
+  kind: 64, source: 64, status: 64, last_status: 64, sitemap_state: 64,
+  review_state: 64, signature: 64, html_hash: 64, screenshot_hash: 64,
+  hash: 64, variant_key: 64, candidate_fingerprint: 64, path: 128,
+  message: 8192, reason: 8192,
+};
+// JSON may legitimately escape each UTF-16 code unit as six ASCII characters.
+// Bound its serialized bytes before parsing, then retain the existing structural
+// checks below. The aggregate capture limit still applies to large metadata.
+const jsonStringsBytes = (count: number, length: number) => Math.min(captureLimits.metadataBytes, 2 + count * (6 * length + 3));
+const jsonBytes: Record<string, number> = {
+  ignore_selectors: jsonStringsBytes(30, 500), include_paths: jsonStringsBytes(20, 300), exclude_paths: jsonStringsBytes(20, 300),
+  sitemap_sources: jsonStringsBytes(1000, captureLimits.url), headings: jsonStringsBytes(captureLimits.headings, captureLimits.heading),
+  images: jsonStringsBytes(captureLimits.images, captureLimits.url), warnings: jsonStringsBytes(captureLimits.warnings, captureLimits.warning),
+  ignore_rules: 30 * (6 * (500 + 120) + 64) + 2, important_rules: 30 * (6 * (500 + 120) + 64) + 2,
+  quality: jsonStringsBytes(20, 1000) + 512, evidence: 32768,
+  links: captureLimits.metadataBytes, detection: captureLimits.metadataBytes,
+};
+function fieldBounds(key: string) {
+  const chars = key === 'id' || key.endsWith('_id') ? 80 : key.endsWith('_at') ? 40 : scalarLengths[key];
+  return { chars, bytes: jsonBytes[key] ?? (chars === undefined ? captureLimits.metadataBytes : Math.min(captureLimits.metadataBytes, chars * 3)) };
+}
+function validateTextColumns(source: DatabaseSync, table: string, columns: Row[]) {
+  // Reject oversized cells inside the disposable SQLite process, before Node
+  // allocates a string for the row and before it reaches the live database.
+  const invalid = columns.filter(column => column.type === 'TEXT').map(column => {
+    const { bytes } = fieldBounds(column.name);
+    return `(${column.name} IS NOT NULL AND (typeof(${column.name})<>'text' OR length(CAST(${column.name} AS BLOB))>${bytes}))`;
+  });
+  if (invalid.length && source.prepare(`SELECT 1 FROM ${table} WHERE ${invalid.join(' OR ')} LIMIT 1`).get()) bad();
+}
 function checkRow(table: string, row: Row) {
   for (const [key, value] of Object.entries(row)) {
     if (value === null) { if (['id','event_id','version_id'].includes(key) && ['sites','pages','versions','checks','events','event_reads','version_notes','version_tags'].includes(table) && !(['checks','events'].includes(table) && key === 'version_id')) bad(); continue; }
     if (typeof value === 'string') {
-      if (Buffer.byteLength(value) > 8 * 1024 ** 2 || value.includes('\0')) bad();
+      const bounds = fieldBounds(key);
+      if ((bounds.chars !== undefined && value.length > bounds.chars) || Buffer.byteLength(value) > bounds.bytes || value.includes('\0')) bad();
       if ((key === 'id' || key.endsWith('_id')) && !/^[a-zA-Z0-9_-]{1,80}$/.test(value)) bad();
       if (key.endsWith('_at') && (!Number.isFinite(Date.parse(value)) || new Date(value).toISOString() !== value)) bad();
       if (key === 'url' || key === 'final_url') { const url = new URL(value); if (!['http:','https:'].includes(url.protocol) || url.username || url.password || value.length > 4096) bad(); }
@@ -130,7 +166,9 @@ async function validate() {
       const expected = db.prepare(`PRAGMA table_info(${table})`).all() as Row[];
       const actual = source.prepare(`PRAGMA table_xinfo(${table})`).all() as Row[];
       if (actual.some(c => c.hidden || !expected.some(e => e.name === c.name))) bad();
-      const names = expected.filter(e => actual.some(c => c.name === e.name)).map(e => e.name);
+      const present = expected.filter(e => actual.some(c => c.name === e.name));
+      validateTextColumns(source, table, present);
+      const names = present.map(e => e.name);
       if (!names.length) bad();
       const insert = db.prepare(`INSERT INTO ${table} (${names.join(',')}) VALUES (${names.map(() => '?').join(',')})`);
       let count = 0;
@@ -151,6 +189,8 @@ async function validate() {
     db.exec('COMMIT; PRAGMA wal_checkpoint(TRUNCATE)');
     // Preference is optional and never imports arbitrary application settings.
     if (schema.some(row => row.name === 'settings')) {
+      const size = source.prepare("SELECT typeof(value) type,length(CAST(value AS BLOB)) bytes FROM settings WHERE key='inbox_kinds'").get() as Row | undefined;
+      if (size && (size.type !== 'text' || size.bytes > jsonStringsBytes(30, 50))) bad();
       const setting = source.prepare("SELECT value FROM settings WHERE key='inbox_kinds'").get() as Row | undefined;
       if (setting) { const kinds = JSON.parse(setting.value); strings(kinds, 30, 50); if (kinds.some((kind: string) => !Object.hasOwn(eventKinds, kind))) bad(); db.prepare("INSERT INTO settings VALUES ('inbox_kinds',?)").run(JSON.stringify(kinds)); }
     }

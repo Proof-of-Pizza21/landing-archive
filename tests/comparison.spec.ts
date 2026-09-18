@@ -18,9 +18,9 @@ test('comparison highlights archived regions, explains invisible changes and sta
   try {
   const origin = `http://127.0.0.1:${(app.server.address() as { port: number }).port}`;
   const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'comparison-test', password: 'temporary-test-password' } });
-  const cookie = String(setup.headers['set-cookie']).split(';')[0];
-  const call = (url: string) => app.inject({ method: 'GET', url, headers: { cookie } });
-  const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { cookie }, payload: { name: 'Comparison fixture', url: 'https://1.1.1.1/', maxPages: 1 } })).json().site;
+  const authorization = `Bearer ${setup.json().token}`;
+  const call = (url: string) => app.inject({ method: 'GET', url, headers: { authorization } });
+  const site = (await app.inject({ method: 'POST', url: '/api/sites', headers: { authorization }, payload: { name: 'Comparison fixture', url: 'https://1.1.1.1/', maxPages: 1 } })).json().site;
   const row = get('SELECT * FROM sites WHERE id=?', site.id)!;
   const pageRow = addPage(site.id, 'https://1.1.1.1/').page;
   const picture = (changed: boolean) => {
@@ -56,7 +56,7 @@ test('comparison highlights archived regions, explains invisible changes and sta
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   browser = await chromium.launch({ headless: true, chromiumSandbox: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined) });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-  await context.addCookies([{ url: origin, name: cookie.split('=')[0], value: cookie.slice(cookie.indexOf('=') + 1), httpOnly: true, sameSite: 'Strict' }]);
+  await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
   const outside: string[] = [];
   await context.route('**/*', route => { if (!route.request().url().startsWith(origin + '/')) { outside.push(route.request().url()); return route.abort(); } return route.continue(); });
   const page = await context.newPage();

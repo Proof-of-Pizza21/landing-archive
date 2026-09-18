@@ -12,8 +12,8 @@ test('site controls work from the interface on desktop and phone', async () => {
   const { db, get } = await import('../src/db.js');
   const app = await createApp();
   const setup = await app.inject({ method: 'POST', url: '/api/auth/setup', payload: { username: 'interface-test', password: 'temporary-test-password' } });
-  const cookie = String(setup.headers['set-cookie']).split(';')[0];
-  const add = async (name: string, url: string) => (await app.inject({ method: 'POST', url: '/api/sites', headers: { cookie }, payload: { name, url, maxPages: 1, paused: true } })).json().site;
+  const authorization = `Bearer ${setup.json().token}`;
+  const add = async (name: string, url: string) => (await app.inject({ method: 'POST', url: '/api/sites', headers: { authorization }, payload: { name, url, maxPages: 1, paused: true } })).json().site;
   const a = await add('Fixture A', 'https://1.1.1.1/'), b = await add('Fixture B', 'https://8.8.8.8/');
   await app.listen({ host: '127.0.0.1', port: 0 });
   const origin = `http://127.0.0.1:${(app.server.address() as { port: number }).port}`;
@@ -21,7 +21,7 @@ test('site controls work from the interface on desktop and phone', async () => {
   const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined);
   const browser = await chromium.launch({ executablePath, headless: true, chromiumSandbox: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-  await context.addCookies([{ url: origin, name: cookie.split('=')[0], value: cookie.slice(cookie.indexOf('=') + 1), httpOnly: true, sameSite: 'Strict' }]);
+  await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
   const page = await context.newPage();
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));

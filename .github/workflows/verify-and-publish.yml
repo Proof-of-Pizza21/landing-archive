@@ -3,7 +3,7 @@ name: Verify and publish preview
 on:
   push:
     branches: [main]
-    tags: ['v0.1.12']
+    tags: ['v0.1.13']
   pull_request:
   workflow_dispatch:
     inputs:
@@ -16,7 +16,7 @@ on:
         description: Release version (must match package.json)
         type: string
         required: true
-        default: '0.1.12'
+        default: '0.1.13'
 
 permissions:
   contents: read
@@ -51,13 +51,16 @@ jobs:
       - run: npm run build
       - name: Exclude the unrelated preinstalled Chrome package source
         # The runner's Google apt index can be temporarily inconsistent.
-        # Tests use the exact Playwright browser, not the runner's system Chrome.
+        # Tests use the pinned patched browser distributed with the app.
         run: |
           for source in /etc/apt/sources.list.d/google-chrome.list /etc/apt/sources.list.d/google-chrome.sources; do
             if [ -f "$source" ]; then sudo mv "$source" "${source}.disabled"; fi
           done
-      - name: Install the lockfile-pinned browser
-        run: ./node_modules/.bin/playwright install --with-deps chromium
+      - name: Install the checksum-pinned security browser
+        run: |
+          ./node_modules/.bin/playwright install-deps chromium
+          node scripts/install-browser.mjs "$RUNNER_TEMP/landing-browser"
+          echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$RUNNER_TEMP/landing-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
       - run: npm run test:browser
       - name: Check smoke-test syntax
         run: node --check scripts/docker-smoke.mjs
@@ -93,7 +96,7 @@ jobs:
   publish:
     name: Test and publish the exact preview image
     needs: verify
-    if: ${{ github.repository == 'Proof-of-Pizza21/landing-archive' && (github.ref == 'refs/tags/v0.1.12' || (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main')) }}
+    if: ${{ github.repository == 'Proof-of-Pizza21/landing-archive' && (github.ref == 'refs/tags/v0.1.13' || (github.event_name == 'workflow_dispatch' && inputs.publish && github.ref == 'refs/heads/main')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     permissions:
@@ -109,7 +112,7 @@ jobs:
           package-manager-cache: false
       - name: Validate release identity and version
         env:
-          REQUESTED_VERSION: ${{ inputs.version || '0.1.12' }}
+          REQUESTED_VERSION: ${{ inputs.version || '0.1.13' }}
           TRIGGER_REF: ${{ github.ref }}
           REPOSITORY: ${{ github.repository }}
         run: node scripts/release-metadata.mjs

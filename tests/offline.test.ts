@@ -12,13 +12,17 @@ test('offline copies neutralize active content and map links without changing st
   const pending: any[] = [parse(html)];
   while (pending.length) {
     const node = pending.pop(); pending.push(...(node.childNodes || []));
-    assert.ok(!['script', 'meta', 'base', 'iframe', 'foreignObject', 'animate'].includes(node.tagName));
+    assert.ok(!['script', 'base', 'iframe', 'foreignObject', 'animate'].includes(node.tagName));
     for (const attr of node.attrs || []) {
       assert.ok(!/^on|^(target|ping|srcset|action|formaction|manifest)$/.test(attr.name));
       if (attr.name === 'href') assert.ok(attr.value.startsWith('#'));
       if (attr.name === 'src') assert.ok(attr.value.startsWith('data:image/'));
     }
   }
+  const trustedMeta = html.match(/<meta[^>]+>/g) || [];
+  assert.equal(trustedMeta.length, 2);
+  assert.match(trustedMeta[0], /charset="utf-8"/);
+  assert.match(trustedMeta[1], /Content-Security-Policy/);
   assert.match(offlinePolicy, /script-src 'none'/); assert.match(offlinePolicy, /connect-src 'none'/);
   assert.match(source, /parent.pwned/);
 });

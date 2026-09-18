@@ -258,3 +258,26 @@ variabili e può essere letto direttamente come JSON dal Compose locale.
 Riferimenti: [Docker con Playwright](https://playwright.dev/docs/docker),
 [profilo Playwright originale](https://github.com/microsoft/playwright/blob/v1.63.0/utils/docker/seccomp_profile.json),
 [profilo Docker corrente](https://github.com/moby/profiles/blob/main/seccomp/default.json).
+
+
+## Accesso e isolamento dalla 0.1.13
+
+L’aggiornamento invalida le vecchie sessioni, conservando account e password.
+Accedi di nuovo. La sessione resta nella scheda del browser e sopravvive al
+ricaricamento; una nuova scheda indipendente può richiedere un nuovo accesso.
+Le altre app su porte diverse non ricevono la credenziale di Landing Archive.
+Anteprime e download usano autorizzazioni temporanee per il singolo file.
+
+Il motore legge soltanto il token dalla cartella dedicata `worker-auth`.
+L’hook Umbrel prepara i permessi della cartella; il servizio web trasferisce il
+token precedente al primo avvio. Non serve spostare manualmente database o copie.
+
+L’accesso HTTP resta non cifrato. L’installazione supportata è su rete locale
+fidata, VPN o dietro un proxy HTTPS configurato dall’amministratore. Non esporre
+direttamente la porta dell’app su Internet. Queste correzioni non installano un
+certificato TLS né cambiano le impostazioni globali di rete del dispositivo.
+
+Le copie che superano i limiti di elaborazione mostrano un avviso e mantengono
+lo screenshot. Il download HTML di una copia precedente viene ripulito al
+momento, senza riscrivere l’oggetto originale. Il backup completo conserva gli
+oggetti per un ripristino fedele; la verifica di importazione non esegue l’HTML.

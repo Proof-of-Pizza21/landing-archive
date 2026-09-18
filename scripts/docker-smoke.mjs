@@ -10,12 +10,13 @@ import { DatabaseSync } from 'node:sqlite';
 // Only public example.com is fetched. All account credentials and downloaded
 // artifacts exist solely in a fresh temporary project and are never logged.
 const image = process.env.PREVIEW_IMAGE || 'landing-archive:ci';
+const expectedBrowser = JSON.parse(await readFile('scripts/browser-release.json', 'utf8')).version;
 const expectedVersion = JSON.parse(await readFile('package.json', 'utf8')).version;
 const project = `landing-archive-ci-${randomBytes(5).toString('hex')}`;
 const temporary = await mkdtemp(join(tmpdir(), 'landing-archive-ci-'));
 const composeFile = join(temporary, 'compose.json');
 const base = 'http://127.0.0.1:4310';
-let cookie = '';
+let authorization = '';
 let started = false;
 let deniedProfileFile;
 
@@ -39,7 +40,7 @@ const compose = (args, options) => command('docker', ['compose', '-p', project, 
 const worker = script => compose(['exec', '-T', 'worker', 'node', '--input-type=module'], { input: script, quiet: true });
 async function api(path, { method = 'GET', body, authenticated = true, expected = 200 } = {}) {
   const response = await fetch(base + path, {
-    method, headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(authenticated && cookie ? { cookie } : {}) },
+    method, headers: { ...(body ? { 'content-type': 'application/json' } : {}), ...(authenticated && authorization ? { authorization } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30_000),
   });
   assert.equal(response.status, expected, `${method} ${path}: unexpected status ${response.status}`);
@@ -73,7 +74,8 @@ try {
     assert.equal(service.read_only, true, `${name} root filesystem must remain read-only`);
     assert.equal(service.user, '1000:1000', `${name} must remain non-root`);
   }
-  assert.ok(configuration.services.worker.volumes.some(volume => volume.target === '/data' && volume.read_only), 'Worker archive mount must be read-only');
+  assert.ok(!configuration.services.worker.volumes.some(volume => volume.target === '/data'), 'Worker must not mount the archive');
+  assert.ok(configuration.services.worker.volumes.some(volume => volume.target === '/run/landing-archive' && volume.read_only), 'Worker can only read its dedicated credential');
   assert.ok(configuration.services.worker.security_opt.some(option => option.startsWith('seccomp=')), 'Worker must use the supplied Chromium seccomp profile');
   const seccomp = resolve('umbrel-community-store/proof-of-pizza21-landing-archive/seccomp-profile.json.template');
   await readFile(seccomp);
@@ -116,10 +118,9 @@ try {
   assert.equal((await json('/api/auth/status', { authenticated: false })).setupRequired, true);
   const password = randomBytes(24).toString('base64url');
   const setup = await api('/api/auth/setup', { method: 'POST', body: { username: 'smoke-test', password }, authenticated: false });
-  cookie = setup.headers.get('set-cookie')?.split(';')[0] || '';
-  assert.ok(cookie, 'Setup must create an HttpOnly session');
-  assert.match(setup.headers.get('set-cookie') || '', /httponly/i);
-  assert.match(setup.headers.get('set-cookie') || '', /samesite=strict/i);
+  authorization = 'Bearer ' + (await setup.json()).token;
+  assert.match(authorization, /^Bearer la2_[a-f0-9]{64}$/);
+  assert.equal(setup.headers.get('set-cookie'), null);
   await api('/api/auth/setup', { method: 'POST', body: { username: 'smoke-test', password }, expected: 409 });
   check('First-run setup and authenticated API access');
 
@@ -153,10 +154,13 @@ try {
   }
   await worker(`
     import assert from 'node:assert/strict';
-    import {readFileSync, writeFileSync} from 'node:fs';
+    import {readFileSync, writeFileSync, readdirSync} from 'node:fs';
     assert.equal(process.getuid(), 1000);
     assert.throws(() => writeFileSync('/data/smoke-must-not-write', 'x'), error => error.code === 'EROFS');
-    const token = readFileSync('/data/worker-token', 'utf8').trim();
+    assert.deepEqual(readdirSync('/data'), [], 'The archive is absent from the worker');
+    assert.throws(() => readFileSync('/data/archive.sqlite'), error => error.code === 'ENOENT');
+    const token = readFileSync('/run/landing-archive/worker-token', 'utf8').trim();
+    assert.throws(() => writeFileSync('/run/landing-archive/worker-token', 'x'), error => error.code === 'EROFS');
     const missing = await fetch('http://127.0.0.1:4311/capture', {method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url:'https://example.com/'})});
     assert.equal(missing.status, 401);
     for (const operation of ['capture','discover']) {
@@ -167,16 +171,17 @@ try {
     const malformed = await fetch('http://127.0.0.1:4311/capture',{method:'POST',headers:{authorization:'Bearer '+token,'content-type':'application/json'},body:'{}'});
     assert.equal(malformed.status,400);
   `);
-  check('SSRF blocked at web and worker APIs; worker authorization and read-only archive enforced');
+  check('SSRF blocked at web and worker APIs; worker authorization and archive isolation enforced');
 
   // Diagnose the actual sandbox before the app deliberately sanitizes browser
   // errors. This probe contains no credentials and opens no remote page.
   await worker(`
     import assert from 'node:assert/strict';
     import {chromium} from 'playwright';
-    const browser = await chromium.launch({headless:true,chromiumSandbox:true});
+    const browser = await chromium.launch({headless:true,chromiumSandbox:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH});
     try {
       const page = await browser.newPage();
+      assert.equal(browser.version(), '${expectedBrowser}');
       await page.setContent('<title>Sandbox smoke test</title>');
       assert.equal(await page.title(), 'Sandbox smoke test');
     } finally {await browser.close();}
@@ -232,7 +237,7 @@ try {
   await worker(`
     import assert from 'node:assert/strict';
     import {chromium} from 'playwright';
-    const browser = await chromium.launch({headless:true,chromiumSandbox:true});
+    const browser = await chromium.launch({headless:true,chromiumSandbox:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH});
     try {
       const context = await browser.newContext({offline:true,javaScriptEnabled:false});
       const page = await context.newPage();
@@ -278,7 +283,7 @@ try {
   const annotatedBackup = Buffer.from(await (await api('/api/export')).arrayBuffer());
   const upload = await (await api('/api/restore/uploads', { method: 'POST', body: { bytes: annotatedBackup.length } })).json();
   for (let offset = 0; offset < annotatedBackup.length; offset += upload.chunkBytes) {
-    const response = await fetch(base + `/api/restore/uploads/${upload.id}?offset=${offset}`, { method: 'PUT', headers: { cookie, 'content-type': 'application/octet-stream' }, body: annotatedBackup.subarray(offset, offset + upload.chunkBytes) });
+    const response = await fetch(base + `/api/restore/uploads/${upload.id}?offset=${offset}`, { method: 'PUT', headers: { authorization, 'content-type': 'application/octet-stream' }, body: annotatedBackup.subarray(offset, offset + upload.chunkBytes) });
     assert.equal(response.status, 200);
   }
   const preview = await (await api(`/api/restore/uploads/${upload.id}/verify`, { method: 'POST', body: {} })).json();
@@ -301,10 +306,10 @@ try {
   assert.equal((await json('/api/auth/status')).authenticated, true);
   await api('/api/auth/logout', { method: 'POST', body: {} });
   await api('/api/dashboard', { expected: 401 });
-  cookie = '';
+  authorization = '';
   const login = await api('/api/auth/login', { method: 'POST', body: { username: 'smoke-test', password }, authenticated: false });
-  cookie = login.headers.get('set-cookie')?.split(';')[0] || '';
-  assert.ok(cookie, 'Login must provide a new session after logout');
+  authorization = 'Bearer ' + (await login.json()).token;
+  assert.match(authorization, /^Bearer la2_[a-f0-9]{64}$/);
   assert.equal((await json('/api/auth/status')).authenticated, true);
   check('Archive, checks and login survive a service restart; logout revokes its session');
   const resetPreview = await json(`/api/sites/${siteId}/reset`);

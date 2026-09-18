@@ -1,3 +1,4 @@
+import { sanitizeArchiveDocument } from './html-transform.js';
 import { readPageMetadata } from './page-metadata.js';
 import { monitoringKey } from './detection.js';
 import { captureLimits, screenshotClip, validateCaptureResult } from './capture-limits.js';
@@ -251,12 +252,31 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
     const visibleAssetUrls = new Set(metadata.assets.map(asset => asset.url));
     const stylesheetUrls = new Set(await page.locator('link[rel="stylesheet"]').evaluateAll(nodes => nodes.slice(0, 500).map(node => (node as HTMLLinkElement).href)));
     const packagingRelevant = (url: string) => packagingResourceRelevant(url, resourceObservations, visibleAssetUrls, stylesheetUrls);
+    // The page can call this binding directly. Cached responses must consume
+    // a delivery budget too, otherwise one resource can be serialized forever.
+    let bridgeCalls = 0, bridgeBytes = 0, bridgeActive = 0;
+    const bridgeWaiters: { resolve: () => void; reject: (reason: unknown) => void }[] = [];
+    const releaseBridge = () => { for (const waiter of bridgeWaiters.splice(0)) waiter.reject(controller.signal.reason); };
+    controller.signal.addEventListener('abort', releaseBridge, { once: true });
     await page.exposeFunction('__landingFetchResource', async (url: string) => {
+      if (typeof url !== 'string' || url.length > captureLimits.url || ++bridgeCalls > 600) {
+        const error = new CaptureError('La copia HTML supera il limite di risorse.', 'SIZE_LIMIT');
+        controller.abort(error); throw error;
+      }
+      controller.signal.throwIfAborted();
+      if (bridgeActive >= 4) await new Promise<void>((resolve, reject) => bridgeWaiters.push({ resolve, reject }));
+      else bridgeActive++;
       try {
+        controller.signal.throwIfAborted();
         const resource = resourceCache.get(normalizeUrl(url)) ?? await fetchResource(url, { headers: { 'user-agent': userAgent }, signal: controller.signal, budget, maxBytes: 10 * 1024 * 1024, timeoutMs: 12_000 });
         if (resource.status < 200 || resource.status >= 300) {
           warnings.add('Alcune risorse della copia offline non sono disponibili sul sito.');
           if (packagingRelevant(url)) archiveReasons.add('Alcune risorse non sono state incorporate nella copia offline.');
+        }
+        bridgeBytes += resource.body.length;
+        if (bridgeBytes > 100 * 1024 * 1024) {
+          const error = new CaptureError('La copia HTML supera il limite di risorse.', 'SIZE_LIMIT');
+          controller.abort(error); throw error;
         }
         // SingleFile needs content type; omitting Set-Cookie also avoids Headers rejecting multiple cookies.
         return { status: resource.status, headers: { 'content-type': resource.headers['content-type'] ?? 'application/octet-stream' }, data: resource.body.toString('base64') };
@@ -267,6 +287,11 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
         warnings.add(`Copia offline: alcune risorse di ${host} non sono state incorporate (${reason}).`);
         if (packagingRelevant(url)) archiveReasons.add('Alcune risorse non sono state incorporate nella copia offline.');
         throw error;
+      } finally {
+        // Transfer the occupied slot directly; a newly arriving call must not
+        // take it between waking a queued request and that request resuming.
+        const next = bridgeWaiters.shift();
+        if (next) next.resolve(); else bridgeActive--;
       }
     });
     phase = 'preparazione della copia HTML';
@@ -308,6 +333,10 @@ export async function capturePage(input: CaptureInput, fetchResource: typeof saf
       const externalCss = Array.from(doc.querySelectorAll('style,[style]')).some(node => /url\\(\\s*["']?(?:https?:)?\\/\\//i.test(node.localName === 'style' ? node.textContent || '' : node.getAttribute('style') || ''));
       return { html: '<!DOCTYPE html>\\n' + doc.documentElement.outerHTML, incomplete: externalImages > 0 || externalStyles > 0 || externalCss };
     })()`) as { html: string; incomplete: boolean };
+    // The captured page controls its JS globals and may forge the whole result.
+    // Only a separate trusted process is allowed to sanitize the serialized HTML.
+    packaged.html = await sanitizeArchiveDocument(packaged.html, finalUrl, { signal: controller.signal });
+    controller.signal.removeEventListener('abort', releaseBridge);
     if (packaged.incomplete) archiveReasons.add('La copia offline contiene riferimenti a risorse che non sono state incorporate.');
     // SingleFile can trigger layout changes or a site can update while packaging.
     // Preserve what was captured but never call these mismatched observations complete.

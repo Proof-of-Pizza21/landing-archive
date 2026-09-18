@@ -1,3 +1,5 @@
+import { SecureFrame } from './SecureResources';
+import { authFetch } from './client';
 import { useEffect, useRef, useState } from 'react';
 import { Check, MousePointer2, Plus, Trash2 } from 'lucide-react';
 
@@ -90,7 +92,7 @@ export default function RuleEditor({ pageId, versions, initial, inherited, saved
   async function save() {
     setBusy(true); setError(''); setNotice('');
     try {
-      const response = await fetch(`/api/pages/${encodeURIComponent(pageId)}/rules`, { method: 'PATCH', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rules) });
+      const response = await authFetch(`/api/pages/${encodeURIComponent(pageId)}/rules`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rules) });
       const data = await response.json();
       if (!response.ok) { if (response.status === 401) window.dispatchEvent(new CustomEvent('session-expired')); throw new Error(data.error || 'Salvataggio non riuscito'); }
       await saved(); setNotice('Regole salvate. Al prossimo controllo completo sarà conservato un riferimento con le nuove regole. Le copie precedenti restano intatte.');
@@ -103,8 +105,8 @@ export default function RuleEditor({ pageId, versions, initial, inherited, saved
       <div className="rules-toolbar"><div className="tabs"><button aria-pressed={mode === 'ignoreRules'} className={mode === 'ignoreRules' ? 'selected' : ''} onClick={() => setMode('ignoreRules')}>Ignora variazioni</button><button aria-pressed={mode === 'importantRules'} className={mode === 'importantRules' ? 'selected' : ''} onClick={() => setMode('importantRules')}>Zona importante</button></div><label className="checkbox-label"><input type="checkbox" checked={preview} disabled={!frames[1]} onChange={event => setPreview(event.target.checked)} /> Mostra anche la copia precedente</label></div>
       <div className="rule-selection">{selection ? <><span>Selezionata: <strong>{selection.label}</strong></span><button className="button secondary compact" onClick={() => { const parent = selectedElement.current?.parentElement; if (parent) choose(parent); }}>Allarga selezione</button><button className="button primary compact" disabled={busy || rules[mode].some(rule => rule.selector === selection.selector) || rules[mode].length >= (mode === 'ignoreRules' ? 30 - inherited.length : 20)} onClick={() => { setRules(value => ({ ...value, [mode]: [...value[mode], selection] })); setSelection(null); }}><Plus size={15} /> {mode === 'ignoreRules' ? 'Escludi dal confronto' : 'Segna come importante'}</button></> : <span>Clicca un titolo, un’immagine o una sezione. I collegamenti restano disattivati durante la scelta.</span>}</div>
       <div className={`rule-previews ${preview ? 'two' : ''}`}>
-        <div><strong>Ultima copia · {new Date(frames[0].capturedAt).toLocaleString('it-IT')}</strong><iframe ref={current} title="Scegli zone nella pagina" src={`/api/versions/${encodeURIComponent(frames[0].id)}/offline/html`} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={() => loaded(0)} /></div>
-        {preview && frames[1] && <div><strong>Copia precedente · {new Date(frames[1].capturedAt).toLocaleString('it-IT')}</strong><iframe ref={previous} title="Anteprima regole nella copia precedente" src={`/api/versions/${encodeURIComponent(frames[1].id)}/offline/html`} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={() => loaded(1)} /></div>}
+        <div><strong>Ultima copia · {new Date(frames[0].capturedAt).toLocaleString('it-IT')}</strong><SecureFrame ref={current} title="Scegli zone nella pagina" src={`/api/versions/${encodeURIComponent(frames[0].id)}/offline/html`} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={() => loaded(0)} /></div>
+        {preview && frames[1] && <div><strong>Copia precedente · {new Date(frames[1].capturedAt).toLocaleString('it-IT')}</strong><SecureFrame ref={previous} title="Anteprima regole nella copia precedente" src={`/api/versions/${encodeURIComponent(frames[1].id)}/offline/html`} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={() => loaded(1)} /></div>}
       </div>
       <div className="rule-lists">{(['ignoreRules','importantRules'] as const).map(key => <div key={key}><h3>{key === 'ignoreRules' ? 'Zone escluse' : 'Zone importanti'}</h3>{!rules[key].length && <p className="muted">Nessuna zona selezionata.</p>}{rules[key].map((rule, index) => {
         const latest = inspect(current.current?.contentDocument, rule.selector), older = preview ? inspect(previous.current?.contentDocument, rule.selector) : null;
