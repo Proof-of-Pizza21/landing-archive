@@ -215,7 +215,12 @@ try {
   assert.match(replayResponse.headers.get('content-security-policy') || '', /script-src 'none'/);
   const replayHtml = await replayResponse.text();
   assert.match(replayHtml, /Example Domain/i);
-  assert.doesNotMatch(replayHtml, /<(?:script|iframe|base|meta)(?:\s|>)/i);
+  assert.doesNotMatch(replayHtml, /<(?:script|iframe|base)(?:\s|>)/i);
+  const archiveMeta = replayHtml.match(/<meta\b[^>]*>/gi) || [];
+  assert.deepEqual(archiveMeta, [
+    '<meta charset="utf-8">',
+    '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'none\'; style-src \'unsafe-inline\' data:; img-src data:; font-src data:; media-src \'none\'; connect-src \'none\'; frame-src \'none\'; object-src \'none\'; base-uri \'none\'; form-action \'none\'">',
+  ], 'Only the trusted charset and restrictive embedded policy may survive');
   check('Authenticated offline view renders the archived page with script and network restrictions');
   const comparePath = `/api/compare/visual?left=${versionId}&right=${versionId}`;
   await api(comparePath, { authenticated: false, expected: 401 });
