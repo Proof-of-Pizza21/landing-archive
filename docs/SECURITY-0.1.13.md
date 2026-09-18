@@ -4,7 +4,7 @@ L’aggiornamento conserva account, impostazioni, copie e storico. Le sessioni
 precedenti vengono invalidate: occorre accedere nuovamente con le credenziali
 attuali. Lo schema del database rimane 5. Non vengono eseguite pulizie automatiche.
 
-| Area | Correzione | Verifica prevista |
+| Area | Correzione | Verifica eseguita |
 | --- | --- | --- |
 | Browser | Chrome Headless Shell 153.0.8010.52, pacchetto ufficiale fissato per URL e SHA-256 indipendentemente da Playwright | Versione effettiva e sandbox attiva nel container Linux |
 | Sessioni | Credenziale in `sessionStorage`, inviata come Bearer soltanto alle API della stessa origine; i vecchi cookie non autorizzano più l’accesso | Browser reale con due app sullo stesso host e porte diverse |
@@ -52,5 +52,48 @@ Riferimenti per il browser: [feed ufficiale Chrome for Testing](https://googlech
 [aggiornamenti di sicurezza Chrome](https://chromereleases.googleblog.com/),
 [browser Playwright](https://playwright.dev/docs/browsers).
 
-I risultati del collaudo sono riportati in [TESTING.md](TESTING.md). Il community
-store viene aggiornato al digest effettivo solo dopo i controlli Linux.
+I risultati del collaudo sono riportati in [TESTING.md](TESTING.md). Il
+[workflow della release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35367855300)
+ha superato i controlli Linux il 18 settembre 2026. Il community store usa il
+digest dell’immagine effettivamente provata; manifest, metadati e disponibilità
+dei suoi 24 strati sono stati verificati senza credenziali GitHub.
+
+## Inventario dell’immagine e avvisi residui
+
+Lo scanner riporta 398 corrispondenze pacchetto/avviso, 228 identificatori distinti
+(224 CVE): 7 CRITICAL, 79 HIGH, 149 MEDIUM e 163 LOW. Nessuna voce indica una
+versione corretta disponibile per i pacchetti installati al momento della scansione.
+Questi numeri non rappresentano altrettanti percorsi sfruttabili dell’app e non
+sono stati soppressi nel report. Il file JSON completo accompagna la release.
+
+Le sette corrispondenze critiche richiedono questa distinzione:
+
+- **zlib / CVE-2023-45853:** Debian indica che il componente MiniZip interessato
+  non viene prodotto dal pacchetto zlib della distribuzione Bookworm. Questa
+  segnalazione non dimostra un difetto della libreria zlib installata.
+  [Scheda Debian](https://security-tracker.debian.org/tracker/CVE-2023-45853).
+- **SQLite / CVE-2025-7458:** riguarda query SQL particolari nelle versioni
+  3.39.2–3.41.1 della libreria. Il database dell’app usa `node:sqlite`, integrato
+  in Node, non la libreria di sistema segnalata; le API non offrono esecuzione di query SQL
+  fornite dall’utente e i backup vengono verificati in un processo separato. Rimane registrato l’avviso sul pacchetto presente.
+  [Scheda Debian](https://security-tracker.debian.org/tracker/CVE-2025-7458).
+- **GLib / CVE-2026-58016:** riguarda l’analisi dell’XML di introspezione D-Bus.
+  Il container non monta il bus dell’host; non è stato dimostrato un percorso
+  dalla pagina remota alla funzione vulnerabile. L’avviso non è dichiarato risolto.
+  [Scheda Debian](https://security-tracker.debian.org/tracker/CVE-2026-58016).
+- **libxml2 / CVE-2026-6653:** resta un avviso di disponibilità nel parser nativo.
+  L’app analizza le sitemap con `fast-xml-parser` e rifiuta DTD/entità; questo non
+  prova l’irraggiungibilità di ogni uso nativo da parte delle dipendenze.
+  [Scheda Debian](https://security-tracker.debian.org/tracker/CVE-2026-6653).
+- **Perl / CVE-2026-13221, CVE-2026-42496, CVE-2026-8376:** il codice applicativo
+  non invoca Perl né Archive::Tar. Il terzo avviso riguarda build a 32 bit,
+  mentre l’immagine distribuita è amd64. Non sono stati esclusi dallo scanner.
+  [Regex](https://security-tracker.debian.org/tracker/CVE-2026-13221),
+  [Archive::Tar](https://security-tracker.debian.org/tracker/CVE-2026-42496),
+  [build a 32 bit](https://security-tracker.debian.org/tracker/CVE-2026-8376).
+
+La migrazione a una base di sistema più recente e la riduzione ulteriore dei
+pacchetti runtime sono attività di manutenzione successive: richiedono un
+collaudo separato, soprattutto delle sandbox. L’assenza di una patch indicata
+non equivale all’assenza di rischio. Per GLib e libxml2 non viene dichiarata
+una prova formale di irraggiungibilità.

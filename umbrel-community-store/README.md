@@ -1,79 +1,53 @@
 # Landing Archive Community Store — anteprima amd64
 
-Questa directory è la radice del community app store di
-[Proof-of-Pizza21](https://github.com/Proof-of-Pizza21/umbrel-community-store).
-Landing Archive 0.1.12 è un'anteprima per mini PC Intel/AMD a 64 bit (`linux/amd64`),
-destinata al collaudo su umbrelOS 1.7.4. ARM non è incluso nella prima anteprima.
+Community app store di [Proof-of-Pizza21](https://github.com/Proof-of-Pizza21/umbrel-community-store).
+Landing Archive **0.1.13** è destinata a umbrelOS 1.7.4 su mini PC Intel/AMD
+64 bit. Il supporto ARM non è incluso.
 
-Il [collaudo dei container Linux amd64](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35118902075) è riuscito: avvio con sandbox
-Chromium attiva, acquisizione, copia offline, controllo manuale in pausa,
-deduplicazione, backup schema 5, azzeramento con scansione pulita, persistenza dopo riavvio e cancellazione confermata.
-Il collaudo di questo aggiornamento sul dispositivo Umbrel resta da eseguire.
+Il [collaudo Linux](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35367855300)
+ha verificato sandbox, acquisizione, copie offline, backup, ripristino,
+persistenza dopo riavvio e isolamento del motore. Il collaudo del nuovo
+aggiornamento sul dispositivo Umbrel rimane distinto.
 
-## Installazione
+## Installazione e aggiornamento
 
-La versione 0.1.12 usa un’immagine pubblica e verificata:
+1. Apri la gestione dei community app store nell’App Store Umbrel.
+2. Aggiungi [questo repository](https://github.com/Proof-of-Pizza21/umbrel-community-store).
+3. Installa **Landing Archive**, oppure aggiorna l’installazione esistente.
+4. Al primo avvio crea un account con password di almeno 12 caratteri.
+   Dopo un aggiornamento alla 0.1.13 accedi di nuovo con le credenziali attuali.
 
-1. Apri l'App Store Umbrel e la gestione dei community app store.
-2. Aggiungi [https://github.com/Proof-of-Pizza21/umbrel-community-store](https://github.com/Proof-of-Pizza21/umbrel-community-store).
-3. Apri **Landing Archive Community Store**, installa **Landing Archive** e avviala.
-4. Crea un nome utente e una password di almeno **12 caratteri**. Non ci sono
-   credenziali predefinite.
-5. Aggiungi il primo dominio o una pagina, scegli l'intervallo dei controlli e
-   apri la timeline dopo l'acquisizione.
+Scarica un backup prima di aggiornare e non disinstallare l’app. Account,
+siti, impostazioni, copie e storico restano conservati; lo schema rimane 5.
+Controlla **0.1.13** nella barra laterale e nello stato del motore.
 
-La versione dell'immagine è `ghcr.io/proof-of-pizza21/landing-archive:0.1.12`.
-Il pacchetto la blocca al digest verificato:
-`sha256:13475adf6db84a396a4bbfab286389cb35a2c349d5204d88a6987c535ecb262e`. Non serve un account GitHub per scaricarla.
+## Sicurezza nella 0.1.13
 
-## Aggiornamento 0.1.12
+- Browser aggiornato, fissato per versione e SHA-256, con sandbox attiva.
+- Sessioni separate da quelle delle altre app che condividono lo stesso host.
+- Anteprime e download autorizzati per singola risorsa, con scadenza breve.
+- HTML elaborato in un processo limitato e ripulito anche nei vecchi download.
+- Correzioni dei blocchi nella scoperta e nel ripristino; limiti più precisi
+  per i campi dei backup importati.
+- Il motore monta soltanto la cartella del proprio token, in sola lettura.
+  Database, copie e backup restano accessibili al solo servizio web.
 
-Scarica un backup e aggiorna senza disinstallare. Il database passa allo schema 5
-conservando account, versioni, controlli e note. Le copie simili già presenti
-rimangono; per tornare a una versione precedente serve un backup precedente.
+L’immagine pubblica è `ghcr.io/proof-of-pizza21/landing-archive:0.1.13`,
+bloccata al digest verificato `sha256:129a5ae8db54e0061ac8ee48c462996bf2bb77ac1c033467c6c641b8fea433da`.
+Non serve un account GitHub per scaricarla.
 
-- **Copie affidabili:** controllo del caricamento e dell’HTML offline, riferimento
-  completo e conferme coerenti per assenze o differenze soltanto visive.
-- **Cronologia leggibile:** versioni utili, varianti, tutte le osservazioni e date
-  dei ritorni mantenute senza duplicare i file.
-- **Diagnostici temporanei:** 3 campioni per pagina, 48 ore, 512 totali e 1 GiB.
-  Prime copie ed evidenze nuove conservate rimangono nell’archivio permanente.
-- **Anteprima pulizia:** revisione di candidati specifici con selezione e conferma.
-- **Azzera copie e riscarica:** nel dettaglio del sito, elimina tutte le sue copie
-  e le relative annotazioni dopo conferma; conserva sito, pagine, impostazioni,
-  note delle pagine e date dei controlli, poi avvia una scansione da zero.
-  Scarica un backup se vuoi poter recuperare le copie precedenti.
+HTTP rimane non cifrato: usa una rete fidata, una VPN oppure un proxy HTTPS.
+[Interventi e limiti](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/SECURITY-0.1.13.md).
 
-Verifica **0.1.12** nella barra laterale.
-Vedi [funzioni, limiti e aggiornamento](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/RELEASE-0.1.12.md).
+## Pacchetto
 
-## Struttura del pacchetto
+L’identificatore dell’app resta `proof-of-pizza21-landing-archive`.
+Il pacchetto include manifest, Compose, icona, profili seccomp/AppArmor e
+relative licenze. L’hook `hooks/pre-start` prepara la sola cartella
+`APP_DATA_DIR/worker-auth` e carica il profilo dedicato senza modificare
+le impostazioni globali del dispositivo.
 
-La radice contiene:
-
-```text
-umbrel-app-store.yml
-proof-of-pizza21-landing-archive/
-  umbrel-app.yml
-  docker-compose.yml
-  seccomp-profile.json.template
-  landing-archive.apparmor.template
-  hooks/pre-start
-  hooks/LICENSE-MOBY
-  LICENSE-PLAYWRIGHT
-  assets/icon.svg
-  data/.gitkeep
-```
-
-La directory `data` deve contenere soltanto `.gitkeep` nel repository pubblico.
-Il profilo seccomp è un template JSON senza variabili: Umbrel lo copia anche
-durante gli aggiornamenti e genera `seccomp-profile.json` prima dell'avvio.
-Non aggiungere al repository l'output generato.
-Prima di distribuire, completare le verifiche di release descritte nella
-[guida di installazione](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/INSTALL.md)
-del progetto applicativo e verificare gli indirizzi presenti nel manifest.
-
-Il community store segue il
-[template ufficiale Umbrel](https://github.com/getumbrel/umbrel-community-app-store).
-Non è uno store ufficiale Umbrel e la sua disponibilità non implica approvazione
-o distribuzione da parte del progetto Umbrel.
+Nel repository la directory dati contiene soltanto `.gitkeep`. Token,
+archivi e file seccomp generati da Umbrel non devono essere versionati.
+Il community store segue il [template Umbrel](https://github.com/getumbrel/umbrel-community-app-store)
+e non è uno store ufficiale del progetto Umbrel.

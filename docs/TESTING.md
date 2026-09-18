@@ -14,9 +14,25 @@ nativi, HTML ostile aperto da disco, falsificazione della serializzazione durant
 una cattura completa, immagini incorporate da 8 MiB, parser e scoperta con input
 patologici, richieste HTTP interrotte e limiti per campo nel ripristino.
 
-Il workflow verifica inoltre il nuovo browser 153.0.8010.52, fissato per URL e
-SHA-256, e l’assenza del volume archivio dal worker. Le prove container e lo
-scanner dell’immagine restano obbligatori prima della pubblicazione.
+Il [workflow della release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35367855300)
+ha ripetuto con successo i 117 test e le 16 prove browser su Linux, quindi ha
+provato e pubblicato la medesima immagine amd64. Nei container reali sono
+verificati il browser 153.0.8010.52 fissato per URL e SHA-256, sandbox attiva,
+assenza del volume archivio dal worker, acquisizione, HTML offline, confronto,
+backup/ripristino, persistenza, uscita dall’account e scansione dopo azzeramento.
+
+L’immagine pubblica è stata verificata senza login: manifest, metadati e
+disponibilità di tutti i 24 strati. L’inventario dello scanner corrisponde
+all’identificatore dell’immagine pubblicata. Digest:
+`sha256:129a5ae8db54e0061ac8ee48c462996bf2bb77ac1c033467c6c641b8fea433da`.
+
+Le dipendenze npm non riportano vulnerabilità note e la scansione dell’immagine
+non rileva segreti. L’inventario dei pacchetti di sistema contiene invece
+398 corrispondenze e 228 identificatori distinti, di cui 224 CVE: 7 critiche,
+79 alte, 149 medie e 163 basse. Nessuna voce indica una versione corretta
+disponibile nella distribuzione al momento della scansione. Questo non equivale
+all’assenza di rischio: [valutazione e limiti](SECURITY-0.1.13.md).
+Il collaudo dell’aggiornamento sul dispositivo Umbrel effettivo resta distinto.
 
 ## Aggiornamento 0.1.12 — caricamenti, conferme e storia
 
