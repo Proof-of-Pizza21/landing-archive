@@ -55,3 +55,5 @@
 !scripts/browser-release.json
 !scripts/install-browser.mjs
 !docs/SECURITY-0.1.13.md
+
+!docs/RELEASE-0.1.14.md

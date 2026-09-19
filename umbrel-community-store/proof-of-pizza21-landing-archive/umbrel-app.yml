@@ -2,7 +2,7 @@ manifestVersion: 1
 id: proof-of-pizza21-landing-archive
 category: Productivity
 name: Landing Archive
-version: "0.1.13"
+version: "0.1.14"
 tagline: La storia dei tuoi siti e delle landing dei competitor
 icon: https://raw.githubusercontent.com/Proof-of-Pizza21/umbrel-community-store/main/proof-of-pizza21-landing-archive/assets/icon.svg
 description: >-
@@ -25,21 +25,19 @@ description: >-
   Le pagine protette da login, CAPTCHA o sistemi anti-bot possono non essere
   acquisibili. Le landing senza collegamenti pubblici vanno aggiunte a mano.
 releaseNotes: >-
-  Aggiornamento di sicurezza: browser aggiornato, sessioni separate dalle altre
-  app Umbrel e motore isolato dal volume con database, copie e backup.
+  Corretto il messaggio «Failed to fetch» che nella 0.1.13 poteva bloccare
+  l’apertura dell’app attraverso il proxy autenticato di Umbrel.
 
 
-  Le copie HTML vengono ripulite in un processo con limiti di tempo e memoria,
-  anche quando si scarica una versione precedente. Corrette le pagine malformate
-  che potevano bloccare la scoperta e le richieste interrotte che impedivano
-  successivi ripristini. Rafforzata anche la verifica dei backup importati.
+  Le richieste includono il cookie necessario al proxy soltanto sullo stesso
+  indirizzo dell’app. L’accesso a Landing Archive resta protetto dalla propria
+  sessione separata; le protezioni della 0.1.13 rimangono attive.
 
 
-  Dopo l’aggiornamento accedi di nuovo con il nome utente e la password attuali.
-  Account, siti e copie rimangono conservati. Scarica un backup prima di
-  aggiornare e non disinstallare l’app. Verifica 0.1.13 nella barra laterale
-  e nel motore. Anteprima Intel/AMD a 64 bit; il collaudo sul dispositivo
-  umbrelOS 1.7.4 resta distinto dalle prove nei container Linux.
+  Account, siti, impostazioni e copie restano conservati. Aggiorna senza
+  disinstallare, riapri l’app da Umbrel e accedi con le credenziali attuali.
+  Verifica 0.1.14 nella barra laterale e nello stato del motore. Anteprima
+  Intel/AMD a 64 bit per umbrelOS 1.7.4.
 
 developer: Proof-of-Pizza21
 website: https://github.com/Proof-of-Pizza21/landing-archive

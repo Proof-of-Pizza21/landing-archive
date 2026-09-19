@@ -5,6 +5,23 @@ tramite Google Chrome installato; prove Docker Linux amd64 del 7 settembre 2026
 su GitHub Actions con Node.js 24.13.1 e il Chromium della versione Playwright
 bloccata nel file di lock. Non sono misure del dispositivo Umbrel.
 
+## Aggiornamento 0.1.14 — apertura attraverso il proxy Umbrel
+
+Il 19 settembre 2026 sono riusciti localmente compilazione, controlli di tipo,
+7 test sull’autenticazione e 2 prove browser mirate, con Node.js 24.20.0.
+Il nuovo test riproduce la 0.1.13 escludendo i cookie dalle richieste fetch:
+la navigazione iniziale riesce, il proxy rinvia l’API al login e l’interfaccia
+mostra l’errore prima dell’accesso.
+
+Con il client corretto, lo stesso proxy consente apertura, login, API private,
+HTML offline, screenshot e uscita dall’account. Sono verificati rimozione del
+cookie Umbrel prima dell’inoltro, rifiuto dei cookie come credenziale dell’app,
+separazione tra porte, revoca dei ticket e mancato inoltro del Bearer alla
+pagina di login del proxy quando scade la sessione Umbrel.
+La prova usa un proxy locale che riproduce il comportamento del codice di
+Umbrel 1.7.4, non un’installazione Umbrel effettiva. La pipeline della release
+ripete l’intera suite e il collaudo dei container prima della pubblicazione.
+
 ## Aggiornamento 0.1.13 — sicurezza
 
 Il 18 settembre 2026 il collaudo locale ha superato controlli di tipo,

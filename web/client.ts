@@ -23,7 +23,9 @@ export async function authFetch(path: string, options: RequestInit = {}): Promis
   const value = token();
   headers.delete('Authorization');
   if (value) headers.set('Authorization', `Bearer ${value}`);
-  const response = await fetch(target, { ...options, headers, credentials: 'omit', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer' });
+  // Umbrel's proxy needs its own cookie before forwarding the request. The app
+  // still authenticates exclusively with its origin-scoped Bearer credential.
+  const response = await fetch(target, { ...options, headers, credentials: 'same-origin', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer' });
   if (response.status === 401) { setToken(); window.dispatchEvent(new CustomEvent('session-expired')); }
   return response;
 }
