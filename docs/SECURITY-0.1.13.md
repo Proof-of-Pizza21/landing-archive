@@ -1,5 +1,9 @@
 # Aggiornamento di sicurezza 0.1.13
 
+Su Umbrel usare la **0.1.14 o successiva**: la
+[correzione del proxy](RELEASE-0.1.14.md) risolve l’errore all’apertura della
+0.1.13, mantenendo le protezioni descritte qui.
+
 L’aggiornamento conserva account, impostazioni, copie e storico. Le sessioni
 precedenti vengono invalidate: occorre accedere nuovamente con le credenziali
 attuali. Lo schema del database rimane 5. Non vengono eseguite pulizie automatiche.

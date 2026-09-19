@@ -19,8 +19,21 @@ cookie Umbrel prima dell’inoltro, rifiuto dei cookie come credenziale dell’a
 separazione tra porte, revoca dei ticket e mancato inoltro del Bearer alla
 pagina di login del proxy quando scade la sessione Umbrel.
 La prova usa un proxy locale che riproduce il comportamento del codice di
-Umbrel 1.7.4, non un’installazione Umbrel effettiva. La pipeline della release
-ripete l’intera suite e il collaudo dei container prima della pubblicazione.
+Umbrel 1.7.4, non un’installazione Umbrel effettiva.
+
+Il [workflow della release](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35424996465)
+ha superato **117 test automatici, 17 prove browser e il collaudo dei container
+Linux amd64**, pubblicando la medesima immagine provata. Il digest è
+`sha256:6042917fc9920756e8d01994152802cb7703065572b8797aa3a178197882841c`.
+Manifest, metadati e disponibilità dei 24 strati sono stati verificati senza
+login; l’inventario di sicurezza corrisponde all’immagine pubblicata.
+
+Zero vulnerabilità note nelle dipendenze npm e zero segreti rilevati
+nell’immagine. Restano 398 corrispondenze su pacchetti di sistema, 228 avvisi
+distinti (224 CVE), con 7 corrispondenze critiche e 79 alte. Nessuna voce indica
+una correzione disponibile nella distribuzione al momento della scansione.
+L’inventario completo è allegato alla release; valgono la valutazione e i
+[limiti residui documentati nella 0.1.13](SECURITY-0.1.13.md).
 
 ## Aggiornamento 0.1.13 — sicurezza
 

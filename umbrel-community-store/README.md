@@ -31,8 +31,14 @@ Controlla **0.1.14** nella barra laterale e nello stato del motore.
 - Il motore monta soltanto la cartella del proprio token, in sola lettura.
   Database, copie e backup restano accessibili al solo servizio web.
 
-Il pacchetto finale viene bloccato al digest dell’immagine 0.1.14 verificata
-nei container Linux. I dati esistenti restano sul dispositivo.
+Il [collaudo Linux della 0.1.14](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35424996465)
+ha superato 117 test automatici, 17 prove browser e i controlli nei container.
+La prova browser dedicata riproduce il proxy autenticato di Umbrel; il
+collaudo sul dispositivo effettivo rimane distinto.
+
+L’immagine pubblica è `ghcr.io/proof-of-pizza21/landing-archive:0.1.14`,
+bloccata al digest verificato `sha256:6042917fc9920756e8d01994152802cb7703065572b8797aa3a178197882841c`.
+Il download non richiede un account GitHub.
 
 HTTP rimane non cifrato: usa una rete fidata, una VPN oppure un proxy HTTPS.
 [Interventi e limiti](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/SECURITY-0.1.13.md).

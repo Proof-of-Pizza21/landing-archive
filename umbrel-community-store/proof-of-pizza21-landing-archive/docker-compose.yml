@@ -1,4 +1,4 @@
-# Landing Archive 0.1.14: release packaging is pinned after image verification.
+# Landing Archive 0.1.14: tested Linux amd64 image, pinned to its published digest.
 services:
   app_proxy:
     environment:
@@ -7,7 +7,7 @@ services:
 
   web:
     # Preview for Intel/AMD 64-bit mini PCs.
-    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.14
+    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.14@sha256:6042917fc9920756e8d01994152802cb7703065572b8797aa3a178197882841c
     user: "1000:1000"
     init: true
     restart: on-failure
@@ -39,7 +39,7 @@ services:
       retries: 3
 
   worker:
-    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.14
+    image: ghcr.io/proof-of-pizza21/landing-archive:0.1.14@sha256:6042917fc9920756e8d01994152802cb7703065572b8797aa3a178197882841c
     user: "1000:1000"
     init: true
     restart: on-failure
