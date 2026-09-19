@@ -2,7 +2,7 @@ manifestVersion: 1
 id: proof-of-pizza21-landing-archive
 category: Productivity
 name: Landing Archive
-version: "0.1.14"
+version: "0.1.15"
 tagline: Keep the history of your sites and competitors' landing pages
 icon: https://raw.githubusercontent.com/Proof-of-Pizza21/umbrel-community-store/main/proof-of-pizza21-landing-archive/assets/icon.svg
 description: >-
@@ -21,23 +21,28 @@ description: >-
   landing pages found in ads or newsletters.
 
 
+  English is the default; Italian is available in Settings > Language.
+
+
   Your data stays on your device. No cloud service is required. Pages
   protected by login, CAPTCHA or anti-bot systems may not be captured.
   Landing pages without public links must be added manually.
 releaseNotes: >-
-  Fixed the "Failed to fetch" message that could prevent 0.1.13 from
-  opening through Umbrel's authenticated proxy.
+  English is now the default language. Choose English or Italiano in Settings
+  > Language; the selector is also available before login. Your preference
+  is saved in this browser and takes effect immediately.
 
 
-  Requests include the proxy cookie only on the app's own origin. Access
-  to Landing Archive remains protected by its separate session, and all
-  security protections introduced in 0.1.13 remain active.
+  The interface, documentation and export navigation are available in English.
+  Archived website content, site names, notes, schedules and copies remain
+  unchanged. Existing security protections and the Umbrel proxy fix remain
+  enabled. Screenshot links in cleanup previews now use resource tickets.
 
 
-  Your account, sites, settings and copies are preserved. Update without
-  uninstalling, reopen the app from Umbrel and sign in with your current
-  credentials. Check for 0.1.14 in the sidebar and engine status. Preview
-  for 64-bit Intel/AMD devices running umbrelOS 1.7.4.
+  Download a backup before updating. Update without uninstalling, reopen
+  the app and select Italiano if you prefer Italian. Check for 0.1.15 in
+  the sidebar and capture engine status. Preview for 64-bit Intel/AMD
+  devices running umbrelOS 1.7.4.
 
 developer: Proof-of-Pizza21
 website: https://github.com/Proof-of-Pizza21/landing-archive

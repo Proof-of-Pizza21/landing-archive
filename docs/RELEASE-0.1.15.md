@@ -31,5 +31,7 @@ The language tests cover an Italian-configured browser, live switching, reloads,
 invalid preferences, unavailable storage, cross-tab updates and unchanged
 archived content. Desktop and phone settings were inspected.
 
-Linux image publication is gated by a separate run of tests, security scanning
-and actual-container checks. See [TESTING.md](TESTING.md) for recorded results.
+The [Linux release workflow](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35455204388)
+also passed all 122 automated and 18 browser tests, image security scanning and
+actual-container checks. The store pins the tested image by its anonymously
+verified digest. See [TESTING.md](TESTING.md) for results and residual advisories.

@@ -17,9 +17,21 @@ Italian; the new language regression covers the English default.
 
 On September 19, 2026, local type checks, production build, **122 automated
 tests and 18 browser tests** passed with Node.js 24.20.0 and Chrome on macOS.
-Settings were inspected at desktop and phone sizes. Linux container and image
-publication checks are recorded separately when completed. The following
-sections remain historical evidence for their respective releases.
+Settings were inspected at desktop and phone sizes.
+
+The [Linux release run](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35455204388)
+repeated all 122 automated and 18 browser tests, then passed image scanning and
+actual-container capture, offline browsing, comparison, backup/restore, restart
+and reset checks. The identical tested image was published as
+`sha256:6cde8882a17d10620fdc3787868d0ec28903addcaaa129f2be3903cc01b83d5b`. Its manifest, metadata and 24 layer download
+endpoints were verified anonymously and its image ID matches the scan inventory.
+
+No known npm vulnerabilities or secrets were detected. The system-package
+inventory retains 398 matches, 228 advisories (224 CVEs): 7 critical, 79 high,
+149 medium and 163 low. None reported an available fixed version at scan time;
+these are not claims of no risk. The full inventory accompanies the release and
+the [existing assessment and limits](SECURITY-0.1.13.md) remain applicable.
+The following sections are historical evidence for their respective releases.
 
 ## 0.1.14 — startup through Umbrel's proxy
 
@@ -87,7 +99,17 @@ bounded and do not create permanent versions. Cleanup protects first/reference/
 latest/evidence/annotated copies, preserves check dates and removes only unshared
 files. UI tests cover history grouping, pagination, review and reset on desktop
 and phone. Version metadata is checked across app, engine and image before
-publication.
+publication. Preparatory 0.1.11 passed functional tests but still had an OCI
+label of 0.1.10, so it was not added to the store; 0.1.12 aligned these values.
+
+Reset retains site/settings/page notes/check dates, removes version annotations,
+protects files shared with other sites and starts with an empty reference.
+Diagnostics tests cover pre-write quotas, expiry, per-page limits, invalid files,
+authentication and directory failures without blocking checks. History exceeds
+1,000 paginated checks. Restore covers schema 5 and a real schema 4 without new
+columns, rejects cross-page references and invalid quality/evidence, preserves
+references and clears pending confirmations. Docker also checks engine protocol,
+first-evidence protection, schema-5 backup and a clean scan while paused.
 
 These were not 48-hour monitoring tests of the user's sites or measurements of
 the Umbrel device. The [Linux release run](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35118902075)

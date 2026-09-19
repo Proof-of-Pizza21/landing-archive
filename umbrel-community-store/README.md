@@ -1,12 +1,15 @@
 # Landing Archive Community Store — amd64 preview
 
 Community app store by [Proof-of-Pizza21](https://github.com/Proof-of-Pizza21/umbrel-community-store).
-Landing Archive **0.1.14** targets umbrelOS 1.7.4 on 64-bit Intel/AMD mini PCs.
+Landing Archive **0.1.15** targets umbrelOS 1.7.4 on 64-bit Intel/AMD mini PCs.
 ARM support is not included.
 
-**0.1.14** fixes “Failed to fetch” when opening the app through the Umbrel
-proxy and retains all security protections introduced in 0.1.13.
-[Details](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/RELEASE-0.1.14.md).
+**0.1.15** makes English the default. Choose **English** or **Italiano** in
+**Settings → Language**, or use the selector before login. Your choice is saved
+in this browser; archived pages, names, notes and capture settings are unchanged.
+Documentation and export navigation are in English. The Umbrel proxy fix and
+existing security protections remain enabled.
+[Details](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/RELEASE-0.1.15.md).
 
 ## Install and update
 
@@ -18,7 +21,7 @@ proxy and retains all security protections introduced in 0.1.13.
 
 Download a backup before updating and do not uninstall the app. Your account,
 sites, settings, copies and history are preserved; the archive schema remains 5.
-Check for **0.1.14** in the sidebar and capture engine status.
+Check for **0.1.15** in the sidebar and capture engine status.
 
 ## Security in 0.1.13
 
@@ -31,14 +34,14 @@ Check for **0.1.14** in the sidebar and capture engine status.
 - The capture engine mounts only its token directory, read-only. The database,
   copies and backups remain accessible only to the web service.
 
-The [0.1.14 Linux validation](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35424996465)
-passed 117 automated tests, 17 browser tests and container checks. A dedicated
-browser test reproduces Umbrel's authenticated proxy; validation on the actual
-device is a separate step.
+The [0.1.15 Linux validation](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35455204388)
+passed 122 automated tests, 18 browser tests and actual-container checks.
+Language tests cover live switching, storage behavior and unchanged archived
+content. The proxy test reproduces Umbrel authentication; actual-device
+validation remains a separate step.
 
-The public image is `ghcr.io/proof-of-pizza21/landing-archive:0.1.14`, pinned to
-the verified digest `sha256:6042917fc9920756e8d01994152802cb7703065572b8797aa3a178197882841c`.
-Downloading it does not require a GitHub account.
+The public image is `ghcr.io/proof-of-pizza21/landing-archive:0.1.15`, pinned to
+`sha256:6cde8882a17d10620fdc3787868d0ec28903addcaaa129f2be3903cc01b83d5b`. Downloading it does not require a GitHub account.
 
 HTTP remains unencrypted: use a trusted network, a VPN or an HTTPS proxy.
 [Security changes and limitations](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/SECURITY-0.1.13.md).
