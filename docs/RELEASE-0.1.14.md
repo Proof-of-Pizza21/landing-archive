@@ -1,35 +1,33 @@
-# Correzione dell’apertura su Umbrel — 0.1.14
+# Fixing startup through Umbrel — 0.1.14
 
-La 0.1.13 poteva mostrare «Failed to fetch» prima della schermata di accesso.
-La prima richiesta a `/api/auth/status` escludeva tutti i cookie, compreso
-quello richiesto dal proxy di Umbrel. Il proxy rispondeva con un rinvio al
-proprio accesso, che il client rifiutava come previsto per proteggere le credenziali.
+Version 0.1.13 could display “Failed to fetch” before the login screen. The
+initial request to `/api/auth/status` excluded all cookies, including the one
+required by Umbrel's proxy. The proxy redirected to its own login, which the
+client rejected as intended to protect credentials.
 
-La 0.1.14 consente al browser di inviare i cookie nelle richieste alla stessa
-origine dell’app. Il proxy può così verificare il proprio cookie e inoltrare
-la richiesta. Landing Archive continua a richiedere la propria credenziale
-Bearer per le API private: il cookie di Umbrel, da solo, non apre l’archivio.
-I vecchi cookie di sessione di Landing Archive restano invalidi.
+Version 0.1.14 lets the browser send cookies in requests to the app's own origin.
+The proxy can validate its cookie and forward the request. Landing Archive still
+requires its own Bearer credential for private APIs: Umbrel's cookie alone does
+not open the archive. Old Landing Archive session cookies remain invalid.
 
-Restano attivi il vincolo alle API della stessa origine, il rifiuto dei
-reindirizzamenti, i ticket limitati alla singola risorsa, la separazione delle
-sessioni tra porte, la sandbox del browser e le altre
-[protezioni della 0.1.13](SECURITY-0.1.13.md).
+The same-origin API restriction, redirect rejection, resource-specific tickets,
+session separation between ports, browser sandbox, and the other
+[0.1.13 protections](SECURITY-0.1.13.md) remain enabled.
 
-Il comportamento del proxy è documentato nel codice di Umbrel 1.7.4:
-[autenticazione tramite cookie](https://github.com/getumbrel/umbrel/blob/1.7.4/containers/app-proxy/utils/auth.js)
-e [inoltro con rimozione del cookie del proxy](https://github.com/getumbrel/umbrel/blob/1.7.4/containers/app-proxy/utils/proxy.js).
+Proxy behavior is documented in the Umbrel 1.7.4 source:
+[cookie authentication](https://github.com/getumbrel/umbrel/blob/1.7.4/containers/app-proxy/utils/auth.js)
+and [forwarding with proxy-cookie removal](https://github.com/getumbrel/umbrel/blob/1.7.4/containers/app-proxy/utils/proxy.js).
 
-## Aggiornamento
+## Update
 
-Aggiornare dal community store senza disinstallare, poi riaprire l’app da
-Umbrel. Account, impostazioni e archivio rimangono invariati; lo schema resta 5.
-Se viene richiesto l’accesso, usare il nome utente e la password già esistenti.
-La versione visualizzata nell’interfaccia e nel motore deve essere 0.1.14.
+Update from the community store without uninstalling, then reopen the app from
+Umbrel. Accounts, settings, and archives remain unchanged; the schema stays at 5.
+If prompted to log in, use your existing username and password. The interface
+and worker should both display version 0.1.14.
 
-## Collaudo
+## Testing
 
-Una prova browser dedicata attraversa un proxy locale che riproduce i passaggi
-di autenticazione di Umbrel, compresa la rimozione del suo cookie prima
-dell’inoltro al servizio web. Il collaudo sul dispositivo Umbrel dell’utente
-resta distinto. Gli esiti delle verifiche sono riportati in [TESTING.md](TESTING.md).
+A dedicated browser test goes through a local proxy that reproduces Umbrel's
+authentication steps, including removing its cookie before forwarding to the
+web service. Testing on the user's actual Umbrel device remains separate.
+Verification results are recorded in [TESTING.md](TESTING.md).

@@ -95,7 +95,7 @@ export function offlineDocument(html: string, base: string, targets: OfflineTarg
         node.attrs.push({ name: 'href', value: local && /^[0-9]+\.html$/.test(local) ? local + (destination?.hash || '') : '#' }, { name: 'data-archive-target', value: index === undefined ? 'missing' : targets[index].id });
         if (index !== undefined && destination?.hash) node.attrs.push({ name: 'data-archive-fragment', value: destination.hash.slice(1, 4096) });
         node.attrs = node.attrs.filter(attr => attr.name !== 'title');
-        node.attrs.push({ name: 'title', value: index === undefined ? 'Nessuna copia disponibile nell’archivio' : 'Apri la copia archiviata' });
+        node.attrs.push({ name: 'title', value: index === undefined ? 'No copy available in the archive' : 'Open the archived copy' });
       }
     }
   }

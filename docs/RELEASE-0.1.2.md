@@ -1,57 +1,54 @@
-# Controlli manuali, eliminazione e reindirizzamenti — 0.1.2
+# Manual checks, deletion, and redirects — 0.1.2
 
-La versione 0.1.2 aggiunge comandi diretti per gestire un sito e corregge un
-errore che impediva di acquisire alcune pagine con reindirizzamenti HTTP.
+Version 0.1.2 adds direct controls for managing a site and fixes an error that
+prevented some pages with HTTP redirects from being captured.
 
-## Controlla e scarica ora
+## Check and download now
 
-Il pulsante è disponibile nell'elenco dei siti, nel dettaglio del sito e nella
-storia di una pagina. Anticipa i lavori in attesa, azzera l'attesa di un nuovo
-tentativo e assegna precedenza rispetto ai controlli automatici. Funziona anche
-con il monitoraggio in pausa, senza riattivare la pianificazione.
+This button is available in the site list, site details, and page history. It
+moves pending work forward, clears the retry delay, and takes priority over
+automatic checks. It also works while monitoring is paused, without enabling
+the schedule again.
 
-Quando è già in corso un lavoro sul sito o sulla pagina selezionata, il comando
-diventa **Riavvia controllo**: interrompe quel tentativo e ne prepara uno nuovo.
-I lavori degli altri siti non vengono annullati. Le visite restano seriali;
-un lavoro già in corso su un altro sito deve terminare prima del successivo.
+When work is already running for the selected site or page, the command becomes
+**Restart check**: it cancels that attempt and prepares a new one. Work for other
+sites is not canceled. Visits remain sequential; an active job for another site
+must finish before the next one starts.
 
-Ogni controllo effettua una nuova visita e scarica la pagina. Se non rileva
-modifiche, conserva il controllo nello storico senza duplicare la versione.
-Lo stato mostra attesa, tentativo in corso, tempo trascorso e ultimo errore.
-Gli errori di acquisizione indicano la fase che non è stata completata.
+Every check makes a fresh visit and downloads the page. If nothing has changed,
+it records the check without duplicating the version. Status shows whether work
+is queued or running, elapsed time, and the last error. Capture errors identify
+the stage that failed to complete.
 
-## Elimina sito
+## Delete site
 
-Il comando richiede una conferma nell'interfaccia. Rimuove il sito, le pagine,
-le versioni, le note, la cronologia e i lavori associati. Elimina dal disco i
-file che nessun altro sito usa; i file condivisi rimangono disponibili agli
-altri archivi. Un risultato tardivo di un lavoro interrotto non può ricreare il
-sito o le versioni eliminate.
+The command requires confirmation in the interface. It removes the site, pages,
+versions, notes, history, and associated jobs. It deletes files that no other site
+uses; shared files remain available to other archives. A late result from a
+canceled job cannot recreate the deleted site or versions.
 
-La cancellazione è definitiva nell'app. Il dialogo permette di scaricare prima
-un backup; durante la sua esportazione l'eliminazione viene rifiutata con un
-messaggio esplicito. I backup già scaricati rimangono copie indipendenti e non
-vengono modificati. Se i permessi del disco impediscono la rimozione di un file,
-l'app segnala che la liberazione dello spazio non è completa.
+Deletion is permanent in the app. The dialog lets you download a backup first;
+while that export is running, deletion is refused with an explicit message.
+Previously downloaded backups remain independent copies and are not modified.
+If disk permissions prevent a file from being removed, the app reports that
+some space could not be reclaimed.
 
-## Correzione dei download
+## Download fix
 
-Un reindirizzamento HTTP poteva terminare con `ERR_PROXY_CONNECTION_FAILED`:
-il passaggio successivo non attraversava nuovamente il gestore delle richieste
-del browser. È un limite documentato da
-[Playwright](https://playwright.dev/docs/api/class-page#page-route).
+An HTTP redirect could end with `ERR_PROXY_CONNECTION_FAILED`: the next request
+did not pass through the browser's request handler again. This is a limitation
+documented by [Playwright](https://playwright.dev/docs/api/class-page#page-route).
 
-Ora i reindirizzamenti vengono risolti dal trasporto controllato dell'app,
-verificando ogni destinazione. Il browser apre esplicitamente l'indirizzo finale,
-così origine della pagina e collegamenti relativi rimangono corretti. Anche le
-risorse reindirizzate vengono recuperate. Cookie e intestazioni sensibili non
-vengono inoltrati a un'altra origine. Rimangono attivi i limiti di download,
-il blocco delle reti private e l'isolamento del browser.
+Redirects are now resolved by the app's controlled transport, with every
+destination checked. The browser explicitly opens the final URL, preserving the
+correct page origin and relative links. Redirected resources are also retrieved.
+Cookies and sensitive headers are not forwarded to a different origin. Download
+limits, private-network blocking, and browser isolation remain enabled.
 
-## Aggiornamento dell'archivio
+## Archive update
 
-Al primo avvio viene aggiunto un campo alla coda per riconoscere i controlli
-manuali. Il passaggio dallo schema 1 allo schema 2 è automatico e conserva
-account, siti, acquisizioni e lavori in attesa. Non richiede una reinstallazione.
-Esportare un backup prima dell'aggiornamento resta la procedura consigliata.
-I limiti di sicurezza introdotti nella 0.1.1 rimangono attivi.
+The first startup adds a queue field to identify manual checks. Migration from
+schema 1 to schema 2 is automatic and preserves accounts, sites, captures, and
+pending jobs. Reinstallation is not required. Exporting a backup before updating
+remains the recommended procedure. The security limits introduced in 0.1.1 remain
+in effect.

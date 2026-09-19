@@ -63,7 +63,7 @@ test('reading inbox, version research, portable export and guarded restore prese
       const result=await call('GET',`/api/sites/${site.id}/export`);assert.equal(result.statusCode,200,result.body.slice(0,200));const files=zipEntries(result.rawPayload);
       assert.equal(files.has('archive.sqlite'),false);assert.match(files.get('index.html')!.toString(),/Test lead magnet &lt;script&gt;/);
       assert.match(files.get('index.html')!.toString(),/webinar/);assert.equal(files.size,7);
-      const firstHtml=files.get('versions/1.html')!.toString();assert.doesNotMatch(firstHtml,/<script|<meta[^>]*refresh|src="https:/i);assert.match(firstHtml,/Content-Security-Policy/);assert.match(firstHtml,/href="2.html"/);assert.match(firstHtml,/Indice dell’archivio/);
+      const firstHtml=files.get('versions/1.html')!.toString();assert.doesNotMatch(firstHtml,/<script|<meta[^>]*refresh|src="https:/i);assert.match(firstHtml,/Content-Security-Policy/);assert.match(firstHtml,/href="2.html"/);assert.match(firstHtml,/Archive index/);
       assert.equal(get('SELECT count(*) n FROM versions')!.n,3);
     });
     backup=(await call('GET','/api/export')).rawPayload;

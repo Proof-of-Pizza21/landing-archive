@@ -9,6 +9,7 @@ import { checkSpace } from './storage.js';
 import { offlineMaxBytes, type OfflineTarget } from './offline.js';
 
 import { offlineDocumentIsolated } from './html-transform.js';
+import { localize } from './localization.js';
 
 export { appVersion as archiveVersion } from './version.js';
 import { appVersion as archiveVersion } from './version.js';
@@ -33,7 +34,7 @@ export function backupZip(path: string) {
   const zip = new ZipArchive({ zlib: { level: 3 } });
   zip.file(path, { name: 'archive.sqlite' });
   for (const object of objects) zip.file(join(dataDir, object.path), { name: object.path });
-  zip.append(JSON.stringify({ app: 'Landing Archive', version: archiveVersion, schema: archiveSchema, createdAt: now(), restore: 'Apri Backup e ripristino in Landing Archive. Il ripristino guidato conserva il tuo accesso attuale e mette i siti in pausa. Per il ripristino manuale arresta i servizi e ripristina archive.sqlite e objects in una directory dati vuota con UID/GID 1000:1000.' }, null, 2), { name: 'manifest.json' });
+  zip.append(JSON.stringify({ app: 'Landing Archive', version: archiveVersion, schema: archiveSchema, createdAt: now(), restore: 'Open Backup and restore in Landing Archive. Guided restore keeps your current account and pauses all sites. To restore manually, stop the services and restore archive.sqlite and objects into an empty data directory owned by UID/GID 1000:1000.' }, null, 2), { name: 'manifest.json' });
   return zip;
 }
 export async function saveSafetyBackup(destination: string) {
@@ -68,7 +69,7 @@ export function portableZip(path: string, siteId: string) {
     const pages = new Map<string, Row[]>();
     for (const v of versions) { const history = pages.get(v.page_id) || []; history.push(v); pages.set(v.page_id, history); }
     indexFd = openSync(indexPath, 'wx', 0o600);
-    writeSync(indexFd, `<!doctype html><html lang="it"><head>${head}<title>${escapeHtml(site.name)} · Archivio</title><style>body{font:16px system-ui;max-width:1000px;margin:40px auto;padding:20px}li{margin:24px 0}small{display:block}a{color:#12624a}p{white-space:pre-wrap}</style></head><body><h1>${escapeHtml(site.name)}</h1><p>${escapeHtml(site.url)}</p><p>${escapeHtml(site.notes)}</p><p>${versions.length} versioni e ricorrenze, in ordine cronologico. Apri le copie dal browser. I collegamenti portano alla versione più recente disponibile entro la data della pagina, oppure alla prima copia successiva: controlla la data nella barra in alto. I link senza copia restano inattivi. Moduli e script sono disattivati. Questo archivio di consultazione non sostituisce il backup completo.</p><ol>`);
+    writeSync(indexFd, `<!doctype html><html lang="en"><head>${head}<title>${escapeHtml(site.name)} · Archive</title><style>body{font:16px system-ui;max-width:1000px;margin:40px auto;padding:20px}li{margin:24px 0}small{display:block}a{color:#12624a}p{white-space:pre-wrap}</style></head><body><h1>${escapeHtml(site.name)}</h1><p>${escapeHtml(site.url)}</p><p>${escapeHtml(site.notes)}</p><p>${versions.length} versions and recurrences, in chronological order. Open copies in your browser. Links lead to the latest version available on or before the page date, or to the first later copy: check the date in the top bar. Links without an archived copy remain inactive. Forms and scripts are disabled. This browsing archive does not replace a full backup.</p><ol>`);
     // Produce one sanitized copy at a time as archiver consumes the prior entry.
     // This keeps export memory proportional to a page, not the entire site.
     let cursor = 0, writing = false;
@@ -92,12 +93,12 @@ export function portableZip(path: string, siteId: string) {
         const source = join(dataDir, object.path);
         if (statSync(source).size > offlineMaxBytes) throw new Error('limit');
         html = await offlineDocumentIsolated(readFileSync(source, 'utf8'), v.final_url, targets, files, { signal: controller.signal });
-      } catch { fallback = true; html = '<html><head></head><body><p>Copia troppo complessa o non disponibile. Consulta lo screenshot conservato.</p></body></html>'; }
+      } catch { fallback = true; html = '<html lang="en"><head></head><body><p>This copy is too complex or unavailable. View the archived screenshot instead.</p></body></html>'; }
       if (disposed || zip.destroyed || controller.signal.aborted) return;
-      const bar = `<aside style="all:initial;display:block;background:#fff4cc;color:#172a23;padding:16px;font:16px system-ui;position:relative;z-index:2147483647"><a href="../index.html">Indice dell’archivio</a> · Osservazione del ${escapeHtml(v.captured_at)}${v.archived_at !== v.captured_at ? ` · Variante già acquisita il ${escapeHtml(v.archived_at)}` : ''} · <a href="../screenshots/${picture}">Screenshot</a></aside>`;
+      const bar = `<aside lang="en" style="all:initial;display:block;background:#fff4cc;color:#172a23;padding:16px;font:16px system-ui;position:relative;z-index:2147483647"><a href="../index.html">Archive index</a> · Observed on ${escapeHtml(v.captured_at)}${v.archived_at !== v.captured_at ? ` · Variant first captured on ${escapeHtml(v.archived_at)}` : ''} · <a href="../screenshots/${picture}">Screenshot</a></aside>`;
       html = html.replace(/<head(?:\s[^>]*)?>/i, `<head>${head}`).replace(/<body([^>]*)>/, `<body$1>${bar}`);
       checkSpace(Buffer.byteLength(html) + 128 * 1024);
-      writeSync(indexFd!, `<li><a href="versions/${name}">${escapeHtml(v.title || v.url)}</a> ${note.favorite ? '★' : ''}<small>${escapeHtml(v.captured_at)} · ${escapeHtml(v.url)} · ${escapeHtml(v.reason)}${fallback ? ' · Solo screenshot' : ''}</small><small>${escapeHtml(tags)}</small><p>${escapeHtml(note.note)}</p><a href="screenshots/${picture}">Screenshot</a></li>`);
+      writeSync(indexFd!, `<li><a href="versions/${name}">${escapeHtml(v.title || v.url)}</a> ${note.favorite ? '★' : ''}<small>${escapeHtml(v.captured_at)} · ${escapeHtml(v.url)} · ${escapeHtml(localize(v.reason, 'en'))}${fallback ? ' · Screenshot only' : ''}</small><small>${escapeHtml(tags)}</small><p>${escapeHtml(note.note)}</p><a href="screenshots/${picture}">Screenshot</a></li>`);
       const png = copy.prepare('SELECT path FROM objects WHERE hash=?').get(v.screenshot_hash) as Row;
       zip.file(join(dataDir, png.path), { name: `screenshots/${picture}` });
       zip.append(html, { name: `versions/${name}` });

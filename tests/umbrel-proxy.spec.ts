@@ -90,6 +90,7 @@ test('Umbrel cookie authentication and origin-scoped app sessions work together 
     await brokenContext.close();
 
     const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+  await context.addInitScript(origin => { if (location.origin === origin) localStorage.setItem('landing-archive.language', 'it'); }, origin);
     await addProxyCookie(context);
     const page = await context.newPage(), errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));

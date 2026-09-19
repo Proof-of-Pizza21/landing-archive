@@ -38,6 +38,7 @@ test('real browser confines login to one port while native images, offline frame
   const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined);
   const browser = await chromium.launch({ executablePath, headless: true, chromiumSandbox: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 }, acceptDownloads: true });
+  await context.addInitScript(origin => { if (location.origin === origin) localStorage.setItem('landing-archive.language', 'it'); }, origin);
   const page = await context.newPage();
   const errors: string[] = [], nativeRequests: { url: string; authorization?: string }[] = [];
   page.on('pageerror', error => errors.push(error.message));

@@ -56,7 +56,7 @@ test('comparison highlights archived regions, explains invisible changes and sta
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   browser = await chromium.launch({ headless: true, chromiumSandbox: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined) });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-  await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
+  await context.addInitScript(({ origin, token }) => { if (location.origin === origin) { sessionStorage.setItem('landing-archive.session.v2', token); localStorage.setItem('landing-archive.language', 'it'); } }, { origin, token: authorization.slice(7) });
   const outside: string[] = [];
   await context.route('**/*', route => { if (!route.request().url().startsWith(origin + '/')) { outside.push(route.request().url()); return route.abort(); } return route.continue(); });
   const page = await context.newPage();

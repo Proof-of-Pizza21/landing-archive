@@ -1,3 +1,4 @@
+import { t, message as systemMessage, locale } from './i18n';
 import { SecureFrame } from './SecureResources';
 import { authFetch } from './client';
 import { useEffect, useRef, useState } from 'react';
@@ -23,15 +24,15 @@ export function selectorFor(element: Element, doc: Document): string {
     path.unshift(`${tag}${siblings.length > 1 ? `:nth-of-type(${siblings.indexOf(node) + 1})` : ''}`);
   }
   const selector = path.join(' > ');
-  if (!selector || selector.length > 500 || doc.querySelectorAll(selector).length !== 1 || doc.querySelector(selector) !== element) throw new Error('Non riesco a identificare questa zona in modo univoco. Prova un elemento più piccolo.');
+  if (!selector || selector.length > 500 || doc.querySelectorAll(selector).length !== 1 || doc.querySelector(selector) !== element) throw new Error(t("This area cannot be uniquely identified. Try a smaller element."));
   return selector;
 }
 function inspect(doc: Document | null | undefined, selector: string): Match {
-  if (!doc || doc.URL === 'about:blank') return { count: 0, text: '', error: 'Copia non ancora disponibile' };
+  if (!doc || doc.URL === 'about:blank') return { count: 0, text: '', error: t("Copy not available yet") };
   try {
     const nodes = [...doc.querySelectorAll(selector)];
     return { count: nodes.length, text: nodes.slice(0, 3).map(node => (node.textContent || (node as HTMLImageElement).alt || node.localName).trim().replace(/\s+/g, ' ').slice(0, 160)).join(' · ') };
-  } catch { return { count: 0, text: '', error: 'Regola non valida' }; }
+  } catch { return { count: 0, text: '', error: t("Invalid rule") }; }
 }
 
 export default function RuleEditor({ pageId, versions, initial, inherited, saved }: {
@@ -47,20 +48,20 @@ export default function RuleEditor({ pageId, versions, initial, inherited, saved
   const marked = useRef<{ element: HTMLElement; outline: string; offset: string }[]>([]);
   const frames = versions.slice(0, 2);
   const dirty = JSON.stringify(rules) !== JSON.stringify(initial);
-  const allRules = [...inherited.map(selector => ({ selector, label: 'Esclusione del sito', mode: 'ignoreRules' })), ...rules.ignoreRules.map(rule => ({ ...rule, mode: 'ignoreRules' })), ...rules.importantRules.map(rule => ({ ...rule, mode: 'importantRules' }))];
+  const allRules = [...inherited.map(selector => ({ selector, label: t("Site exclusion"), mode: 'ignoreRules' })), ...rules.ignoreRules.map(rule => ({ ...rule, mode: 'ignoreRules' })), ...rules.importantRules.map(rule => ({ ...rule, mode: 'importantRules' }))];
   const choose = (element: Element) => {
     try {
       const doc = current.current?.contentDocument;
       if (!doc || ['html','body','head','style','link'].includes(element.localName)) return;
       const selector = selectorFor(element, doc);
       selectedElement.current = element;
-      const label = (element.textContent?.trim() || (element as HTMLImageElement).alt || `Zona ${element.localName}`).replace(/\s+/g, ' ').slice(0, 120);
+      const label = (element.textContent?.trim() || (element as HTMLImageElement).alt || t("Area {p0}", { p0: element.localName })).replace(/\s+/g, ' ').slice(0, 120);
       setSelection({ selector, label }); setError('');
     } catch (error) { setError((error as Error).message); }
   };
   function loaded(which: number) {
     const doc = (which === 0 ? current : previous).current?.contentDocument;
-    if (!doc || doc.URL === 'about:blank' || doc.contentType !== 'text/html') { setError('Questa copia non è disponibile per la selezione. Prova una nuova acquisizione.'); return; }
+    if (!doc || doc.URL === 'about:blank' || doc.contentType !== 'text/html') { setError(t("This copy is unavailable for selection. Try capturing a new version.")); return; }
     // Listeners execute in the parent app; the archived frame remains unable to
     // run scripts, open URLs, submit forms, or contact any remote resource.
     const click = (event: Event) => {
@@ -88,34 +89,34 @@ export default function RuleEditor({ pageId, versions, initial, inherited, saved
       }
     }
   }, [rules, selection, ready, preview, inherited]);
-  if (!frames[0]) return <section className="panel rule-editor"><h2>Zone da monitorare</h2><p>Serve una prima copia archiviata per scegliere le zone con un clic.</p></section>;
+  if (!frames[0]) return <section className="panel rule-editor"><h2>{t("Monitoring areas")}</h2><p>{t("Save a first copy before selecting areas by clicking.")}</p></section>;
   async function save() {
     setBusy(true); setError(''); setNotice('');
     try {
       const response = await authFetch(`/api/pages/${encodeURIComponent(pageId)}/rules`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(rules) });
       const data = await response.json();
-      if (!response.ok) { if (response.status === 401) window.dispatchEvent(new CustomEvent('session-expired')); throw new Error(data.error || 'Salvataggio non riuscito'); }
-      await saved(); setNotice('Regole salvate. Al prossimo controllo completo sarà conservato un riferimento con le nuove regole. Le copie precedenti restano intatte.');
+      if (!response.ok) { if (response.status === 401) window.dispatchEvent(new CustomEvent('session-expired')); throw new Error(data.error || t("Save failed")); }
+      await saved(); setNotice(t("Rules saved. The next complete check will save a reference using the new rules. Previous copies stay intact."));
     } catch (error) { setError((error as Error).message); } finally { setBusy(false); }
   }
-  return <section className="panel rule-editor" aria-label="Regole di monitoraggio">
-    <div className="panel-heading"><div><h2>Scegli cosa conta nella pagina</h2><p>Clicca sulla copia offline e aggiungi la zona scelta. Le regole valgono solo per questa pagina.</p></div><MousePointer2 size={22} /></div>
+  return <section className="panel rule-editor" aria-label={t("Monitoring rules")}>
+    <div className="panel-heading"><div><h2>{t("Choose what matters on the page")}</h2><p>{t("Click the offline copy and add the selected area. Rules apply only to this page.")}</p></div><MousePointer2 size={22} /></div>
     <div className="rules-body">
-      <div className="notice">Le copie HTML e gli screenshot futuri restano completi. In arancione vedi le zone escluse dal confronto; in verde quelle importanti, che hanno la precedenza sulle esclusioni.</div>
-      <div className="rules-toolbar"><div className="tabs"><button aria-pressed={mode === 'ignoreRules'} className={mode === 'ignoreRules' ? 'selected' : ''} onClick={() => setMode('ignoreRules')}>Ignora variazioni</button><button aria-pressed={mode === 'importantRules'} className={mode === 'importantRules' ? 'selected' : ''} onClick={() => setMode('importantRules')}>Zona importante</button></div><label className="checkbox-label"><input type="checkbox" checked={preview} disabled={!frames[1]} onChange={event => setPreview(event.target.checked)} /> Mostra anche la copia precedente</label></div>
-      <div className="rule-selection">{selection ? <><span>Selezionata: <strong>{selection.label}</strong></span><button className="button secondary compact" onClick={() => { const parent = selectedElement.current?.parentElement; if (parent) choose(parent); }}>Allarga selezione</button><button className="button primary compact" disabled={busy || rules[mode].some(rule => rule.selector === selection.selector) || rules[mode].length >= (mode === 'ignoreRules' ? 30 - inherited.length : 20)} onClick={() => { setRules(value => ({ ...value, [mode]: [...value[mode], selection] })); setSelection(null); }}><Plus size={15} /> {mode === 'ignoreRules' ? 'Escludi dal confronto' : 'Segna come importante'}</button></> : <span>Clicca un titolo, un’immagine o una sezione. I collegamenti restano disattivati durante la scelta.</span>}</div>
+      <div className="notice">{t("Future HTML copies and screenshots stay complete. Orange marks areas excluded from comparison; green marks important areas, which take priority over exclusions.")}</div>
+      <div className="rules-toolbar"><div className="tabs"><button aria-pressed={mode === 'ignoreRules'} className={mode === 'ignoreRules' ? 'selected' : ''} onClick={() => setMode('ignoreRules')}>{t("Ignore changes")}</button><button aria-pressed={mode === 'importantRules'} className={mode === 'importantRules' ? 'selected' : ''} onClick={() => setMode('importantRules')}>{t("Important area")}</button></div><label className="checkbox-label"><input type="checkbox" checked={preview} disabled={!frames[1]} onChange={event => setPreview(event.target.checked)} /> {t(" Also show the previous copy")}</label></div>
+      <div className="rule-selection">{selection ? <><span>{t("Selected: ")}<strong>{selection.label}</strong></span><button className="button secondary compact" onClick={() => { const parent = selectedElement.current?.parentElement; if (parent) choose(parent); }}>{t("Expand selection")}</button><button className="button primary compact" disabled={busy || rules[mode].some(rule => rule.selector === selection.selector) || rules[mode].length >= (mode === 'ignoreRules' ? 30 - inherited.length : 20)} onClick={() => { setRules(value => ({ ...value, [mode]: [...value[mode], selection] })); setSelection(null); }}><Plus size={15} /> {mode === 'ignoreRules' ? t("Exclude from comparison") : t("Mark as important")}</button></> : <span>{t("Click a heading, image or section. Links stay disabled while you select.")}</span>}</div>
       <div className={`rule-previews ${preview ? 'two' : ''}`}>
-        <div><strong>Ultima copia · {new Date(frames[0].capturedAt).toLocaleString('it-IT')}</strong><SecureFrame ref={current} title="Scegli zone nella pagina" src={`/api/versions/${encodeURIComponent(frames[0].id)}/offline/html`} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={() => loaded(0)} /></div>
-        {preview && frames[1] && <div><strong>Copia precedente · {new Date(frames[1].capturedAt).toLocaleString('it-IT')}</strong><SecureFrame ref={previous} title="Anteprima regole nella copia precedente" src={`/api/versions/${encodeURIComponent(frames[1].id)}/offline/html`} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={() => loaded(1)} /></div>}
+        <div><strong>{t("Latest copy · ")}{new Date(frames[0].capturedAt).toLocaleString(locale())}</strong><SecureFrame ref={current} title={t("Select areas on the page")} src={`/api/versions/${encodeURIComponent(frames[0].id)}/offline/html`} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={() => loaded(0)} /></div>
+        {preview && frames[1] && <div><strong>{t("Previous copy · ")}{new Date(frames[1].capturedAt).toLocaleString(locale())}</strong><SecureFrame ref={previous} title={t("Preview rules in the previous copy")} src={`/api/versions/${encodeURIComponent(frames[1].id)}/offline/html`} sandbox="allow-same-origin" referrerPolicy="no-referrer" onLoad={() => loaded(1)} /></div>}
       </div>
-      <div className="rule-lists">{(['ignoreRules','importantRules'] as const).map(key => <div key={key}><h3>{key === 'ignoreRules' ? 'Zone escluse' : 'Zone importanti'}</h3>{!rules[key].length && <p className="muted">Nessuna zona selezionata.</p>}{rules[key].map((rule, index) => {
+      <div className="rule-lists">{(['ignoreRules','importantRules'] as const).map(key => <div key={key}><h3>{key === 'ignoreRules' ? t("Excluded areas") : t("Important areas")}</h3>{!rules[key].length && <p className="muted">{t("No areas selected.")}</p>}{rules[key].map((rule, index) => {
         const latest = inspect(current.current?.contentDocument, rule.selector), older = preview ? inspect(previous.current?.contentDocument, rule.selector) : null;
-        return <div className={`rule-item ${key}`} key={rule.selector}><div><strong>{rule.label}</strong><small>Ultima copia: {latest.error || `${latest.count} elementi`}{older ? ` · Precedente: ${older.error || `${older.count} elementi`}` : ''}</small>{latest.text && <p>{latest.text}</p>}{older?.text && <p className="muted">Prima: {older.text}</p>}{(!latest.count || (older && !older.count)) && <small className="rule-warning">Zona non trovata in una copia: verifica la scelta prima di salvare.</small>}<details><summary>Identificatore della zona</summary><code>{rule.selector}</code></details></div><button disabled={busy} className="icon-button" aria-label={`Rimuovi regola ${rule.label}`} onClick={() => setRules(value => ({ ...value, [key]: value[key].filter((_, i) => i !== index) }))}><Trash2 size={16} /></button></div>;
+        return <div className={`rule-item ${key}`} key={rule.selector}><div><strong>{rule.label}</strong><small>{t("Latest copy: ")}{systemMessage(latest.error) || t("{p0} elements", { p0: latest.count })}{older ? t(" · Previous: {p0}", { p0: systemMessage(older.error) || t("{p0} elements", {p0: older.count}) }) : ''}</small>{latest.text && <p>{latest.text}</p>}{older?.text && <p className="muted">{t("Before: ")}{older.text}</p>}{(!latest.count || (older && !older.count)) && <small className="rule-warning">{t("Area not found in one copy: check your selection before saving.")}</small>}<details><summary>{t("Area identifier")}</summary><code>{rule.selector}</code></details></div><button disabled={busy} className="icon-button" aria-label={t("Remove rule {p0}", { p0: rule.label })} onClick={() => setRules(value => ({ ...value, [key]: value[key].filter((_, i) => i !== index) }))}><Trash2 size={16} /></button></div>;
       })}</div>)}</div>
-      {!!inherited.length && <p className="muted">Sono attive anche {inherited.length} esclusioni definite nelle impostazioni del sito.</p>}
-      <p className="muted">L’anteprima mostra quali elementi vengono selezionati nelle copie salvate. L’impaginazione offline può differire dal sito online; al prossimo controllo le regole saranno applicate alla pagina live. Una zona che cambia struttura potrebbe richiedere una nuova scelta.</p>
-      {error && <div className="notice error" role="alert">{error}</div>}{notice && <div className="notice" role="status">{notice}</div>}
-      <div className="rules-save"><button className="button secondary" disabled={!dirty || busy} onClick={() => { setRules(initial); setSelection(null); }}>Annulla modifiche</button><button className="button primary" disabled={!dirty || busy} onClick={save}><Check size={16} /> {busy ? 'Salvataggio…' : 'Salva regole'}</button></div>
+      {!!inherited.length && <p className="muted">{t("There are also ")}{inherited.length} {t(" exclusions defined in the site settings.")}</p>}
+      <p className="muted">{t("The preview shows which elements are selected in saved copies. The offline layout may differ from the live site; rules apply to the live page on the next check. An area whose structure changes may need to be selected again.")}</p>
+      {error && <div className="notice error" role="alert">{systemMessage(error)}</div>}{notice && <div className="notice" role="status">{systemMessage(notice)}</div>}
+      <div className="rules-save"><button className="button secondary" disabled={!dirty || busy} onClick={() => { setRules(initial); setSelection(null); }}>{t("Discard changes")}</button><button className="button primary" disabled={!dirty || busy} onClick={save}><Check size={16} /> {busy ? t("Saving…") : t("Save rules")}</button></div>
     </div>
   </section>;
 }

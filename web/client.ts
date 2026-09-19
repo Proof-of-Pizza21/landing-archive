@@ -1,3 +1,4 @@
+import { t, message } from './i18n';
 export const sessionStorageKey = 'landing-archive.session.v2';
 const sessionTokenPattern = /^la2_[a-f0-9]{64}$/;
 let memoryToken: string | undefined;
@@ -14,7 +15,7 @@ function setToken(value?: string) {
 }
 function privatePath(path: string) {
   const url = new URL(path, window.location.origin);
-  if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/') || url.hash) throw new Error('Indirizzo della richiesta non consentito.');
+  if (url.origin !== window.location.origin || !url.pathname.startsWith('/api/') || url.hash) throw new Error(t("Request address not allowed."));
   return url.pathname + url.search;
 }
 /** Only this origin receives the bearer credential; redirects cannot forward it. */
@@ -34,7 +35,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json');
   const response = await authFetch(target, { ...options, headers });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Non è stato possibile completare la richiesta.');
+  if (!response.ok) throw new Error(message(data.error) || t("The request could not be completed."));
   if ((target === '/api/auth/login' || target === '/api/auth/setup') && sessionTokenPattern.test(data.token)) setToken(data.token);
   if (target === '/api/auth/logout') setToken();
   return data as T;

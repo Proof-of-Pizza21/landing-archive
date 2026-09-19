@@ -24,7 +24,7 @@ test('research UI opens exact evidence, saves notes, previews restore and browse
     const latest=await save(root.url,'Updated campaign',now());
     await app.listen({host:'127.0.0.1',port:0});const origin=`http://127.0.0.1:${(app.server.address() as {port:number}).port}`;
     const chrome='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';browser=await chromium.launch({headless:true,chromiumSandbox:true,executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH||(process.platform==='darwin'&&existsSync(chrome)?chrome:undefined)});
-    const context=await browser.newContext({viewport:{width:1440,height:1100}});await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
+    const context=await browser.newContext({viewport:{width:1440,height:1100}});await context.addInitScript(({ origin, token }) => { if (location.origin === origin) { sessionStorage.setItem('landing-archive.session.v2', token); localStorage.setItem('landing-archive.language', 'it'); } }, { origin, token: authorization.slice(7) });
     const page=await context.newPage();const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
     await page.goto(`${origin}/#/inbox`);await page.getByRole('heading',{name:'Novità da leggere',exact:true}).waitFor();
     await page.getByRole('link',{name:'Apri questa versione',exact:true}).click();

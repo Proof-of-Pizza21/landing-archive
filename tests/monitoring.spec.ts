@@ -55,7 +55,7 @@ test('visual selection, two-copy preview, discovery settings and lifecycle filte
     const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     browser = await chromium.launch({ headless: true, chromiumSandbox: true, executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined) });
     const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-    await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
+    await context.addInitScript(({ origin, token }) => { if (location.origin === origin) { sessionStorage.setItem('landing-archive.session.v2', token); localStorage.setItem('landing-archive.language', 'it'); } }, { origin, token: authorization.slice(7) });
     const external: string[] = [], errors: string[] = [];
     await context.route('**/*', route => { if (!route.request().url().startsWith(origin + '/')) { external.push(route.request().url()); return route.abort(); } return route.continue(); });
     const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));

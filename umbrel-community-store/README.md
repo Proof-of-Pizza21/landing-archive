@@ -1,57 +1,57 @@
-# Landing Archive Community Store — anteprima amd64
+# Landing Archive Community Store — amd64 preview
 
-Community app store di [Proof-of-Pizza21](https://github.com/Proof-of-Pizza21/umbrel-community-store).
-Landing Archive **0.1.14** è destinata a umbrelOS 1.7.4 su mini PC Intel/AMD
-64 bit. Il supporto ARM non è incluso.
+Community app store by [Proof-of-Pizza21](https://github.com/Proof-of-Pizza21/umbrel-community-store).
+Landing Archive **0.1.14** targets umbrelOS 1.7.4 on 64-bit Intel/AMD mini PCs.
+ARM support is not included.
 
-La **0.1.14** corregge «Failed to fetch» all’apertura attraverso il proxy
-Umbrel e conserva tutte le protezioni della 0.1.13.
-[Dettagli](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/RELEASE-0.1.14.md).
+**0.1.14** fixes “Failed to fetch” when opening the app through the Umbrel
+proxy and retains all security protections introduced in 0.1.13.
+[Details](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/RELEASE-0.1.14.md).
 
-## Installazione e aggiornamento
+## Install and update
 
-1. Apri la gestione dei community app store nell’App Store Umbrel.
-2. Aggiungi [questo repository](https://github.com/Proof-of-Pizza21/umbrel-community-store).
-3. Installa **Landing Archive**, oppure aggiorna l’installazione esistente.
-4. Al primo avvio crea un account con password di almeno 12 caratteri.
-   Dopo un aggiornamento alla 0.1.13 accedi di nuovo con le credenziali attuali.
+1. Open community app store management in the Umbrel App Store.
+2. Add [this repository](https://github.com/Proof-of-Pizza21/umbrel-community-store).
+3. Install **Landing Archive**, or update your existing installation.
+4. On first launch, create an account with a password of at least 12 characters.
+   After upgrading to 0.1.13, sign in again with your current credentials.
 
-Scarica un backup prima di aggiornare e non disinstallare l’app. Account,
-siti, impostazioni, copie e storico restano conservati; lo schema rimane 5.
-Controlla **0.1.14** nella barra laterale e nello stato del motore.
+Download a backup before updating and do not uninstall the app. Your account,
+sites, settings, copies and history are preserved; the archive schema remains 5.
+Check for **0.1.14** in the sidebar and capture engine status.
 
-## Sicurezza nella 0.1.13
+## Security in 0.1.13
 
-- Browser aggiornato, fissato per versione e SHA-256, con sandbox attiva.
-- Sessioni separate da quelle delle altre app che condividono lo stesso host.
-- Anteprime e download autorizzati per singola risorsa, con scadenza breve.
-- HTML elaborato in un processo limitato e ripulito anche nei vecchi download.
-- Correzioni dei blocchi nella scoperta e nel ripristino; limiti più precisi
-  per i campi dei backup importati.
-- Il motore monta soltanto la cartella del proprio token, in sola lettura.
-  Database, copie e backup restano accessibili al solo servizio web.
+- Updated browser, pinned by version and SHA-256, with its sandbox enabled.
+- Sessions isolated from other apps sharing the same host.
+- Previews and downloads authorized for individual resources with short expiry.
+- HTML processed in a limited child process, including sanitation of old downloads.
+- Fixes for discovery and restore stalls, with tighter field limits for imported
+  backups.
+- The capture engine mounts only its token directory, read-only. The database,
+  copies and backups remain accessible only to the web service.
 
-Il [collaudo Linux della 0.1.14](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35424996465)
-ha superato 117 test automatici, 17 prove browser e i controlli nei container.
-La prova browser dedicata riproduce il proxy autenticato di Umbrel; il
-collaudo sul dispositivo effettivo rimane distinto.
+The [0.1.14 Linux validation](https://github.com/Proof-of-Pizza21/landing-archive/actions/runs/35424996465)
+passed 117 automated tests, 17 browser tests and container checks. A dedicated
+browser test reproduces Umbrel's authenticated proxy; validation on the actual
+device is a separate step.
 
-L’immagine pubblica è `ghcr.io/proof-of-pizza21/landing-archive:0.1.14`,
-bloccata al digest verificato `sha256:6042917fc9920756e8d01994152802cb7703065572b8797aa3a178197882841c`.
-Il download non richiede un account GitHub.
+The public image is `ghcr.io/proof-of-pizza21/landing-archive:0.1.14`, pinned to
+the verified digest `sha256:6042917fc9920756e8d01994152802cb7703065572b8797aa3a178197882841c`.
+Downloading it does not require a GitHub account.
 
-HTTP rimane non cifrato: usa una rete fidata, una VPN oppure un proxy HTTPS.
-[Interventi e limiti](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/SECURITY-0.1.13.md).
+HTTP remains unencrypted: use a trusted network, a VPN or an HTTPS proxy.
+[Security changes and limitations](https://github.com/Proof-of-Pizza21/landing-archive/blob/main/docs/SECURITY-0.1.13.md).
 
-## Pacchetto
+## Package
 
-L’identificatore dell’app resta `proof-of-pizza21-landing-archive`.
-Il pacchetto include manifest, Compose, icona, profili seccomp/AppArmor e
-relative licenze. L’hook `hooks/pre-start` prepara la sola cartella
-`APP_DATA_DIR/worker-auth` e carica il profilo dedicato senza modificare
-le impostazioni globali del dispositivo.
+The app identifier remains `proof-of-pizza21-landing-archive`. The package
+includes the manifest, Compose configuration, icon, seccomp/AppArmor profiles
+and their licenses. The `hooks/pre-start` hook prepares only
+`APP_DATA_DIR/worker-auth` and loads the dedicated profile without changing
+global device settings.
 
-Nel repository la directory dati contiene soltanto `.gitkeep`. Token,
-archivi e file seccomp generati da Umbrel non devono essere versionati.
-Il community store segue il [template Umbrel](https://github.com/getumbrel/umbrel-community-app-store)
-e non è uno store ufficiale del progetto Umbrel.
+The repository's data directory contains only `.gitkeep`. Tokens, archives and
+seccomp files generated by Umbrel must not be committed. This community store
+follows the [Umbrel template](https://github.com/getumbrel/umbrel-community-app-store)
+and is not an official Umbrel project store.

@@ -1,102 +1,100 @@
-# Qualità delle copie e storico leggibile — 0.1.12
+# Capture quality and readable history — 0.1.12
 
-Questa versione interviene sul caso in cui risorse o sezioni non caricate
-venivano interpretate come modifiche, facendo crescere inutilmente l'archivio.
-La migrazione è additiva: nessuna vecchia copia viene cancellata automaticamente.
+This release addresses resources or sections that failed to load being mistaken
+for changes, causing unnecessary archive growth. Migration is additive: no
+older copy is automatically deleted.
 
-## Acquisizione e riferimento
+## Capture and comparison baseline
 
-Il motore controlla la stabilità della pagina durante il caricamento e raccoglie
-segnali sulle immagini e sulle risorse necessarie alla visualizzazione. La
-qualità del caricamento e quella della copia HTML sono registrate separatamente.
-Il mancato caricamento di un'immagine non equivale alla sua sostituzione.
+The engine checks page stability while loading and gathers signals about images
+and resources required for display. Loading quality and HTML-copy quality are
+recorded separately. An image failing to load is not the same as its replacement.
 
-Le copie dubbie non sostituiscono automaticamente il riferimento affidabile.
-Le prime osservazioni e le evidenze stabili di nuovi contenuti vengono conservate anche
-quando non sono ancora confermate: una landing o un'offerta breve può non essere
-più presente al controllo successivo. La sola assenza di contenuto richiede una
-verifica specifica, distinta dalla generica ripetizione di un errore.
+Uncertain copies do not automatically replace the reliable baseline. First
+observations and stable evidence of new content are retained even before
+confirmation: a short-lived landing page or offer may be gone by the next check.
+Missing content alone requires a specific verification, separate from simply
+repeating an error.
 
-Le differenze solo visive e le assenze richiedono due visite verificate coerenti,
-almeno 30 secondi distanti. Un errore interrompe la conferma. Sono previsti al
-massimo due tentativi ravvicinati (1 e 5 minuti), poi la frequenza ordinaria. Quando il monitoraggio è in pausa, il
-controllo manuale resta disponibile e non riattiva la pianificazione.
+Visual-only differences and absences require two consistent verified visits at
+least 30 seconds apart. An error breaks confirmation. There are at most two
+near-term retries (after 1 and 5 minutes), then the normal schedule resumes.
+While monitoring is paused, manual checking remains available without enabling
+the schedule again.
 
-## Consultazione
+## Browsing history
 
-La timeline distingue versioni, osservazioni da verificare e vecchie copie che
-non dispongono dei nuovi dati di qualità. Le ricorrenze possono essere raggruppate
-conservando le date dei controlli. Il ritorno A → B → A resta consultabile.
+The timeline distinguishes versions, observations awaiting verification, and
+older copies without the new quality data. Recurrences can be grouped while
+preserving check dates. A return from A → B → A remains available.
 
-Il confronto mostra anche immagini il cui file è cambiato sullo stesso indirizzo,
-risorse non caricate e file identici serviti da indirizzi diversi. Queste
-indicazioni sono disponibili quando entrambe le copie contengono le relative
-informazioni: non vengono inventate per gli archivi precedenti. I dettagli
-distinguono anche il testo modificato da sezioni riconosciute che hanno solo
-cambiato posizione; l’abbinamento delle sezioni rimane una stima.
+Comparison also shows images whose file changed at the same URL, unloaded
+resources, and identical files served from different URLs. These indicators
+appear when both copies contain the relevant information; they are not invented
+for older archives. Details also distinguish changed text from recognized
+sections that only moved; section matching remains an estimate.
 
-## Spazio e revisione delle vecchie copie
+## Storage and reviewing older copies
 
-I file diagnostici dei tentativi ordinari sono temporanei e separati dalle
-versioni dell'archivio. Le nuove evidenze, le prime copie e le versioni conservate
-non sono soggette alla scadenza dei diagnostici. I limiti sono 3 campioni per
-pagina, 512 complessivi, 48 ore e 1 GiB; il registro dei controlli rimane.
+Diagnostic files from ordinary attempts are temporary and separate from archive
+versions. New evidence, first copies, and retained versions do not expire under
+the diagnostic policy. Limits are 3 samples per page, 512 overall, 48 hours, and
+1 GiB; check records remain.
 
-La revisione propone soltanto un insieme limitato di candidati: duplicati con
-contenuto e file identici, oppure copie storiche dichiarate parziali che non
-aggiungono contenuto fra due stati completi coincidenti. Una copia parziale può
-comunque testimoniare un vero stato temporaneo: ogni candidato richiede
-selezione e conferma esplicite nell'interfaccia.
+Review suggests only a limited set of candidates: duplicates with identical
+content and files, or historical copies marked partial that add no content
+between two matching complete states. A partial copy can still document a real
+temporary state: each candidate requires explicit selection and confirmation in
+the interface.
 
-Prime copie, ultima copia, riferimento corrente, nuove osservazioni, preferiti,
-note e tag sono protetti. Se l'archivio cambia dopo l'anteprima, occorre aggiornarla.
-Le date dei controlli e degli eventi restano registrate anche quando vengono
-eliminati i file selezionati; l'osservazione indica che i file originali sono
-stati rimossi. Per recuperarli serve un backup precedente.
+First copies, the latest copy, the current baseline, new observations, favorites,
+notes, and tags are protected. If the archive changes after preview, refresh it.
+Check and event dates remain recorded after selected files are deleted; the
+observation states that original files were removed. Recovering those files
+requires an earlier backup.
 
-I file identici erano già condivisi: ridurre il numero di voci non significa
-necessariamente liberare disco. L'anteprima calcola i byte fisici recuperabili,
-tenendo conto dei file ancora usati da altre versioni.
+Identical files were already shared: reducing the number of entries does not
+necessarily reclaim disk space. The preview calculates physically reclaimable
+bytes, accounting for files still used by other versions.
 
-## Ripartire da zero per un sito
+## Start fresh for one site
 
-Il comando **Azzera copie e riscarica**, nel dettaglio del sito, elimina tutte
-le copie del sito selezionato dopo anteprima e conferma: anche prime copie,
-riferimenti, preferiti, tag e appunti delle versioni. Conserva invece il sito,
-gli indirizzi, le impostazioni e le note delle pagine. Le date dei controlli
-restano registrate e indicano che i file originali sono stati rimossi.
+**Reset copies and recapture**, in site details, deletes every copy of the
+selected site after preview and confirmation: this includes first copies,
+baselines, favorites, tags, and version notes. The site, URLs, settings, and
+page notes remain. Check dates stay recorded and indicate that original files
+were removed.
 
-I lavori in corso vengono annullati e i risultati tardivi scartati. Tutte le
-pagine conosciute ricevono un controllo manuale nuovo; se il limite consente più
-pagine, riparte anche la ricerca di indirizzi. Il primo risultato non viene
-confrontato con vecchie copie. La pausa del monitoraggio rimane invariata.
+Active jobs are canceled and late results discarded. All known pages receive
+a fresh manual check; if the page limit permits more pages, discovery also
+restarts. The first result is not compared with old copies. Monitoring pause
+status is unchanged.
 
-L’anteprima si invalida quando le copie o i controlli cambiano. Backup e ripristino
-in corso impediscono l’azzeramento. Il pulsante offre un backup da scaricare prima:
-i file eliminati non si recuperano dall’app, e una pagina oggi scomparsa non può
-essere ricreata dalla scansione. I file condivisi con altri siti rimangono protetti.
+The preview becomes invalid if copies or checks change. An active backup or
+restore prevents resetting. The button offers a backup to download first:
+deleted files cannot be recovered from the app, and scanning cannot recreate a
+page that has disappeared. Files shared with other sites remain protected.
 
-## Aggiornamento e backup
+## Update and backup
 
-App e motore devono essere aggiornati insieme. La pagina iniziale mostra la
-versione del motore e segnala incompatibilità; un risultato proveniente dal
-vecchio protocollo non può saltare i nuovi controlli di qualità.
+The app and worker must be updated together. The home page shows the worker
+version and reports incompatibilities; results from the old protocol cannot
+bypass the new quality checks.
 
-Lo schema dell'archivio passa a 5. Il backup completo conserva le versioni,
-le osservazioni, le note e i nuovi metadati. I diagnostici temporanei non sono
-inclusi nel ZIP. Il ripristino resta isolato, valida i riferimenti e mantiene
-i siti in pausa. Anche i backup precedenti compatibili restano importabili.
+The archive schema becomes 5. Full backups preserve versions, observations,
+notes, and new metadata. Temporary diagnostics are not included in the ZIP.
+Restore remains isolated, validates references, and leaves sites paused.
+Compatible earlier backups can still be imported.
 
-## Limiti e verifica
+## Limitations and testing
 
-Una pagina stabile può essere permanentemente guasta; due visite uguali non
-provano da sole che una rimozione sia intenzionale. Le varianti osservate non
-dimostrano l'esistenza di un test A/B, e una pagina comparsa e scomparsa fra due
-visite non può essere rilevata.
+A stable page can be permanently broken; two matching visits alone do not prove
+that a removal is intentional. Observed variants do not prove an A/B test, and
+a page that appears and disappears between visits cannot be detected.
 
-Il collaudo comprende sequenze complete/parziali/recuperate, cambiamenti di
-prezzo, risorse fallite, creatività sostituite, conferme specifiche, conservazione
-dei primi campioni, ricorrenze, limiti dei diagnostici e protezioni della pulizia.
-Gli esiti effettivamente completati e i limiti dell'ambiente sono riportati nel
-[resoconto dei test](TESTING.md). Il collaudo sul mini PC dell'utente rimane
-distinto da quello locale e dai container Linux.
+Testing covers complete/partial/recovered sequences, price changes, failed
+resources, replaced creatives, specific confirmations, preservation of first
+samples, recurrences, diagnostic limits, and cleanup protections. Completed
+results and environment limitations are recorded in [Testing](TESTING.md).
+Validation on the user's mini PC remains separate from local and Linux
+container checks.

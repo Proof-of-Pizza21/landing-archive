@@ -33,7 +33,7 @@ test('history interface shows returned dates, paginated observations and explici
   const chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
   const browser = await chromium.launch({ executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined), headless: true, chromiumSandbox: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-  await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
+  await context.addInitScript(({ origin, token }) => { if (location.origin === origin) { sessionStorage.setItem('landing-archive.session.v2', token); localStorage.setItem('landing-archive.language', 'it'); } }, { origin, token: authorization.slice(7) });
   const page = await context.newPage(), errors: string[] = []; page.on('pageerror', error => errors.push(error.message));
   const screenshot = async (name: string) => { if (process.env.UI_SCREENSHOT_DIR) { mkdirSync(process.env.UI_SCREENSHOT_DIR, { recursive: true }); await page.screenshot({ path: join(process.env.UI_SCREENSHOT_DIR, name), fullPage: true }); } };
   try {
@@ -53,6 +53,14 @@ test('history interface shows returned dates, paginated observations and explici
     const dialog = page.getByRole('dialog'), remove = dialog.getByRole('button', { name: /Elimina.*copie selezionate/ });
     await dialog.locator('.cleanup-candidates input').waitFor();
     assert.equal(await remove.isEnabled(), false);
+    const previewOpened = page.waitForEvent('popup');
+    await dialog.getByRole('link', { name: 'Vedi copia proposta', exact: true }).click();
+    const preview = await previewOpened;
+    await preview.waitForURL('**/screenshot?access_ticket=*');
+    await preview.locator('img').waitFor();
+    assert.ok(await preview.locator('img').evaluate(image => (image as HTMLImageElement).naturalWidth > 0));
+    assert.equal(await preview.evaluate(() => window.opener === null), true);
+    await preview.close();
     await page.setViewportSize({ width: 390, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
     await screenshot('history-review-phone.png');

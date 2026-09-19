@@ -21,7 +21,7 @@ test('site controls work from the interface on desktop and phone', async () => {
   const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || (process.platform === 'darwin' && existsSync(chrome) ? chrome : undefined);
   const browser = await chromium.launch({ executablePath, headless: true, chromiumSandbox: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
-  await context.addInitScript(({ origin, token }) => { if (location.origin === origin) sessionStorage.setItem('landing-archive.session.v2', token); }, { origin, token: authorization.slice(7) });
+  await context.addInitScript(({ origin, token }) => { if (location.origin === origin) { sessionStorage.setItem('landing-archive.session.v2', token); localStorage.setItem('landing-archive.language', 'it'); } }, { origin, token: authorization.slice(7) });
   const page = await context.newPage();
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));

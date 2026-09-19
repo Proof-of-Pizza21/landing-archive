@@ -1,15 +1,15 @@
-# Componenti di terze parti
+# Third-party components
 
-Landing Archive usa componenti open source, senza incorporare il codice di
-ArchiveBox o changedetection.io. Le versioni esatte sono bloccate in
-`package-lock.json`; le dipendenze transitivamente installate mantengono le loro
-licenze e attribuzioni nei pacchetti distribuiti.
+Landing Archive uses open-source components without incorporating ArchiveBox or
+changedetection.io code. Exact versions are pinned in `package-lock.json`.
+Transitive dependencies retain their licenses and attributions in distributed
+packages.
 
-| Componente | Licenza dichiarata | Sorgente |
+| Component | Declared license | Source |
 | --- | --- | --- |
 | Playwright 1.63.0 | Apache-2.0 | https://github.com/microsoft/playwright |
 | SingleFile Core 1.5.121 | AGPL-3.0-or-later | https://github.com/gildas-lormeau/single-file-core |
-| Fastify e plugin ufficiali | MIT | https://github.com/fastify |
+| Fastify and official plugins | MIT | https://github.com/fastify |
 | React e React DOM | MIT | https://github.com/facebook/react |
 | Vite | MIT | https://github.com/vitejs/vite |
 | TypeScript | Apache-2.0 | https://github.com/microsoft/TypeScript |
@@ -23,58 +23,54 @@ licenze e attribuzioni nei pacchetti distribuiti.
 | archiver | MIT | https://github.com/archiverjs/node-archiver |
 | yauzl 3.4.0 | MIT | https://github.com/thejoshwolfe/yauzl |
 
-Il browser Linux è Chrome Headless Shell 153.0.8010.52, pubblicato dal progetto
+The Linux browser is Chrome Headless Shell 153.0.8010.52 from
 [Chrome for Testing](https://github.com/GoogleChromeLabs/chrome-for-testing).
-URL e SHA-256 sono fissati in `scripts/browser-release.json`, separatamente da
-Playwright. La distribuzione conserva `ABOUT` e `LICENSE.headless_shell`, incluse
-le attribuzioni Chromium e dei componenti, in
+Its URL and SHA-256 are pinned in `scripts/browser-release.json`, separately
+from Playwright. The distribution retains `ABOUT` and `LICENSE.headless_shell`,
+including Chromium/component attributions, in
 `/opt/landing-browser/chrome-headless-shell-linux64`.
 
-Node.js e Chromium includono inoltre le licenze e attribuzioni dei loro
-componenti. La distribuzione Linux dell'immagine conserva i documenti di
-copyright dei pacchetti di sistema. La compilazione non elimina i file di
-licenza delle dipendenze runtime.
+Node.js and Chromium also include their component licenses and attributions.
+The Linux image retains system-package copyright documents. The build does not
+remove runtime dependency license files.
 
-## Profilo seccomp
+## seccomp profile
 
 `umbrel-community-store/proof-of-pizza21-landing-archive/seccomp-profile.json.template`
-deriva da
+is derived from
 https://github.com/microsoft/playwright/blob/v1.63.0/utils/docker/seccomp_profile.json.
-Il testo della licenza Apache 2.0 con le attribuzioni Microsoft e Google del
-progetto originale è distribuito accanto al profilo come `LICENSE-PLAYWRIGHT`.
+The Apache 2.0 license with the original project's Microsoft and Google
+attributions is distributed alongside the profile as `LICENSE-PLAYWRIGHT`.
 
-Le modifiche di Landing Archive sono esplicitamente indicate nei commenti JSON:
-risposta ENOSYS per `clone3` e autorizzazione di `close_range`, `epoll_pwait2`,
-`faccessat2` per compatibilità con i runtime recenti, coerentemente con le
-corrispondenti regole del profilo Docker corrente. La regola `chroot` non è
-condizionata alle capability iniziali del container: Chromium la usa per
-rinunciare all'accesso al filesystem dopo l'ingresso nel proprio user namespace.
-Il kernel continua a verificare i privilegi del namespace e il container
-mantiene `cap_drop: [ALL]`. Riferimento al sorgente Chromium:
+Landing Archive changes are identified in JSON comments: `clone3` returns ENOSYS;
+`close_range`, `epoll_pwait2` and `faccessat2` are allowed for modern runtime
+compatibility, consistent with corresponding rules in the current Docker profile.
+The `chroot` rule is not conditional on the container's initial capabilities:
+Chromium uses it to relinquish filesystem access after entering its user namespace.
+The kernel still checks namespace privileges, and the container retains
+`cap_drop: [ALL]`. Chromium source reference:
 https://chromium.googlesource.com/chromium/src/sandbox/+/refs/heads/main/linux/services/credentials.cc.
-Il resto delle regole deriva dal file Playwright indicato.
+Remaining rules derive from the referenced Playwright file.
 
-## Profilo AppArmor
+## AppArmor profile
 
-Il profilo dedicato del worker deriva da `apparmor/template.go` di
+The dedicated worker profile derives from `apparmor/template.go` in
 [Moby Profiles apparmor/v0.2.0](https://github.com/moby/profiles/blob/apparmor/v0.2.0/apparmor/template.go),
-con licenza Apache-2.0 e copyright The Moby Authors. La licenza è distribuita
-in `umbrel-community-store/proof-of-pizza21-landing-archive/hooks/LICENSE-MOBY`.
-Le modifiche sono indicate nel template: nome dedicato, ABI 4, autorizzazione
-esplicita `userns` e `unix`; l'hook mantiene una variante ABI 3 per parser
-precedenti. I divieti del profilo Moby sono conservati.
+licensed Apache-2.0, copyright The Moby Authors. Its license is distributed in
+`umbrel-community-store/proof-of-pizza21-landing-archive/hooks/LICENSE-MOBY`.
+Changes are identified in the template: dedicated name, ABI 4, explicit `userns`
+and `unix` permissions. The hook keeps an ABI 3 variant for older parsers. Moby's
+deny rules are retained.
 
-## Sorgente corrispondente
+## Corresponding source
 
-Il codice originale di Landing Archive è disponibile sotto AGPL-3.0-or-later.
-L'immagine include il sorgente applicativo in `/app/source`, il file di lock,
-il packaging e le istruzioni di compilazione. Il collegamento al sorgente
-nell'interfaccia scarica uno ZIP tramite `/api/source` per gli utenti autenticati.
-Prima di pubblicare una release verificare che questo archivio corrisponda al
-binario distribuito e contenga quanto serve per ricompilarlo. Pubblicare inoltre
-il sorgente corrispondente insieme alla release e mantenere le licenze dei
-componenti. Questo documento non sostituisce l'offerta del sorgente o gli
-obblighi delle singole licenze.
+Original Landing Archive code is available under AGPL-3.0-or-later. The image
+includes application source in `/app/source`, the lockfile, packaging and build
+instructions. Authenticated users can download a source ZIP through `/api/source`
+from the interface's source link. Before release, verify that it corresponds to
+the distributed executable and includes what is needed to rebuild it. Also
+publish corresponding source with the release and retain component licenses.
+This document does not replace a source offer or individual license obligations.
 
-I documenti e le immagini archiviati dagli utenti non sono distribuiti con
-l'app e mantengono i diritti dei rispettivi titolari.
+User-archived documents and images are not distributed with the app and remain
+the property of their respective rights holders.

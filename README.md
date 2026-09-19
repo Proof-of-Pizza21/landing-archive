@@ -1,155 +1,142 @@
 # Landing Archive
 
-Archivio locale per seguire l'evoluzione dei propri siti e delle landing dei
-competitor: nuove pagine, cambiamenti nel messaggio e versioni che scompaiono.
-Interfaccia in italiano, dati sul proprio disco, nessun account cloud richiesto.
+Keep a private, browsable history of your websites and your competitors' landing
+pages on Umbrel. See what changed, revisit offers that disappeared, and collect
+notes on the versions that matter—all on your own disk, without a cloud account.
 
-**Stato: anteprima 0.1.14 per mini PC Intel/AMD a 64 bit (`linux/amd64`), con
-umbrelOS 1.7.4 come ambiente di destinazione.** Le immagini vengono pubblicate
-solo dopo i [collaudi Linux](https://github.com/Proof-of-Pizza21/landing-archive/actions/workflows/verify-and-publish.yml)
-e sono bloccate al digest nel community store. Il collaudo dell’aggiornamento
-sul mini PC rimane distinto; questa anteprima non include ARM.
+**English is the default language.** Choose English or Italian in **Settings →
+Language**. The preference applies to your browser; switching languages does not
+change the content of archived websites.
 
-La **0.1.14** corregge il blocco «Failed to fetch» all’apertura attraverso il
-proxy autenticato di Umbrel. Conserva le protezioni della 0.1.13 e tutti i dati.
-[Dettagli della correzione](docs/RELEASE-0.1.14.md).
+**Preview for 64-bit Intel/AMD mini PCs (`linux/amd64`), targeting umbrelOS 1.7.4.**
+ARM is not included. Images are published only after the
+[Linux checks](https://github.com/Proof-of-Pizza21/landing-archive/actions/workflows/verify-and-publish.yml)
+pass, and the community store pins the tested image by digest. Automated container
+checks and validation on a particular Umbrel device are separate.
 
-La **0.1.13** aggiorna il browser e rafforza accesso, copie HTML e ripristino.
-Le sessioni sono separate da quelle delle altre app Umbrel; il motore non può
-più leggere il volume dell’archivio. L’HTML viene ripulito in un processo con
-limiti di tempo e memoria, anche quando si scarica una vecchia copia.
-Dopo l’aggiornamento accedi di nuovo con le credenziali attuali: siti, password
-e copie restano conservati. [Interventi e limiti di sicurezza](docs/SECURITY-0.1.13.md).
+## What you can do
 
-La **0.1.12** separa caricamenti incompleti e modifiche, conserva un riferimento
-affidabile, verifica la pagina offline e richiede conferme per differenze solo
-visive o contenuto scomparso. Offre uno storico raggruppato, diagnostici temporanei
-e una revisione delle vecchie copie con selezione esplicita. Nessuna vecchia copia
-viene cancellata dall’aggiornamento. Il comando **Azzera copie e riscarica** permette
-inoltre di ripartire da zero per un solo sito, dopo conferma. [Guida e limiti](docs/RELEASE-0.1.12.md).
+- **Monitor websites on your schedule.** Add a domain or a specific page, choose
+  how often to check it, and discover new pages through public links and sitemaps.
+- **Keep more than screenshots.** Save desktop screenshots, SingleFile HTML with
+  embedded resources, and page text. Browse archived pages inside the app.
+- **Follow changes over time.** Compare text, links, images, and highlighted
+  screenshot regions. See newly discovered pages, confirmed disappearances, and
+  returns online.
+- **Reduce noisy copies.** Loading-quality checks, a reliable comparison baseline,
+  and confirmation visits help distinguish changes from resources that failed to
+  load. Choose page regions to ignore or prioritize.
+- **Organize your research.** Review unread activity, add notes and tags to
+  versions, mark favorites, and search your collection.
+- **Stay in control of your archive.** Run a priority manual check, restart a stuck
+  attempt, export a browsable site ZIP, or back up and restore the complete archive.
+  Deleting a site or resetting its copies requires confirmation.
 
-La **0.1.10** aggiunge **Novità da leggere**, tag, preferiti e appunti sulle singole
-versioni, una Raccolta filtrabile, esportazione offline per sito e ripristino
-con verifica preventiva e copia di sicurezza. [Guida e limiti](docs/RELEASE-0.1.10.md).
+Checks and versions are separate: a visit with no changes records its date without
+creating another identical copy. A return from A → B → A remains in the timeline,
+while identical files can share storage. Failed visits do not erase earlier copies.
 
-La **0.1.8** aggiunge confronti meno sensibili ai piccoli spostamenti, controlli di
-qualità delle acquisizioni, scelta visiva delle zone e una vista sulla vita delle
-landing. [Funzioni e limiti](docs/RELEASE-0.1.8.md).
+## Install on Umbrel
 
-Le correzioni di sicurezza della versione 0.1.1 sono descritte in
-[docs/SECURITY-0.1.1.md](docs/SECURITY-0.1.1.md) e rimangono attive.
+1. Open the community app store manager in the Umbrel App Store.
+2. Add [the Landing Archive community store](https://github.com/Proof-of-Pizza21/umbrel-community-store).
+3. Open **Landing Archive Community Store**, install **Landing Archive**, and launch it.
+4. Create an archive account with a password of at least **12 characters**.
+5. Add your first domain or page and choose a check interval.
 
-Le nuove funzioni della versione 0.1.2 sono descritte in
-[Controlli manuali, eliminazione e reindirizzamenti](docs/RELEASE-0.1.2.md).
+There are no default credentials. The archive login adds protection alongside
+Umbrel's authenticated proxy. Start with one site and check that its first copy
+is readable before adding more.
 
-## Come funziona
+Before an update, download a backup and update the existing installation without
+uninstalling it. Follow the instructions for your release:
+[releases and update notes](https://github.com/Proof-of-Pizza21/landing-archive/releases).
 
-- Aggiungi un dominio o un indirizzo preciso e scegli l'intervallo dei controlli.
-- Salva screenshot desktop, HTML tramite SingleFile e testo della pagina.
-- Cerca altre pagine attraverso sitemap e collegamenti pubblici.
-- Consulta lo storico delle acquisizioni e confronta le versioni.
-- Esporta un backup ZIP dell'archivio e scarica il sorgente dell'app dall'interfaccia.
-- Conserva le copie esistenti anche quando una nuova visita fallisce.
-- Avvia un controllo manuale prioritario e riavvia un tentativo rimasto fermo.
-- Elimina un sito e le sue copie, dopo una conferma, conservando i file usati da altri siti.
-- Registra il ritorno a una versione precedente: A → B → A rimane nello storico.
+## Run locally with Docker
 
-I controlli sono distinti dalle versioni: una visita senza cambiamenti aggiorna
-lo storico dei controlli senza richiedere un'altra copia identica. La rilevazione
-dei cambiamenti non può rivelare i risultati di conversione o garantire che una
-variante osservata sia un test A/B.
-
-## Primo avvio su Umbrel
-
-Aggiungi questo indirizzo nella gestione
-dei community app store dell'App Store Umbrel:
-
-[https://github.com/Proof-of-Pizza21/umbrel-community-store](https://github.com/Proof-of-Pizza21/umbrel-community-store)
-
-Apri **Landing Archive Community Store**, installa **Landing Archive** e avviala.
-Crea un nome utente e una password di almeno **12 caratteri** per l'archivio,
-poi aggiungi il primo dominio o una pagina precisa. Scegli l'intervallo dei
-controlli e consulta le acquisizioni nella timeline. Non ci sono credenziali
-predefinite. Il login dell'archivio si aggiunge alla protezione del proxy Umbrel.
-
-La correzione della versione 0.1.3 per il blocco AppArmor è descritta in
-[Avvio del browser su Umbrel](docs/RELEASE-0.1.3.md).
-
-La vista **Pagina offline** della 0.1.6 permette di consultare le copie e seguire
-i collegamenti archiviati direttamente nell’app. [Funzioni e limiti](docs/RELEASE-0.1.6.md).
-
-Il codice 0.1.7 aggiunge **Confronta → Aspetto** con aree modificate evidenziate,
-navigazione fra le zone e riepilogo delle differenze anche quando gli screenshot
-coincidono. [Funzioni e limiti](docs/RELEASE-0.1.7.md).
-
-## Prova locale con Docker
-
-Per provare il progetto su un computer che dispone già di Docker con Compose:
-
-Su Linux con AppArmor attivo, carica prima il profilo dedicato:
+Requires Docker Engine or Docker Desktop with Compose. On Linux with AppArmor
+enabled, load the dedicated worker profile first:
 
 ```sh
 sudo bash umbrel-community-store/proof-of-pizza21-landing-archive/hooks/pre-start
 ```
 
-Poi avvia i servizi:
+Then start the services:
 
 ```sh
 docker compose up --build -d
 ```
 
-Apri `http://localhost:4310` e crea un nome utente e una password di almeno
-12 caratteri per l'archivio.
-Il collegamento locale è pubblicato solo su `127.0.0.1`; il worker browser non
-espone una porta sul computer. Questa modalità serve al collaudo locale.
-L'installazione Umbrel usa invece il suo proxy e il login Umbrel.
+Open `http://localhost:4310` and create your archive account. The local port binds
+only to `127.0.0.1`; the browser worker exposes no host port. This setup is for
+local testing. The Umbrel package uses Umbrel's proxy and login.
 
-Le istruzioni complete e la procedura di distribuzione sono in
-[Installazione](docs/INSTALL.md). Per backup, spazio su disco, riavvii e problemi
-di acquisizione vedi [Gestione dell'archivio](docs/OPERATIONS.md).
-Gli esiti verificati e le prove ancora necessarie sono nel [Resoconto di collaudo](docs/TESTING.md).
+See [Installation](docs/INSTALL.md) for setup and publishing instructions,
+[Operations](docs/OPERATIONS.md) for backups, storage, and troubleshooting, and
+[Testing](docs/TESTING.md) for recorded results and remaining device checks.
 
-## Scelte della prima versione
+## Designed for a focused archive
 
-Una pagina alla volta limita il carico del browser. Come punto di partenza si
-usano controlli ogni 6 ore e ricerca di nuove pagine ogni 24 ore; la frequenza è
-modificabile dall'interfaccia. L'archivio non cancella automaticamente le vecchie
-versioni per fare spazio.
+Visits run one at a time to limit browser load. The starting schedule is a page
+check every 6 hours and discovery every 24 hours; both are configurable. Old
+versions are not automatically deleted to make room.
 
-La composizione Docker limita l'app a 1 GB di RAM e il worker a 3 GB; sono limiti
-massimi dei container, non consumi costanti. Le prestazioni dipendono dalle
-pagine. Il pacchetto deve ancora essere verificato sul kernel di umbrelOS 1.7.4
-e sul mini PC destinato al primo collaudo.
+Docker limits the web service to 1 GB of RAM and the worker to 3 GB. These are
+container ceilings, not constant usage. Actual performance depends on the pages
+and should be measured on the target device.
 
-Le pagine senza link o sitemap pubblica devono essere aggiunte manualmente. Non
-sono inclusi accessi con account, aggiramento di CAPTCHA, catture video,
-ricostruzione di interi servizi web o scoperta automatica delle campagne pubblicitarie.
-Una copia HTML è un documento conservato, non il sito interattivo funzionante.
+Pages without public links or sitemap entries need to be added manually. The app
+does not sign into websites, bypass CAPTCHAs, record video, reconstruct entire
+interactive services, or automatically discover advertising campaigns. An HTML
+copy is a preserved document, not a fully functioning online service. Observed
+variants do not prove an A/B test or reveal conversion results; pages that appear
+and disappear between visits cannot be captured.
 
-## Struttura
+## Architecture and security
 
-| Componente | Ruolo |
+| Component | Role |
 | --- | --- |
-| React e Vite | Interfaccia, timeline e confronto |
-| Fastify su Node.js 24 | API, account, pianificazione e archivio |
-| SQLite | Siti, pagine, controlli e riferimenti alle versioni |
-| Worker Playwright e Chromium | Visita delle pagine e screenshot |
-| SingleFile Core | Copia HTML con risorse incorporate quando acquisibili |
-| Docker Compose | App e worker separati con archivio persistente |
+| React and Vite | Interface, timeline, and comparison |
+| Fastify on Node.js 24 | API, accounts, scheduling, and archive management |
+| SQLite | Sites, pages, checks, and version references |
+| Playwright and Chromium worker | Website visits and screenshots |
+| SingleFile Core | HTML copies with resources embedded when retrievable |
+| Docker Compose | Separate app and worker with persistent storage |
 
-Non è un fork di ArchiveBox o changedetection.io. La logica dedicata a siti,
-landing e storico è parte di questa app; i componenti browser e HTML vengono
-riutilizzati dai rispettivi progetti.
+Landing Archive is not a fork of ArchiveBox or changedetection.io. Its site,
+landing-page, and history features are original application code, using the browser
+and HTML components from their respective projects.
 
-## Dati e distribuzione
+The browser sandbox stays enabled. Archived HTML is sanitized and isolated from
+the app; the worker mounts only its authentication-token directory, read-only.
+See the [security report](docs/SECURITY-0.1.13.md) for protections and remaining
+limitations, including system-package advisories. HTTP is not encrypted: use a
+trusted local network, a VPN, or a separately managed HTTPS proxy.
 
-L'archivio, gli indirizzi aggiunti dall'utente, le password e i token rimangono
-nel volume dati. Non inserire esempi personali o acquisizioni nei sorgenti, nelle
-immagini Docker, negli screenshot dello store o nelle segnalazioni pubbliche.
-Il contesto di build Docker ammette soltanto i file applicativi necessari.
+## Release history
 
-Copyright © 2026 Proof-of-Pizza21. Il codice applicativo è distribuito con
-licenza **AGPL-3.0-or-later**; il testo è in [LICENSE](LICENSE). Le dipendenze
-mantengono le proprie licenze, elencate in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-I contenuti archiviati non diventano codice del progetto e mantengono i diritti
-dei rispettivi titolari.
+See [English and Italian in 0.1.15](docs/RELEASE-0.1.15.md).
+Detailed historical notes are available for
+[manual checks and deletion](docs/RELEASE-0.1.2.md),
+[Umbrel browser startup](docs/RELEASE-0.1.3.md),
+[offline browsing](docs/RELEASE-0.1.6.md),
+[highlighted comparisons](docs/RELEASE-0.1.7.md),
+[monitoring regions and landing lifecycle](docs/RELEASE-0.1.8.md),
+[activity, collection, and restore](docs/RELEASE-0.1.10.md),
+[capture quality and history cleanup](docs/RELEASE-0.1.12.md),
+[security hardening](docs/SECURITY-0.1.13.md), and
+[the Umbrel proxy fix](docs/RELEASE-0.1.14.md).
+The protections from [0.1.1](docs/SECURITY-0.1.1.md) also remain in effect.
+
+## Data and licensing
+
+Archive data, URLs, passwords, and tokens stay in persistent storage. Do not put
+personal test sites, captures, credentials, or local logs in source commits,
+Docker images, store screenshots, or public issue reports. The Docker build
+context admits only the application files it needs.
+
+Copyright © 2026 Proof-of-Pizza21. Application code is licensed under
+**AGPL-3.0-or-later**; see [LICENSE](LICENSE). Dependencies retain their licenses
+and attributions, listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Archived content remains the property of its respective rights holders and does
+not become part of the project's source code.

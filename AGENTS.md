@@ -1,57 +1,58 @@
 # Landing Archive
 
-## Identità Git permanente del progetto
+## Permanent project Git identity
 
-Questa è una regola vincolante richiesta dall'utente. Per questo progetto usare
-esclusivamente:
+This is a binding rule requested by the user. For this project, use only:
 
-- Git user e author/committer name: `Proof-of-Pizza21`
+- Git user and author/committer name: `Proof-of-Pizza21`
 - Git author/committer email: `259956083+Proof-of-Pizza21@users.noreply.github.com`
 
-Questa identità sostituisce le precedenti indicazioni per Landing Archive,
-comprese eventuali istruzioni contrastanti nella directory superiore.
-Prima di ogni commit, tag o pubblicazione verificare `git config --local user.name`,
-`git config --local user.email` e l'identità effettiva di autore e committer.
-Non usare valori ereditati dalla configurazione globale o variabili d'ambiente
-che sostituiscano questi dati. Non procedere se l'identità non corrisponde.
-Prima di pubblicare su GitHub verificare anche l'account autenticato; la
-configurazione Git locale non cambia l'accesso a GitHub. Non modificare le
-chiavi di firma senza verificarne l'appartenenza all'account.
+This identity replaces all previous instructions for Landing Archive, including
+conflicting instructions in a parent directory. Before every commit, tag, or
+publication, check `git config --local user.name`, `git config --local user.email`,
+and the effective author and committer identities. Do not use inherited global
+values or environment variables that override these details. Do not proceed if
+the identity does not match. Before publishing to GitHub, also verify the
+authenticated account: local Git configuration does not change GitHub access.
+Do not modify signing keys without verifying that they belong to the account.
 
-## Destinazione della prima pubblicazione
+## Publication target
 
-- Nome del repository applicativo scelto dall'utente: `landing-archive`.
-- Account GitHub: `Proof-of-Pizza21`.
-- Repository dello store previsto: `umbrel-community-store`.
-- Versione di umbrelOS indicata dall'utente per il collaudo: `1.7.4`.
-- Hardware di destinazione: mini PC AMD 3500U, architettura amd64, 16 GB RAM.
+- User-selected application repository name: `landing-archive`.
+- GitHub account: `Proof-of-Pizza21`.
+- Store repository: `umbrel-community-store`.
+- User-specified target umbrelOS version for validation: `1.7.4`.
+- Target hardware: AMD 3500U mini PC, amd64 architecture, 16 GB RAM.
 
-Il nome del repository sostituisce il precedente `landing-history` per la
-pubblicazione. Aggiornare i riferimenti del pacchetto in modo coerente prima
-della release; la directory locale esistente può conservare il proprio nome.
+The repository name replaces the earlier `landing-history` name for publication.
+Keep package references consistent before release; the existing local directory
+may retain its name.
 
-## Funzionamento
+## Behavior
 
-Applicazione locale per archiviare landing page e consultarne le versioni.
-UI in italiano, chiara e utilizzabile senza terminale. Nessun invio delle catture
-a servizi pubblici. Dati di acquisizione, URL personali di esempio, segreti e
-percorsi macchina non entrano nei file distribuiti o nei commit.
+A local application for archiving landing pages and browsing their versions.
+English is the default interface language, with English and Italian available
+through a language selector in Settings. Keep the interface clear and usable
+without a terminal. Do not send captures to public services. Capture data,
+personal example URLs, secrets, and machine paths must not appear in distributed
+files or commits.
 
-Stack: TypeScript, Fastify, SQLite di Node, React/Vite, Playwright, SingleFile.
-Non eseguire codice proveniente dai siti archiviati nel contesto dell'app.
-Ogni controllo va conservato; file identici possono essere deduplicati, ma un
-ritorno A → B → A deve risultare nello storico. Un errore non elimina versioni.
+Stack: TypeScript, Fastify, Node SQLite, React/Vite, Playwright, SingleFile.
+Do not execute code from archived websites in the application's context.
+Preserve every check; identical files may be deduplicated, but a return from
+A → B → A must remain in history. An error must not delete versions.
 
-Il progetto è un'app Docker per Umbrel, non un sito da pubblicare su servizi di hosting.
+This project is a Docker application for Umbrel, not a website to deploy to a
+hosting service.
 
-## Privacy prima di ogni pubblicazione
+## Privacy before every publication
 
-Regola permanente: il nome e il cognome reali dell'utente non devono comparire
-in alcun file, percorso versionato, metadato, commit, tag, descrizione, release
-o artefatto dei due repository. L'unica identità pubblica consentita è
-`Proof-of-Pizza21`, con l'email Git indicata sopra.
+Permanent rule: the user's real first and last names must not appear in any file,
+versioned path, metadata, commit, tag, description, release, or artifact in either
+repository. The only permitted public identity is `Proof-of-Pizza21`, with the
+Git email above.
 
-Prima di ogni push verificare i file selezionati, i file nascosti e tutti i
-commit da pubblicare, inclusi autore e committer. Escludere archivi, URL
-personali di collaudo, credenziali, log locali e percorsi della macchina.
-Non pubblicare finché il controllo non è pulito.
+Before every push, check selected files, hidden files, and all commits to be
+published, including authors and committers. Exclude archives, personal test
+URLs, credentials, local logs, and machine paths. Do not publish until the check
+is clean.

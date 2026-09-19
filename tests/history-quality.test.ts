@@ -127,7 +127,7 @@ test('quality gate preserves evidence without making incomplete renders into ref
       assert.equal(exported.statusCode, 200, exported.body.slice(0, 100));
       const files = zipEntries(exported.rawPayload);
       assert.equal([...files.entries()].filter(([path, data]) => /^versions\/\d+\.html$/.test(path) && /<p>Offer [AB]<\/p>/.test(data.toString())).length, 3);
-      assert.match([...files.values()].map(value => value.toString()).join(' '), /Ritorno|ritorno|riutilizz|acquisizione/i);
+      assert.match([...files.values()].map(value => value.toString()).join(' '), /Return|reus|capture/i);
     });
     await t.test('rules changed during a capture cannot overwrite the current reference', async () => {
       const f = fixture('rules'); const first = await f.record(f.make());

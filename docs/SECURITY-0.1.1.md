@@ -1,79 +1,68 @@
-# Sicurezza e limiti della versione 0.1.1
+# Security and limits in 0.1.1
 
-La versione 0.1.1 rafforza l'accesso alle API, la gestione di pagine anomale,
-la scoperta mediante robots.txt e gli aggiornamenti dei componenti distribuiti.
-Non modifica lo schema del database e conserva le acquisizioni precedenti.
+Version 0.1.1 strengthened API access, handling of unusual pages, robots.txt
+discovery and distributed component updates. It preserved the database schema
+and earlier captures. This document describes that historical release; subsequent
+changes, including browser pinning, are in [0.1.13](SECURITY-0.1.13.md).
 
-## Accesso
+## Access
 
-Le rotte sono private per impostazione predefinita. L'autenticazione dipende
-dalla rotta riconosciuta dal server, anche quando un client usa una diversa
-codifica dell'indirizzo. Restano pubblici solo la pagina di accesso e i suoi
-file, la verifica dello stato, la creazione iniziale dell'account e il login.
-Le risposte API non devono essere conservate nella cache.
+Routes are private by default. Authentication follows the route recognized by
+the server, including differently encoded addresses. Only the login page/assets,
+authentication status, initial account setup and login remain public. API
+responses must not be cached.
 
-## Limiti delle acquisizioni
+## Capture limits
 
-- Screenshot: massimo 1.920 pixel di larghezza, 20.000 di altezza e 12 milioni
-  di pixel complessivi. Alla larghezza normale di 1.440 pixel, l'altezza massima
-  è 8.333 pixel. Il ritaglio viene stabilito fuori dal codice del sito; se la
-  pagina è più lunga, compare un avviso. La copia HTML può conservare contenuto
-  oltre il ritaglio dello screenshot.
-- PNG: massimo 16 MiB compressi, RGB/RGBA a 8 bit, senza interlacciamento. Le
-  dimensioni e la struttura vengono controllate prima della decodifica.
-- Confronto visivo: processo temporaneo distinto, heap JavaScript limitato a
-  128 MiB e arresto imposto dal coordinatore dopo 5 secondi. I buffer nativi
-  sono limitati dalle dimensioni ammesse delle immagini; il limite di 128 MiB
-  non va interpretato come tetto di tutta la memoria del processo.
-- HTML: massimo 32 MiB. Metadati: massimo 8 MiB serializzati, testo fino a
-  1,5 milioni di caratteri, 100 intestazioni da 500 caratteri, 2.000 collegamenti
-  e 500 indirizzi di immagini, con limiti anche sui singoli campi.
-- Risposta del motore: massimo 64 MiB effettivamente letti, anche senza una
-  dichiarazione corretta della lunghezza. La verifica precede la lettura JSON
-  completa; i campi vengono poi validati prima del salvataggio.
+- Screenshots: maximum width 1,920 pixels, height 20,000, and 12 million pixels
+  total. At the normal width of 1,440, maximum height is 8,333. Cropping is decided
+  outside site code and generates a warning; HTML may preserve content below it.
+- PNG: at most 16 MiB compressed, 8-bit RGB/RGBA, non-interlaced. Dimensions and
+  structure are checked before decoding.
+- Visual comparison: separate temporary process, 128 MiB JavaScript heap and a
+  coordinator-enforced 5-second deadline. Native buffers are bounded by permitted
+  image sizes; 128 MiB is not a total process-memory ceiling.
+- HTML: 32 MiB maximum. Metadata: 8 MiB serialized, 1.5 million text characters,
+  100 headings of 500 characters, 2,000 links and 500 image URLs, with field limits.
+- Worker response: at most 64 MiB actually read, even with an incorrect declared
+  length. This check precedes complete JSON reading; fields are validated before
+  storage.
 
-I metadati vengono estratti in un ambiente del browser isolato dalle modifiche
-che il sito può effettuare alle funzioni JavaScript standard. Un superamento
-dei limiti produce un errore del controllo; le copie precedenti restano
-disponibili. Gli errori permanenti di formato o dimensione non vengono
-ritentati immediatamente. Se al riavvio un lavoro resta interrotto e ha già
-raggiunto tre tentativi, il sito viene messo in pausa e può essere riattivato
-dalle impostazioni.
+Metadata is extracted in a browser environment isolated from site modifications
+to standard JavaScript functions. Exceeding a limit fails the check without
+removing earlier copies. Permanent format/size errors are not retried immediately.
+If restart recovery finds an interrupted job with three attempts already used,
+the site is paused and can be resumed from settings.
 
-Screenshot precedenti che superano i nuovi limiti restano scaricabili; il
-confronto evita di decodificarli e stabilisce una nuova versione di riferimento.
+Older screenshots beyond the new limits remain downloadable. Comparison avoids
+decoding them and establishes a new reference version.
 
-## Scoperta delle pagine
+## Page discovery
 
-Le regole robots.txt vengono confrontate senza espressioni regolari con
-backtracking. Le ricerche dei segmenti letterali avanzano nel percorso con
-l'algoritmo KMP. Il file può contenere fino a 128 KiB, 256 regole complessive e
-512 caratteri per regola. Un budget limita anche il lavoro totale di confronto
-durante una scoperta. Regole eccessive interrompono la scoperta con un errore
-visibile, anziché essere ignorate consentendo ulteriori richieste al sito.
+robots.txt rules are matched without backtracking regular expressions. Literal
+segments advance through the path using KMP. Files are limited to 128 KiB,
+256 total rules and 512 characters per rule, with a total matching-work budget
+per discovery. Excessive rules stop discovery with a visible error rather than
+being ignored and allowing further requests.
 
-## Componenti e verifica delle immagini
+## Components and image verification
 
-La base è Node 24.20.0 LTS, fissata al digest ufficiale verificato l'8 settembre
-2026. La build applica gli aggiornamenti Debian disponibili e rimuove npm e
-Yarn dal runtime dopo l'installazione. Il browser rimane quello fissato dalla
-versione Playwright del lockfile.
+The base is Node 24.20.0 LTS, pinned to the official digest verified on September
+8, 2026. The build applies available Debian updates and removes npm/Yarn from
+the runtime after installation. In this historical release, Playwright's locked
+version selected the browser.
 
-Il processo GitHub verifica il checksum dello scanner Trivy e analizza
-l'immagine appena costruita. Vulnerabilità alte o critiche con una correzione
-disponibile bloccano la pubblicazione. Il controllo dei segreti blocca anch'esso
-la pubblicazione; i valori eventualmente individuati non vengono stampati
-o caricati come artefatti. L'inventario delle vulnerabilità rimane disponibile
-fra gli artefatti della verifica per esaminare anche quelle senza correzione.
+GitHub verifies the Trivy checksum and scans the freshly built image. Fixable
+high/critical vulnerabilities block publication, as do detected secrets. Secret
+values are not printed or uploaded as artifacts. The vulnerability inventory is
+retained, including findings without a fix.
 
-La presenza di una CVE in una libreria non dimostra automaticamente che il suo
-percorso vulnerabile sia usato dall'app. Le segnalazioni residue richiedono
-valutazione e manutenzione; un'immagine fissata a un digest non si aggiorna
-automaticamente. La procedura esegue anche acquisizioni e confronti reali nei
-container con i limiti previsti per la distribuzione.
+A library CVE does not automatically prove its vulnerable path is used by the
+app. Remaining findings need assessment and maintenance; digest pinning prevents
+automatic updates. The pipeline also runs real captures and comparisons under
+the distributed container limits.
 
-I test di regressione includono richieste HTTP reali con percorsi equivalenti,
-risposte del motore troppo grandi o malformate, immagini fuori limite, regole
-robots complesse, recupero della coda, confronto visivo e metadati del browser.
-La prova dei container esercita il confronto a 12 milioni di pixel sotto il
-limite di memoria del servizio web.
+Regressions cover real HTTP with equivalent routes, oversized or malformed worker
+responses, out-of-bounds images, complex robots rules, queue recovery, visual
+comparison and browser metadata. Container tests compare 12-million-pixel images
+under the web service's memory limit.

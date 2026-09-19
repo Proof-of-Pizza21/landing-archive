@@ -1,95 +1,93 @@
-# Confronti affidabili e vita delle landing — 0.1.8
+# More reliable comparisons and landing-page lifecycle — 0.1.8
 
-## Meno copie superflue
+## Fewer unnecessary copies
 
-Il confronto visivo usa le coordinate originali senza deformare gli screenshot.
-Differenze di altezza/larghezza fino a 3 pixel non sono più una modifica automatica.
-Un confronto di vicinato sul campione tollera piccoli spostamenti (circa 1–3 pixel
-originali, secondo la larghezza); resta la soglia dello 0,5% sui pixel considerati.
-Le variazioni di testo, titolo, intestazioni, collegamenti e indirizzi delle
-immagini sono controllate separatamente: anche un prezzo piccolo può creare una
-versione. Una zona importante usa la propria area come riferimento per il
-confronto visivo, evitando che si perda nel totale di una pagina lunga.
+Visual comparison uses original coordinates without stretching screenshots.
+Height or width differences of up to 3 pixels no longer automatically count
+as a change. A neighborhood comparison of the sample tolerates small shifts
+(approximately 1–3 original pixels, depending on width); the 0.5% threshold on
+considered pixels remains. Text, title, headings, links, and image URLs are
+checked separately: even a small price change can create a version. An important
+region uses its own area as the visual-comparison reference, so its change is
+not diluted across a long page.
 
-Sono esclusi dal confronto soltanto parametri pubblicitari noti: i campi UTM
-standard e identificatori come gclid, fbclid e msclkid. Gli indirizzi originali
-restano nei file. Parametri di prodotto, lingua, prezzo, esperimento, revisione
-immagine o cache non vengono rimossi indiscriminatamente.
+Only known advertising parameters are excluded from comparison: standard UTM
+fields and identifiers such as gclid, fbclid, and msclkid. Original URLs remain
+in the files. Product, language, price, experiment, image-revision, and cache
+parameters are not indiscriminately removed.
 
-Le vecchie firme vengono ricalcolate dai metadati conservati durante il confronto,
-senza riscrivere o eliminare lo storico. Un ritorno A → B → A rimane registrato.
-Il confronto manuale mostra le copie integrali, anche nelle zone escluse.
+Old signatures are recalculated from stored metadata during comparison without
+rewriting or deleting history. A return from A → B → A remains recorded.
+Manual comparison shows complete copies, including excluded regions.
 
-## Acquisizioni complete e parziali
+## Complete and partial captures
 
-Il browser attende in modo limitato anche la decodifica delle immagini dopo lo
-scorrimento per i contenuti caricati progressivamente. Immagini visibili non
-caricate, fogli di stile mancanti o una pagina vuota producono una segnalazione
-strutturata di qualità, visibile nelle copie e nei controlli.
+After scrolling for lazy-loaded content, the browser also waits a bounded time
+for images to decode. Unloaded visible images, missing stylesheets, or an empty
+page produce structured quality information shown with copies and checks.
 
-Una copia parziale con contenuto invariato non genera una versione soltanto per
-le differenze nello screenshot. Un nuovo contenuto viene conservato con avviso;
-la prima copia di una landing viene comunque salvata. Un crollo del testo sotto
-il 30% di una copia precedente con oltre 300 caratteri richiede un controllo di
-conferma. Ogni tentativo è registrato. È programmato un solo ricontrollo a cinque
-minuti per una sequenza incompleta; poi torna la cadenza ordinaria. La pausa e la
-disattivazione del coordinatore non vengono aggirate.
+A partial copy with unchanged content does not create a version solely because
+its screenshot differs. New content is preserved with a warning; the first copy
+of a landing page is always saved. Text falling below 30% of a previous copy
+with more than 300 characters requires a confirmation check. Every attempt is
+recorded. One recheck after five minutes is scheduled for an incomplete sequence;
+normal scheduling then resumes. Pausing and disabling the coordinator are
+respected.
 
-Limite: finché una pagina è incompleta, le sole modifiche visive non sono una
-prova affidabile e non generano versioni. Testo e metadati continuano a essere
-confrontati. La qualità non certifica la completezza del sito: video, servizi
-interattivi, risorse offline non incorporate e parti oltre i limiti di cattura
-possono essere assenti. Gli avvisi di SingleFile restano consultabili.
+Limitation: while a page is incomplete, visual-only differences are unreliable
+and do not create versions. Text and metadata are still compared. Quality checks
+do not certify a complete website: video, interactive services, resources not
+embedded offline, and content beyond capture limits may be absent. SingleFile
+warnings remain available.
 
-## Zone da monitorare
+## Monitoring regions
 
-Aprire una pagina e scegliere **Zone da monitorare**. Cliccare un elemento,
-eventualmente allargare la selezione, quindi scegliere **Escludi dal confronto**
-oppure **Segna come importante**. **Mostra anche la copia precedente** permette
-di controllare il numero degli elementi selezionati e il loro contenuto prima
-di salvare. Le zone escluse sono arancioni, quelle importanti verdi; una zona
-importante ha la precedenza su un’esclusione più ampia.
+Open a page and choose **Monitoring regions**. Click an element, optionally
+expand the selection, then choose **Exclude from comparison** or **Mark as
+important**. **Also show the previous copy** lets you check the number and
+content of selected elements before saving. Excluded regions are orange;
+important ones are green. An important region takes priority over a broader
+exclusion.
 
-Le regole valgono per la pagina scelta; le esclusioni avanzate del sito continuano
-ad applicarsi. Limite complessivo: 30 esclusioni e 20 zone importanti per pagina.
-Le regole identificano elementi della pagina, non coordinate fisse. La vista
-offline può avere un’impaginazione diversa e un sito che cambia struttura può
-richiedere una nuova scelta. Un elemento importante non trovato produce un avviso.
-Il primo controllo completo dopo un cambio di regole salva un riferimento
-esplicitamente etichettato, senza segnalarlo come una modifica del sito.
+Rules apply to the selected page; advanced site exclusions still apply.
+The combined limit is 30 exclusions and 20 important regions per page. Rules
+identify page elements, not fixed coordinates. Offline layout can differ,
+and a site structure change may require selecting regions again. A missing
+important element produces a warning. The first complete check after a rule
+change saves an explicitly labeled reference without reporting a website change.
 
-Le copie HTML e gli screenshot nuovi rimangono integrali. I vecchi screenshot
-che contenevano già maschere non possono essere ricostruiti. L’editor usa copie
-inerti, senza esecuzione di script, moduli o richieste verso Internet; l’API delle
-regole richiede la stessa autenticazione e protezione di origine delle altre API.
+New HTML copies and screenshots remain complete. Old screenshots that already
+contained masks cannot be reconstructed. The editor uses inert copies, with
+no scripts, forms, or Internet requests; its rules API requires the same
+authentication and origin protection as other APIs.
 
-## Vita delle landing
+## Landing-page lifecycle
 
-La scheda del sito mostra prima scoperta, origine, ultima acquisizione riuscita,
-evoluzione e ultimo controllo. I filtri distinguono nuove, modificate, non
-raggiungibili, tornate online e non più presenti nelle sitemap. Le categorie
-rappresentano l’ultimo evento osservato: non attestano quando il sito ha pubblicato
-una pagina o i risultati di un test commerciale.
+Site details show first discovery, source, last successful capture, changes,
+and the latest check. Filters distinguish new, changed, unreachable, returned,
+and missing-from-sitemap pages. Categories describe the last observed event:
+they do not establish when a site published a page or the results of a
+commercial test.
 
-Le assenze dalla sitemap sono determinate solo con letture complete delle stesse
-fonti. Sitemap mancanti, errori o risultati limitati non fanno diventare offline
-una pagina. Il controllo HTTP resta separato: due risposte consecutive 404/410
-confermano la scomparsa e una successiva acquisizione registra il ritorno.
+Sitemap absence is determined only from complete reads of the same sources.
+Missing sitemaps, errors, or limited results do not mark a page offline. HTTP
+checks are separate: two consecutive 404/410 responses confirm disappearance,
+and a later capture records its return.
 
-La frequenza di scoperta è indipendente da quella dei controlli (predefinita 24
-ore, configurabile da 1 a 8.760 ore). È possibile includere o escludere percorsi;
-il prefisso /offerte comprende /offerte e i suoi discendenti, non /offerte-altre.
-Le regole valgono per nuove scoperte automatiche, non per le pagine già seguite o
-aggiunte manualmente. Restano i limiti di tempo, richieste, pagine e robots.txt.
-Le landing non collegate, presenti soltanto in annunci o email, vanno aggiunte a mano.
+Discovery frequency is independent of check frequency (default 24 hours,
+configurable from 1 to 8,760 hours). Paths can be included or excluded; the
+prefix /offerte includes /offerte and descendants, but not /offerte-altre.
+Rules apply to new automatic discoveries, not to pages already monitored or
+added manually. Time, request, page, and robots.txt limits remain. Landing pages
+linked only from ads or emails need to be added manually.
 
-## Aggiornamento e limiti operativi
+## Update and operational limits
 
-La migrazione allo schema 3 aggiunge campi senza cancellare account, versioni,
-controlli o file. Prima di aggiornare esportare un backup. Un ritorno alla 0.1.7
-richiede il ripristino di un backup precedente alla migrazione. L’aggiornamento
-non elimina le copie simili accumulate in passato.
+Migration to schema 3 adds fields without deleting accounts, versions, checks,
+or files. Export a backup before updating. Returning to 0.1.7 requires restoring
+a backup from before migration. The update does not remove similar copies
+accumulated earlier.
 
-Sono mantenuti isolamento del browser, protezioni della rete interna, decodifica
-PNG in un processo separato, limiti di memoria/tempo, archivio in sola lettura
-per il worker e assenza di servizi cloud per le acquisizioni.
+Browser isolation, private-network protections, PNG decoding in a separate
+process, memory/time limits, the worker's read-only archive access, and the
+absence of cloud capture services are retained.

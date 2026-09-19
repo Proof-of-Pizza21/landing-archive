@@ -1,3 +1,4 @@
+import { t, message as systemMessage } from './i18n';
 import { useEffect, useState, type ComponentPropsWithRef, type MouseEvent } from 'react';
 import { resourceUrl } from './client';
 
@@ -13,13 +14,13 @@ function useResource(path?: string) {
 
 export function SecureImage({ src, ...props }: ComponentPropsWithRef<'img'>) {
   const resource = useResource(src);
-  if (resource?.error) return <span role="alert">{resource.error}</span>;
-  return resource?.url ? <img {...props} src={resource.url} referrerPolicy="no-referrer" /> : <span role="status">Caricamento immagine…</span>;
+  if (resource?.error) return <span role="alert">{systemMessage(resource.error)}</span>;
+  return resource?.url ? <img {...props} src={resource.url} referrerPolicy="no-referrer" /> : <span role="status">{t("Loading image…")}</span>;
 }
 
 export function SecureFrame({ src, ...props }: ComponentPropsWithRef<'iframe'>) {
   const resource = useResource(src);
-  if (resource?.error) return <div className="notice error" role="alert">{resource.error}</div>;
+  if (resource?.error) return <div className="notice error" role="alert">{systemMessage(resource.error)}</div>;
   return resource?.url ? <iframe {...props} src={resource.url} referrerPolicy="no-referrer" /> : null;
 }
 
@@ -50,5 +51,5 @@ export function SecureLink({ href, children, onClick, onAuxClick, ...props }: Co
     } catch (failure) { popup?.close(); setError((failure as Error).message); }
     finally { setBusy(false); }
   }
-  return <><a {...props} href="#" aria-disabled={busy || undefined} onClick={open} onAuxClick={open}>{children}</a>{error && <span className="notice error" role="alert">{error}</span>}</>;
+  return <><a {...props} href="#" aria-disabled={busy || undefined} onClick={open} onAuxClick={open}>{children}</a>{error && <span className="notice error" role="alert">{systemMessage(error)}</span>}</>;
 }
